@@ -1,0 +1,98 @@
+/* =========================================================
+   VUE ENTRAÎNEMENT
+   ========================================================= */
+.week-list { display: flex; flex-direction: column; gap: 2px; }
+.week-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 46px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  text-align: left;
+  transition: background var(--dur) var(--ease);
+}
+.week-row:hover { background: var(--surface-2); }
+.week-row.is-today { background: var(--accent-soft); }
+.week-row__day { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+.week-row.is-today .week-row__day { color: var(--accent); }
+.week-row__label { font-size: var(--fs-sm); font-weight: 650; overflow-wrap: anywhere; line-height: 1.35; }
+.week-row__label.is-empty { color: var(--text-3); font-weight: 500; }
+
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+.summary > div { text-align: center; min-width: 0; }
+.summary > div + div { border-left: 1px solid var(--border); }
+.summary strong { display: block; font-size: var(--fs-md); font-weight: 850; letter-spacing: -.02em; white-space: nowrap; }
+.summary span { display: block; font-size: 10.5px; color: var(--text-3); font-weight: 650; margin-top: 2px; }
+
+.week-nav { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; align-items: center; gap: var(--sp-3); margin: var(--sp-6) 0 var(--sp-3); }
+.week-nav__label { text-align: center; line-height: 1.3; }
+.week-nav__label strong { display: block; font-size: var(--fs-md); font-weight: 800; }
+.week-nav__label span { font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; }
+
+/* Jours : défilement horizontal aimanté */
+.days {
+  display: flex;
+  gap: var(--sp-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0 var(--gutter);
+  margin: 0 calc(var(--gutter) * -1);
+  padding: 4px var(--gutter) var(--sp-4);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.days::-webkit-scrollbar { display: none; }
+.day-card {
+  flex: 0 0 min(86vw, 360px);
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-md), var(--inner-highlight);
+}
+.day-card.is-today { border-color: color-mix(in srgb, var(--accent) 55%, transparent); box-shadow: var(--shadow-md), 0 0 0 1px var(--accent-soft), 0 0 40px -12px var(--accent); }
+.day-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-2); }
+.day-card__name { font-size: var(--fs-xl); font-weight: 850; letter-spacing: -.035em; }
+.day-card__date { font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; }
+.day-card__sessions { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.weather { position: relative; display: flex; align-items: center; gap: var(--sp-3); min-height: 60px; padding: 10px 48px 10px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); }
+.weather__icon { font-size: 26px; width: 32px; text-align: center; flex: none; }
+.weather__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.weather__text strong { font-size: var(--fs-sm); font-weight: 750; }
+.weather__text span { font-size: 11.5px; color: var(--text-2); }
+.weather__refresh { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--accent); }
+.weather__refresh:active:not(:disabled) { transform: translateY(-50%) scale(.9); }
+.weather__refresh.is-spinning .icon { animation: spin .8s linear infinite; }
+
+.session { padding: var(--sp-3); border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); animation: pop-in var(--dur) var(--ease); }
+.session__head { display: flex; align-items: center; justify-content: space-between; margin: -4px -4px 8px 0; }
+.session__index { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+.session__selects { display: flex; flex-direction: column; gap: 6px; }
+.session__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.session .input { min-height: 44px; font-size: 16px; }
+.session .select { font-weight: 650; }
+
+/* Gestionnaire des sports */
+.family { border-radius: var(--r-lg); background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+.family__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: 12px 10px 12px 14px; background: var(--surface-2); }
+.family__name { font-size: var(--fs-md); font-weight: 800; }
+.family__count { font-size: 11px; color: var(--text-3); font-weight: 600; }
+.family__type { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); min-height: 46px; padding: 4px 10px 4px 14px; border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: 600; }
+.family__type > span { min-width: 0; overflow-wrap: anywhere; }
+.family .inline-form { padding: 10px; border-top: 1px solid var(--border); }
+.family .inline-form .btn--icon { width: 42px; min-height: 42px; }
+
+@media (min-width: 900px) {
+  .days { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); overflow: visible; margin: 0; padding: 4px 0 var(--sp-4); }
+  .day-card { flex: none; }
+}

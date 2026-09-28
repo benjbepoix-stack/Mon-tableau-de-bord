@@ -1,0 +1,36 @@
+/* =========================================================
+   VUE MESURES
+   ========================================================= */
+.metric-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.metric-card__latest { text-align: right; flex: none; }
+.metric-card__value { font-family: var(--font-display); font-size: 30px; font-weight: 850; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.metric-card__value small { font-size: var(--fs-sm); color: var(--text-3); font-weight: 700; margin-left: 3px; letter-spacing: 0; }
+
+.metric-form { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: start; gap: var(--sp-2); }
+.metric-form .btn { min-height: 48px; margin-top: 22px; }
+@media (max-width: 420px) { .metric-form .btn { margin-top: 0; } }
+.metric-form .field-error { grid-column: 1 / -1; }
+.chart-host { margin-top: var(--sp-3); }
+
+.compare-caption { font-size: var(--fs-sm); color: var(--text-2); margin-bottom: var(--sp-3); }
+.compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+.compare-card { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); min-width: 0; }
+.compare-card__label { font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.compare-card__value { font-size: var(--fs-lg); font-weight: 850; letter-spacing: -.02em; }
+.compare-card__ref { font-size: 11.5px; color: var(--text-2); }
+.compare-card .delta { margin-top: 2px; }
+
+.history-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 12px 8px 12px 14px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); }
+.history-row__date { font-size: var(--fs-xs); color: var(--text-2); font-weight: 650; }
+.history-row__date::first-letter { text-transform: uppercase; }
+.history-row__value { font-size: var(--fs-lg); font-weight: 850; margin-top: 2px; }
+.history-row__value.is-small { font-size: var(--fs-sm); font-weight: 650; color: var(--text); }
+
+@media (max-width: 420px) {
+  .metric-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .metric-form .btn { grid-column: 1 / -1; }
+}
+@media (min-width: 720px) {
+  .form-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .compare-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
