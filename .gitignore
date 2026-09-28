@@ -1,0 +1,26 @@
+# Secrets & environnement (ne jamais versionner)
+.env
+.env.*
+!.env.example
+*.pem
+*-service-account*.json
+serviceAccount*.json
+
+# Firebase CLI
+.firebase/
+.firebaserc.local
+firebase-debug.log*
+database-debug.log*
+
+# Dépendances / outils
+node_modules/
+npm-debug.log*
+.eslintcache
+
+# Systèmes & éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp

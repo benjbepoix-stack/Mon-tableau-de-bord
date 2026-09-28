@@ -1,0 +1,73 @@
+# Mon Dashboard
+
+Tableau de bord personnel (PWA installable sur iPhone) : rendez-vous, événements, tâches, notes, planning d'entraînement, courses et mesures physiques.
+HTML / CSS / JavaScript purs (modules ES), sans étape de build ni dépendance payante. Synchronisation multi-appareils via **Firebase Realtime Database** (offre gratuite).
+
+## Structure
+
+```
+index.html                  Squelette HTML (aucun script inline hormis l'anti-flash du thème)
+manifest.webmanifest        Manifeste PWA
+database.rules.json         Règles de sécurité recommandées pour la Realtime Database
+css/
+  tokens.css                Design tokens (couleurs clair/sombre, rayons, ombres, mouvement)
+  base.css                  Reset, typographie, fond d'ambiance, accessibilité
+  components.css            Boutons, champs, cartes, modales, toasts, graphiques…
+  layout.css                En-tête, barre d'onglets, grilles responsive
+  views/*.css               Styles propres à chaque vue
+js/
+  main.js                   Point d'entrée : navigation, abonnements, erreurs globales
+  config/firebase-config.js Configuration Firebase (publique par conception)
+  core/
+    store.js                État central + persistance locale + diffusion des changements
+    schema.js               Normalisation / validation de forme des données
+    validation.js           Règles de validation des formulaires
+    dates.js, utils.js      Utilitaires
+  services/
+    firebase.js             Synchronisation (chargement dynamique, file d'écriture, état réseau)
+    storage.js              localStorage sécurisé
+    weather.js              Météo Open-Meteo avec cache
+  features/
+    ics.js                  Génération iCalendar (RFC 5545) + ouverture Calendrier iOS
+    calendar-prompt.js      Modale « Ajouter au calendrier »
+    persist.js              Attente de l'accusé de réception Firebase
+  ui/                       Icônes SVG, modales, toasts, thème, pastille de synchro, graphiques
+  views/                    dashboard, training, races, metrics
+```
+
+## Lancer en local
+
+Les modules ES ne fonctionnent pas en `file://`. Servez le dossier :
+
+```bash
+python3 -m http.server 8080
+# puis http://localhost:8080
+```
+
+## Déploiement
+
+GitHub Pages (ou tout hébergement statique) : publier la racine du dépôt. Aucune compilation nécessaire.
+
+## Sécurité Firebase — à lire
+
+* La `apiKey` et le reste de `firebase-config.js` **ne sont pas des secrets** : Firebase les destine au navigateur. Aucune clé privée (compte de service) ne doit jamais être commitée ; le `.gitignore` les exclut.
+* La protection des données repose **uniquement sur les règles** de la base. `database.rules.json` :
+  * limite l'accès au seul nœud `app` ;
+  * refuse toute clé inconnue et valide la forme et la taille des données (empêche d'utiliser la base comme stockage libre).
+* **Déployer les règles** : console Firebase → Realtime Database → *Règles* → coller le contenu de `database.rules.json` → *Publier* (ou `firebase deploy --only database`).
+* ⚠️ Sans authentification, toute personne connaissant l'URL de la base peut lire/écrire le nœud `app`. Pour une protection complète, activez *Firebase Authentication* (e-mail/mot de passe, gratuit) et remplacez `".read": true, ".write": true` par `"auth != null && auth.uid === '<VOTRE_UID>'"`.
+
+## Robustesse
+
+* Fonctionne hors ligne / si Firebase est indisponible (mode « Local » affiché dans l'en-tête), puis resynchronise.
+* Les modifications faites avant la première synchronisation ne sont pas écrasées par le cloud.
+* Données lues toujours normalisées (localStorage corrompu, tableaux convertis en objets par Firebase, nœuds vides supprimés).
+* Validation stricte de chaque formulaire avant écriture ; erreurs affichées sous les champs.
+
+## Calendrier iOS (.ics)
+
+Après l'enregistrement d'un rendez-vous (confirmé par Firebase si en ligne), une modale propose **« Ajouter au Calendrier »**.
+Sur iPhone, Safari reçoit un événement `text/calendar` et affiche directement la fiche native d'ajout à l'app Calendrier. Ailleurs, un fichier `.ics` est téléchargé.
+Un bouton calendrier est aussi disponible sur chaque rendez-vous, événement et course à venir. L'UID est stable : réimporter un rendez-vous modifié met à jour l'événement.
+
+> Depuis l'app installée sur l'écran d'accueil, si la fiche ne s'ouvre pas, utilisez le bouton « Partager le fichier .ics ».
