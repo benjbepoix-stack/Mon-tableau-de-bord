@@ -170,7 +170,7 @@ function openEditor(type, id = null) {
   form.dataset.kind = type;
   $('#itemDateLabel').textContent = isTask ? 'Échéance (facultatif)' : 'Date';
   form.elements.date.required = !isTask;
-  $('#itemTitleInput').placeholder = isTask ? 'Ex. Appeler le garage' : type === 'appointments' ? 'Ex. Dentiste' : 'Ex. Anniversaire de Léa';
+  $('#itemTitleInput').placeholder = isTask ? 'Ex. Appeler le garage' : type === 'appointments' ? 'Ex. Dentiste' : 'Ex. Dîner entre amis';
   if (item) ['title', 'date', 'time', 'endTime', 'location', 'note'].forEach(k => (form.elements[k].value = item[k] || ''));
   else if (!isTask) form.elements.date.value = todayKey();
   openSheet('itemSheet');
