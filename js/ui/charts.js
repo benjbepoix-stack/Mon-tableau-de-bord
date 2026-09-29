@@ -36,8 +36,44 @@ export function renderDonut({ donut, legend, total }, entries, emptyText) {
     .join('');
 }
 
+/* ---------- Courbe d'évolution ---------- */
+
+/** Tracé cubique monotone (Fritsch–Carlson) : lisse sans jamais dépasser les valeurs réelles. */
+function monotonePath(pts) {
+  if (pts.length === 1) return `M${pts[0][0]},${pts[0][1]}`;
+  const n = pts.length;
+  const dx = [];
+  const m = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx[i] = pts[i + 1][0] - pts[i][0];
+    m[i] = (pts[i + 1][1] - pts[i][1]) / dx[i];
+  }
+  const t = [m[0]];
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (3 * (dx[i - 1] + dx[i])) / ((2 * dx[i] + dx[i - 1]) / m[i - 1] + (dx[i] + 2 * dx[i - 1]) / m[i]);
+  t[n - 1] = m[n - 2];
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3;
+    d += ` C${pts[i][0] + h},${pts[i][1] + h * t[i]} ${pts[i + 1][0] - h},${pts[i + 1][1] - h * t[i + 1]} ${pts[i + 1][0]},${pts[i + 1][1]}`;
+  }
+  return d;
+}
+
+/** Graduations « rondes » couvrant [min, max]. */
+function niceTicks(min, max, count = 3) {
+  const raw = (max - min) / (count - 1) || 1;
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(f => f * pow).find(s => s >= raw) || raw;
+  const start = Math.floor(min / step) * step;
+  const ticks = [];
+  for (let v = start; v <= max + step * 0.001; v += step) ticks.push(Number(v.toFixed(6)));
+  if (ticks[ticks.length - 1] < max) ticks.push(Number((ticks[ticks.length - 1] + step).toFixed(6)));
+  return ticks;
+}
+
 /**
  * Courbe d'évolution (6 points max affichés).
+ * Étiquettes sélectives (dernière valeur, min, max) + info-bulle au toucher / survol.
  * @param {HTMLElement} host
  * @param {Array<{date:string,value:number}>} rows  triés par date croissante
  */
@@ -46,51 +82,134 @@ export function renderLineChart(host, rows, { unit, decimals = 0, minPad = 1 }) 
     host.innerHTML = '<p class="chart-empty">Aucune mesure enregistrée pour le moment.</p>';
     return;
   }
+  const fmt = v => `${Number(v).toFixed(decimals).replace('.', ',')}${unit}`;
   // Largeur réelle en pixels : le texte SVG garde sa taille sur mobile.
   const W = Math.max(300, Math.round(host.clientWidth || 600));
-  const H = 240;
-  const L = 16;
-  const R = 16;
-  const T = 34;
-  const B = 44;
+  const H = 210;
+  const L = 44;
+  const R = 18;
+  const T = 30;
+  const B = 36;
   const plotW = W - L - R;
   const plotH = H - T - B;
-  const values = rows.map(r => r.value);
-  let min = Math.min(...values);
-  let max = Math.max(...values);
-  const pad = Math.max((max - min) * 0.25, minPad);
-  min -= pad;
-  max += pad;
-  const x = i => L + (rows.length === 1 ? plotW / 2 : (i / (rows.length - 1)) * plotW);
-  const y = v => T + ((max - v) / (max - min)) * plotH;
-  const pts = rows.map((r, i) => [x(i), y(r.value)]);
 
-  // Courbe lissée (Catmull-Rom -> Bézier)
-  const path = pts
-    .map((p, i) => {
-      if (i === 0) return `M${p[0]},${p[1]}`;
-      const p0 = pts[i - 2] || pts[i - 1];
-      const p1 = pts[i - 1];
-      const p3 = pts[i + 1] || p;
-      const c1 = [p1[0] + (p[0] - p0[0]) / 6, p1[1] + (p[1] - p0[1]) / 6];
-      const c2 = [p[0] - (p3[0] - p1[0]) / 6, p[1] - (p3[1] - p1[1]) / 6];
-      return `C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${p[0]},${p[1]}`;
-    })
-    .join(' ');
-  const area = `${path} L${pts[pts.length - 1][0]},${T + plotH} L${pts[0][0]},${T + plotH} Z`;
-  const grid = [0, 0.5, 1].map(t => `<line class="chart-grid" x1="${L}" x2="${W - R}" y1="${T + t * plotH}" y2="${T + t * plotH}"/>`).join('');
-  const points = rows
+  const values = rows.map(r => r.value);
+  const pad = Math.max((Math.max(...values) - Math.min(...values)) * 0.08, minPad * 0.5);
+  const ticks = niceTicks(Math.min(...values) - pad, Math.max(...values) + pad, 4);
+  const lo = ticks[0];
+  const hi = ticks[ticks.length - 1];
+  const x = i => L + (rows.length === 1 ? plotW / 2 : (i / (rows.length - 1)) * plotW);
+  const y = v => T + ((hi - v) / (hi - lo || 1)) * plotH;
+  const pts = rows.map((r, i) => [x(i), y(r.value)]);
+  const last = rows.length - 1;
+
+  const line = monotonePath(pts);
+  const area = rows.length > 1 ? `${line} L${pts[last][0]},${T + plotH} L${pts[0][0]},${T + plotH} Z` : '';
+  const tickDecimals = ticks.some(t => !Number.isInteger(t)) ? 1 : 0;
+  const grid = ticks
+    .map(t => `<line class="chart-grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text class="chart-axis" x="${L - 10}" y="${y(t) + 4}" text-anchor="end">${t.toFixed(tickDecimals).replace('.', ',')}</text>`)
+    .join('');
+
+  // Axe des dates : étiquettes centrées et contenues dans le graphique ; on en
+  // saute une sur deux si elles sont trop serrées. L'année n'apparaît qu'au
+  // premier point affiché et quand elle change.
+  const spacing = rows.length > 1 ? plotW / (rows.length - 1) : plotW;
+  const every = spacing < 58 ? 2 : 1;
+  let lastYear = null;
+  const dates = rows
     .map((r, i) => {
-      const [px, py] = pts[i];
-      const label = `${Number(r.value).toFixed(decimals).replace('.', ',')}${unit}`;
-      const anchor = i === 0 && rows.length > 1 ? 'start' : i === rows.length - 1 && rows.length > 1 ? 'end' : 'middle';
-      const lx = anchor === 'start' ? px - 6 : anchor === 'end' ? px + 6 : px;
-      const ly = i % 2 === 0 || rows.length < 4 ? py - 12 : py + 22;
-      return `<circle class="chart-dot" cx="${px}" cy="${py}" r="5"/><text class="chart-value" x="${lx}" y="${ly}" text-anchor="${anchor}">${label}</text><text class="chart-date" x="${lx}" y="${H - 14}" text-anchor="${anchor}">${formatKey(r.date, { day: 'numeric', month: 'short' })}</text><text class="chart-year" x="${lx}" y="${H - 1}" text-anchor="${anchor}">${r.date.slice(0, 4)}</text>`;
+      if (i % every !== 0 && i !== last) return '';
+      if (every === 2 && i === last - 1) return '';
+      const text = formatKey(r.date, { day: 'numeric', month: 'short' });
+      const half = (text.length * 6.2) / 2;
+      const lx = Math.min(Math.max(x(i), half + 2), W - half - 2);
+      const year = r.date.slice(0, 4);
+      const showYear = year !== lastYear;
+      lastYear = year;
+      return `<text class="chart-date" x="${lx}" y="${H - 16}" text-anchor="middle">${text}</text>${showYear ? `<text class="chart-year" x="${lx}" y="${H - 2}" text-anchor="middle">${year}</text>` : ''}`;
     })
     .join('');
+
+  // Étiquettes sélectives : min, max et dernière valeur (mise en avant).
+  // Chaque étiquette se place du côté opposé à la courbe voisine.
+  let minI = 0;
+  let maxI = 0;
+  values.forEach((v, i) => {
+    if (v < values[minI]) minI = i;
+    if (v > values[maxI]) maxI = i;
+  });
+  const labelled = new Set([last]);
+  if (rows.length >= 3 && values[minI] !== values[maxI]) [minI, maxI].forEach(i => labelled.add(i));
+  const labels = [...labelled]
+    .map(i => {
+      const [px, py] = pts[i];
+      const neighbours = [values[i - 1], values[i + 1]].filter(v => v !== undefined);
+      const isLow = i === minI || (i !== maxI && neighbours.some(v => v > values[i]));
+      const ly = isLow ? py + 21 : py - 13;
+      const anchor = rows.length > 1 && i === 0 ? 'start' : rows.length > 1 && i === last ? 'end' : 'middle';
+      const lx = anchor === 'start' ? px - 4 : anchor === 'end' ? px + 4 : px;
+      return `<text class="chart-value ${i === last ? 'chart-value--last' : ''}" x="${lx}" y="${Math.max(ly, 12)}" text-anchor="${anchor}">${fmt(values[i])}</text>`;
+    })
+    .join('');
+
+  const dots = pts.map(([px, py], i) => (i === last ? '' : `<circle class="chart-dot" cx="${px}" cy="${py}" r="4"/>`)).join('');
+  const lastDot = `<circle class="chart-halo" cx="${pts[last][0]}" cy="${pts[last][1]}" r="11"/><circle class="chart-dot chart-dot--last" cx="${pts[last][0]}" cy="${pts[last][1]}" r="5.5"/>`;
+
   const gid = `g${Math.random().toString(36).slice(2, 8)}`;
-  host.innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graphique d’évolution">
-    <defs><linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".32"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
-    ${grid}<path d="${area}" fill="url(#${gid})"/><path class="chart-line" d="${path}"/>${points}</svg>`;
+  const summary = rows.length > 1 ? `de ${fmt(values[0])} le ${formatKey(rows[0].date)} à ${fmt(values[last])} le ${formatKey(rows[last].date)}` : `${fmt(values[0])} le ${formatKey(rows[0].date)}`;
+  host.innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution ${summary}">
+    <defs><linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".22"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    ${grid}${area ? `<path d="${area}" fill="url(#${gid})"/>` : ''}<path class="chart-line" d="${line}"/>
+    ${dots}${lastDot}${labels}${dates}
+    <line class="chart-cursor" x1="0" x2="0" y1="${T - 6}" y2="${T + plotH}" visibility="hidden"/>
+    <circle class="chart-dot chart-dot--active" r="6" visibility="hidden"/>
+    <rect class="chart-hit" x="${L - 12}" y="0" width="${plotW + 24}" height="${T + plotH + 8}"/>
+  </svg><div class="chart-tip" hidden></div>`;
+
+  /* Info-bulle : point le plus proche du doigt / de la souris. */
+  const svg = host.querySelector('svg');
+  const tip = host.querySelector('.chart-tip');
+  const cursor = svg.querySelector('.chart-cursor');
+  const active = svg.querySelector('.chart-dot--active');
+  let hideTimer = null;
+  const show = e => {
+    const rect = svg.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * W;
+    let i = 0;
+    pts.forEach((p, k) => {
+      if (Math.abs(p[0] - px) < Math.abs(pts[i][0] - px)) i = k;
+    });
+    const [cx, cy] = pts[i];
+    cursor.setAttribute('x1', cx);
+    cursor.setAttribute('x2', cx);
+    cursor.setAttribute('visibility', 'visible');
+    active.setAttribute('cx', cx);
+    active.setAttribute('cy', cy);
+    active.setAttribute('visibility', 'visible');
+    const prev = i > 0 ? values[i] - values[i - 1] : null;
+    const deltaCls = prev === null || Math.abs(prev) < 1e-9 ? 'neutral' : prev > 0 ? 'up' : 'down';
+    const deltaText = prev === null ? '' : Math.abs(prev) < 1e-9 ? 'Stable' : `${prev > 0 ? '+' : '−'}${fmt(Math.abs(prev))}`;
+    tip.innerHTML = `<strong>${esc(fmt(values[i]))}</strong><span>${esc(formatKey(rows[i].date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }))}</span>${deltaText ? `<em class="delta delta--${deltaCls}">${esc(deltaText)}</em>` : ''}`;
+    tip.hidden = false;
+    const scale = rect.width / W;
+    const left = Math.min(Math.max(cx * scale - tip.offsetWidth / 2, 0), rect.width - tip.offsetWidth);
+    tip.style.transform = `translate(${left}px, ${Math.max(cy * scale - tip.offsetHeight - 16, -8)}px)`;
+  };
+  const hide = () => {
+    tip.hidden = true;
+    cursor.setAttribute('visibility', 'hidden');
+    active.setAttribute('visibility', 'hidden');
+  };
+  svg.addEventListener('pointermove', e => {
+    clearTimeout(hideTimer);
+    show(e);
+  });
+  svg.addEventListener('pointerdown', e => {
+    clearTimeout(hideTimer);
+    show(e);
+  });
+  svg.addEventListener('pointerleave', e => {
+    // Au doigt, l'info-bulle reste lisible un instant après le toucher.
+    hideTimer = setTimeout(hide, e.pointerType === 'mouse' ? 0 : 2500);
+  });
 }

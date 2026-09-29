@@ -186,12 +186,12 @@
           <form class="metric-form" id="weightForm" data-kind="weight" novalidate>
             <div class="field"><label class="field__label" for="w-date">Date</label><input class="input" id="w-date" type="date" name="date" required></div>
             <div class="field"><label class="field__label" for="w-value">Poids · kg</label><input class="input" id="w-value" name="value" inputmode="decimal" placeholder="72,5" autocomplete="off"></div>
-            <button type="submit" class="btn btn--primary">Ajouter</button>
+            <button type="submit" class="btn btn--add btn--icon" aria-label="Ajouter la mesure de poids" title="Ajouter"><span data-icon="plus" data-size="20"></span></button>
           </form>
           <div class="chart-nav" id="weightNav" hidden>
-            <button type="button" class="chip-btn" data-action="window" data-kind="weight" data-dir="1"><span data-icon="chevronLeft" data-size="14"></span>Plus anciennes</button>
+            <button type="button" class="chip-btn chip-btn--icon" data-action="window" data-kind="weight" data-dir="1" aria-label="Mesures plus anciennes"><span data-icon="chevronLeft" data-size="16"></span></button>
             <span class="chart-nav__range"></span>
-            <button type="button" class="chip-btn" data-action="window" data-kind="weight" data-dir="-1">Plus récentes<span data-icon="chevronRight" data-size="14"></span></button>
+            <button type="button" class="chip-btn chip-btn--icon" data-action="window" data-kind="weight" data-dir="-1" aria-label="Mesures plus récentes"><span data-icon="chevronRight" data-size="16"></span></button>
           </div>
           <div class="chart-host" id="weightChart"></div>
           <button type="button" class="link-btn link-btn--center" data-action="history" data-kind="weight">Voir tout l’historique</button>
@@ -205,12 +205,12 @@
           <form class="metric-form" id="ftpForm" data-kind="ftp" novalidate>
             <div class="field"><label class="field__label" for="f-date">Date du test</label><input class="input" id="f-date" type="date" name="date" required></div>
             <div class="field"><label class="field__label" for="f-value">FTP · W</label><input class="input" id="f-value" name="value" inputmode="numeric" placeholder="250" autocomplete="off"></div>
-            <button type="submit" class="btn btn--primary">Ajouter</button>
+            <button type="submit" class="btn btn--add btn--icon" aria-label="Ajouter le test FTP" title="Ajouter"><span data-icon="plus" data-size="20"></span></button>
           </form>
           <div class="chart-nav" id="ftpNav" hidden>
-            <button type="button" class="chip-btn" data-action="window" data-kind="ftp" data-dir="1"><span data-icon="chevronLeft" data-size="14"></span>Plus anciennes</button>
+            <button type="button" class="chip-btn chip-btn--icon" data-action="window" data-kind="ftp" data-dir="1" aria-label="Mesures plus anciennes"><span data-icon="chevronLeft" data-size="16"></span></button>
             <span class="chart-nav__range"></span>
-            <button type="button" class="chip-btn" data-action="window" data-kind="ftp" data-dir="-1">Plus récentes<span data-icon="chevronRight" data-size="14"></span></button>
+            <button type="button" class="chip-btn chip-btn--icon" data-action="window" data-kind="ftp" data-dir="-1" aria-label="Mesures plus récentes"><span data-icon="chevronRight" data-size="16"></span></button>
           </div>
           <div class="chart-host" id="ftpChart"></div>
           <button type="button" class="link-btn link-btn--center" data-action="history" data-kind="ftp">Voir tout l’historique</button>
@@ -227,7 +227,7 @@
           <div class="field"><label class="field__label" for="m-hip">Hanche · cm</label><input class="input" id="m-hip" name="hip" inputmode="decimal" autocomplete="off"></div>
           <div class="field"><label class="field__label" for="m-chest">Poitrine · cm</label><input class="input" id="m-chest" name="chest" inputmode="decimal" autocomplete="off"></div>
           <div class="field"><label class="field__label" for="m-arm">Bras · cm</label><input class="input" id="m-arm" name="arm" inputmode="decimal" autocomplete="off"></div>
-          <div class="field field--full"><button type="submit" class="btn btn--primary btn--block">Enregistrer la prise de mensurations</button></div>
+          <div class="field field--full"><button type="submit" class="btn btn--add btn--block"><span data-icon="plus" data-size="18"></span><span>Enregistrer la prise</span></button></div>
         </form>
         <div class="divider"></div>
         <div id="measureCompare"></div>
