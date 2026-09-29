@@ -52,7 +52,7 @@ function renderSeries(kind) {
   nav.hidden = rows.length <= WINDOW;
   nav.querySelector('[data-dir="1"]').disabled = offsets[kind] >= maxOffset;
   nav.querySelector('[data-dir="-1"]').disabled = offsets[kind] === 0;
-  nav.querySelector('.chart-nav__range').textContent = shown.length ? `${formatKey(shown[0].date)} → ${formatKey(shown[shown.length - 1].date)}` : '';
+  nav.querySelector('.chart-nav__range').textContent = shown.length ? `${formatKey(shown[0].date, { month: 'short', year: 'numeric' })} → ${formatKey(shown[shown.length - 1].date, { month: 'short', year: 'numeric' })}` : '';
   renderLineChart($(`#${kind}Chart`), shown, { unit: ` ${cfg.unit}`, decimals: cfg.decimals, minPad: cfg.minPad });
 }
 
