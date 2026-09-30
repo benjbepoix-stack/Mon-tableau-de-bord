@@ -78,7 +78,13 @@ function renderHero(next) {
       <div><strong>${fmtElev(next)}</strong><span>Dénivelé</span></div>
       <div><strong>${next.target ? esc(next.target) : '—'}</strong><span>Objectif</span></div>
     </div>
-    <button type="button" class="btn btn--glass btn--sm" data-action="calendar" data-id="${esc(next.id)}">${icon('calendarPlus', 16)}<span>Ajouter au calendrier</span></button>`;
+    <div class="race-hero__actions" data-id="${esc(next.id)}">
+      <button type="button" class="btn btn--glass btn--sm" data-action="calendar">${icon('calendarPlus', 16)}<span>Ajouter au calendrier</span></button>
+      <div class="row-actions">
+        <button type="button" class="icon-btn race-hero__icon" data-action="edit" aria-label="Modifier ${esc(next.name)}">${icon('edit', 18)}</button>
+        <button type="button" class="icon-btn race-hero__icon" data-action="delete" aria-label="Supprimer ${esc(next.name)}">${icon('trash', 18)}</button>
+      </div>
+    </div>`;
 }
 
 function raceCard(r, now) {
@@ -157,15 +163,17 @@ export function renderRaces() {
   const now = new Date();
   const list = sorted();
   const upcoming = list.filter(r => isUpcoming(r, now));
-  renderHero(upcoming[0]);
-  const shown = showAllUpcoming ? upcoming : upcoming.slice(0, UPCOMING_PREVIEW);
-  $('#raceUpcomingList').innerHTML = upcoming.length ? shown.map(r => raceCard(r, now)).join('') : '<div class="empty-state"><p>Aucune course à venir.</p></div>';
+  // La prochaine course n'apparaît que dans l'encadré du haut : la liste commence à la suivante.
+  const [next, ...later] = upcoming;
+  renderHero(next);
+  const shown = showAllUpcoming ? later : later.slice(0, UPCOMING_PREVIEW);
+  $('#raceUpcomingList').innerHTML = later.length ? shown.map(r => raceCard(r, now)).join('') : `<div class="empty-state"><p>${next ? 'Aucune autre course à venir.' : 'Aucune course à venir.'}</p></div>`;
   const more = $('#raceMore');
-  more.hidden = upcoming.length <= UPCOMING_PREVIEW;
+  more.hidden = later.length <= UPCOMING_PREVIEW;
   more.setAttribute('aria-expanded', String(showAllUpcoming));
   more.innerHTML = showAllUpcoming
     ? `${icon('chevronUp', 18)}<span>Réduire</span>`
-    : `${icon('chevronDown', 18)}<span>Développer (${upcoming.length - UPCOMING_PREVIEW} de plus)</span>`;
+    : `${icon('chevronDown', 18)}<span>Développer (${later.length - UPCOMING_PREVIEW} de plus)</span>`;
   renderStats(now);
 }
 

@@ -23,6 +23,9 @@
 .race-hero__meta > div { padding: 10px; border-radius: 12px; background: rgba(0, 0, 0, .12); min-width: 0; }
 .race-hero__meta strong { display: block; font-size: var(--fs-md); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .race-hero__meta span { font-size: 11px; opacity: .8; }
+.race-hero__actions { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.race-hero__icon { color: #fff; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .25); }
+.race-hero__icon:hover:not(:disabled) { background: rgba(255, 255, 255, .26); color: #fff; }
 .race-hero .btn--glass { --btn-bg: rgba(255, 255, 255, .18); --btn-fg: #fff; border-color: rgba(255, 255, 255, .3); }
 
 .race-card {
