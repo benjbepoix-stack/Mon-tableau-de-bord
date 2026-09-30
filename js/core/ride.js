@@ -286,8 +286,8 @@ export function scoreRoute(r, target) {
   const elevErr = target.ascent === null ? 0 : Math.abs(r.ascent - target.ascent) / Math.max(target.ascent, 250);
   const windCost = r.sim.secondsNoWind ? r.sim.seconds / r.sim.secondsNoWind - 1 : 0;
   const half = splitHeadwind(r.sim);
-  // Tactique : mieux vaut le vent de face à l'aller et dans le dos au retour.
-  const tactic = Math.max(0, half.second - half.first) / 25;
+  // Tactique : vent de face à l'aller, dans le dos au retour (bonus), l'inverse est pénalisé.
+  const tactic = (half.second - half.first) / 12;
   const traffic = r.mix.major * 1.5 + r.mix.medium * 0.4;
   const parts = {
     distance: distErr * 3,
