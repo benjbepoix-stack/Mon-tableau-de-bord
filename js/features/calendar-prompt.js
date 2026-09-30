@@ -4,7 +4,7 @@
  * fournit le geste utilisateur exigé par Safari iOS pour ouvrir le .ics.
  */
 import { $, esc } from '../core/utils.js';
-import { formatKey, isTime } from '../core/dates.js';
+import { formatKey, isTime, isRepeat, REPEATS } from '../core/dates.js';
 import { buildICS, openInCalendar, shareICS, isIOS, isStandalone } from './ics.js';
 import { openSheet, closeSheet } from '../ui/dialog.js';
 import { icon } from '../ui/icons.js';
@@ -38,6 +38,7 @@ export function offerCalendar(event, { heading = 'Ajouter au calendrier ?', sync
       <div class="cal-card__title">${esc(event.title)}</div>
       <div class="cal-card__row">${icon('calendar', 16)}<span>${esc(formatKey(event.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</span></div>
       <div class="cal-card__row">${icon('clock', 16)}<span>${esc(timeRange(event))}</span></div>
+      ${isRepeat(event.repeat) ? `<div class="cal-card__row">${icon('repeat', 16)}<span>${REPEATS[event.repeat].label}</span></div>` : ''}
       ${event.location ? `<div class="cal-card__row">${icon('pin', 16)}<span>${esc(event.location)}</span></div>` : ''}
     </div>
     <div class="dialog__actions dialog__actions--stack">

@@ -1,6 +1,6 @@
 /* Vue Dashboard : prochain rendez-vous / événement, tâches, notes. */
 import { $, $$, esc, uid, debounce, plural } from '../core/utils.js';
-import { combine, formatDate, formatKey, fromKey, relativeDay, todayKey } from '../core/dates.js';
+import { combine, formatDate, formatKey, fromKey, relativeDay, todayKey, isRepeat, nextOccurrenceKey, REPEATS } from '../core/dates.js';
 import { state, commit } from '../core/store.js';
 import { rules, validate, showErrors, clearErrors, formValues } from '../core/validation.js';
 import { openSheet, closeSheet, confirmDialog, isOpen } from '../ui/dialog.js';
@@ -18,14 +18,16 @@ const TYPES = {
 let archive = { type: 'appointments', tab: 'upcoming' };
 
 /* ---------- Sélecteurs ---------- */
+/** Élément tel qu'affiché : un élément répété prend la date de sa prochaine occurrence. */
+const view = x => (isRepeat(x.repeat) ? { ...x, date: nextOccurrenceKey(x) } : x);
 const startOf = x => combine(x.date, x.time, '23:59')?.getTime() ?? Infinity;
 const isPast = x => {
   if (!x.date) return false;
   const end = combine(x.date, x.endTime || x.time, '23:59');
   return end ? end.getTime() < Date.now() : false;
 };
-const upcoming = type => state.dashboard[type].filter(x => x.date && !isPast(x)).sort((a, b) => startOf(a) - startOf(b));
-const past = type => state.dashboard[type].filter(x => x.date && isPast(x)).sort((a, b) => startOf(b) - startOf(a));
+const upcoming = type => state.dashboard[type].map(view).filter(x => x.date && !isPast(x)).sort((a, b) => startOf(a) - startOf(b));
+const past = type => state.dashboard[type].map(view).filter(x => x.date && isPast(x)).sort((a, b) => startOf(b) - startOf(a));
 
 /** Élément du dashboard -> événement iCalendar. */
 export const toCalendarEvent = (item, type) => ({
@@ -36,7 +38,8 @@ export const toCalendarEvent = (item, type) => ({
   endTime: item.endTime,
   location: item.location,
   description: item.note,
-  alarmMinutes: type === 'appointments' ? 30 : 0
+  alarmMinutes: type === 'appointments' ? 30 : 0,
+  repeat: item.repeat
 });
 
 /* ---------- Rendu ---------- */
@@ -50,7 +53,7 @@ function itemCard(x, type, { featured = false } = {}) {
   const chip = d
     ? `<div class="date-chip date-chip--${type}"><span class="date-chip__day">${d.getDate()}</span><span class="date-chip__month">${formatDate(d, { month: 'short' })}</span></div>`
     : '';
-  const meta = [x.date ? `<span class="tag tag--${type}">${relativeDay(x.date)}</span>` : '', timeLabel(x) ? `<span>${icon('clock', 13)}${timeLabel(x)}</span>` : '', x.location ? `<span>${icon('pin', 13)}${esc(x.location)}</span>` : '']
+  const meta = [x.date ? `<span class="tag tag--${type}">${relativeDay(x.date)}</span>` : '', timeLabel(x) ? `<span>${icon('clock', 13)}${timeLabel(x)}</span>` : '', isRepeat(x.repeat) ? `<span>${icon('repeat', 13)}${REPEATS[x.repeat].label}</span>` : '', x.location ? `<span>${icon('pin', 13)}${esc(x.location)}</span>` : '']
     .filter(Boolean)
     .join('');
   return `<article class="item-card ${featured ? 'item-card--featured' : ''}" data-id="${esc(x.id)}" data-type="${type}">
@@ -111,7 +114,7 @@ function renderGreeting() {
   const h = new Date().getHours();
   const hello = h < 5 ? 'Bonne nuit' : h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
   const remaining = state.dashboard.tasks.filter(t => !t.done).length;
-  const todayItems = [...state.dashboard.appointments, ...state.dashboard.events].filter(x => x.date === todayKey()).length;
+  const todayItems = [...state.dashboard.appointments, ...state.dashboard.events].map(view).filter(x => x.date === todayKey()).length;
   $('#greeting').innerHTML = `
     <div class="hero__date">${formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long' })}</div>
     <div class="hero__title">${hello} 👋</div>
@@ -171,7 +174,7 @@ function openEditor(type, id = null) {
   $('#itemDateLabel').textContent = isTask ? 'Échéance (facultatif)' : 'Date';
   form.elements.date.required = !isTask;
   $('#itemTitleInput').placeholder = isTask ? 'Ex. Appeler le garage' : type === 'appointments' ? 'Ex. Dentiste' : 'Ex. Dîner entre amis';
-  if (item) ['title', 'date', 'time', 'endTime', 'location', 'note'].forEach(k => (form.elements[k].value = item[k] || ''));
+  if (item) ['title', 'date', 'time', 'endTime', 'repeat', 'location', 'note'].forEach(k => (form.elements[k].value = item[k] || ''));
   else if (!isTask) form.elements.date.value = todayKey();
   openSheet('itemSheet');
 }
@@ -187,6 +190,7 @@ const itemSchema = type => {
       (v, all) => (v && !all.time ? 'Indiquez d’abord l’heure de début.' : null),
       (v, all) => (v && all.time && v <= all.time ? 'L’heure de fin doit être après le début.' : null)
     ],
+    repeat: [v => (!v || isRepeat(v) ? null : 'Périodicité invalide.')],
     location: [rules.maxLength(120)],
     note: [rules.maxLength(500)]
   };
@@ -199,7 +203,7 @@ async function onSubmit(e) {
   const type = v.type;
   if (!TYPES[type]) return;
   const isTask = type === 'tasks';
-  if (isTask) Object.assign(v, { time: '', endTime: '', location: '' });
+  if (isTask) Object.assign(v, { time: '', endTime: '', repeat: '', location: '' });
 
   const { valid, errors } = validate(v, itemSchema(type));
   if (!valid) return showErrors(form, errors);
@@ -210,6 +214,7 @@ async function onSubmit(e) {
   if (!isTask) {
     if (v.endTime) item.endTime = v.endTime;
     if (v.location) item.location = v.location;
+    if (v.repeat) item.repeat = v.repeat;
   } else item.done = existing?.done ?? false; // corrige : l'état « terminée » n'est plus perdu à l'édition
 
   if (existing) list[list.indexOf(existing)] = item;

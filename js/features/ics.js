@@ -10,7 +10,7 @@
  * déclenchée par un geste utilisateur (clic) : c'est pourquoi l'app passe par
  * une modale de confirmation après l'enregistrement Firebase.
  */
-import { combine, isTime } from '../core/dates.js';
+import { combine, isTime, isRepeat, REPEATS } from '../core/dates.js';
 
 const PRODID = '-//Mon Dashboard//Agenda//FR';
 const DEFAULT_DURATION_MIN = 60;
@@ -78,7 +78,8 @@ export function eventWindow({ date, time, endTime, durationMinutes }) {
 /**
  * Construit le contenu .ics d'un événement.
  * @param {{id:string,title:string,date:string,time?:string,endTime?:string,
- *          location?:string,description?:string,alarmMinutes?:number}} event
+ *          location?:string,description?:string,alarmMinutes?:number,
+ *          repeat?:'daily'|'weekly'|'monthly'|'yearly'}} event
  */
 export function buildICS(event) {
   const span = eventWindow(event);
@@ -98,6 +99,7 @@ export function buildICS(event) {
     allDay ? `DTEND;VALUE=DATE:${toDateValue(end)}` : `DTEND:${toUTC(end)}`,
     `SUMMARY:${escapeText(event.title)}`
   ];
+  if (isRepeat(event.repeat)) lines.push(`RRULE:FREQ=${REPEATS[event.repeat].rrule}`);
   if (event.location) lines.push(`LOCATION:${escapeText(event.location)}`);
   if (event.description) lines.push(`DESCRIPTION:${escapeText(event.description)}`);
   if (event.sequence) lines.push(`SEQUENCE:${event.sequence}`);

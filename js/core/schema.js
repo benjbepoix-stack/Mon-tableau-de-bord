@@ -5,7 +5,7 @@
  * transformer un tableau en objet indexé).
  */
 import { uid } from './utils.js';
-import { isDateKey, isTime } from './dates.js';
+import { isDateKey, isTime, isRepeat } from './dates.js';
 
 export const REST_TRAINING = 'Journée off - repos';
 const LEGACY_REST = 'Repos';
@@ -47,6 +47,7 @@ function normalizeItem(raw, withDone) {
   };
   if (isTime(raw.endTime)) item.endTime = raw.endTime;
   if (raw.location) item.location = str(raw.location, 120);
+  if (!withDone && isRepeat(raw.repeat)) item.repeat = raw.repeat;
   if (withDone) item.done = Boolean(raw.done);
   return item;
 }
