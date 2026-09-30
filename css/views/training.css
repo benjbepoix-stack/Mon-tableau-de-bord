@@ -103,6 +103,9 @@
 /* Couleur de chaque type de phase : --ph (vive) et --ph-soft (fond). */
 .phase--base { --ph: var(--blue); --ph-soft: var(--blue-soft); }
 .phase--build { --ph: var(--violet); --ph-soft: var(--violet-soft); }
+.phase--buildVolume { --ph: color-mix(in srgb, var(--violet) 55%, var(--blue)); --ph-soft: color-mix(in srgb, var(--violet-soft) 55%, var(--blue-soft)); }
+.phase--buildIntensity { --ph: color-mix(in srgb, var(--violet) 65%, var(--danger)); --ph-soft: color-mix(in srgb, var(--violet-soft) 60%, var(--danger-soft)); }
+.phase--buildRace { --ph: color-mix(in srgb, var(--violet) 70%, var(--text)); --ph-soft: var(--violet-soft); }
 .phase--taper { --ph: var(--amber); --ph-soft: var(--amber-soft); }
 .phase--recovery { --ph: var(--accent); --ph-soft: var(--accent-soft); }
 .phase--transition { --ph: var(--text-3); --ph-soft: var(--surface-3); }
@@ -171,3 +174,6 @@
 .race-banner { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 12px 14px; border-radius: var(--r-md); background: var(--danger-soft); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); text-align: left; }
 .race-banner strong { font-size: var(--fs-md); font-weight: 850; color: var(--text); }
 .race-banner span { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--text-2); font-weight: 600; }
+
+/* Onglets « Cette semaine » / « Saison » */
+.training-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; }

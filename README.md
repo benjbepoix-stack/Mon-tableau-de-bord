@@ -79,7 +79,8 @@ Rendez-vous et événements peuvent se répéter (tous les jours, semaines, mois
 
 ## Saison (phases d'entraînement)
 
-Dans l'onglet **Entraînement**, la carte « Saison » permet de planifier ses phases : préparation générale (foncier), préparation spécifique, affûtage, récupération, transition.
+L'onglet **Entraînement** a deux sous-onglets : **Cette semaine** (planning, bouton « Sports & séances ») et **Saison**.
+La Saison permet de planifier ses phases : préparation générale (foncier), spécifique volume, spécifique intensité, spécifique allure course, spécifique mixte, affûtage, récupération, transition.
 Elle affiche la phase en cours (avec l'orientation des séances), la prochaine course et un calendrier macro sur six mois (phases en couleur, courses cerclées de rouge ; un appui ouvre la semaine correspondante).
 Le planning hebdomadaire montre la phase de chaque jour et les courses du calendrier.
 

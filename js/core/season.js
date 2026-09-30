@@ -13,17 +13,40 @@ import { uid } from './utils.js';
 
 export const PHASES_KEY = 'seasonPhases';
 
-/** Types de phase : nom et orientation des séances (couleur : classe CSS .phase--<type>). */
+/**
+ * Types de phase : nom et orientation des séances (couleur : classe CSS .phase--<type>).
+ * `group: 'spec'` regroupe les variantes de préparation spécifique dans le formulaire.
+ * Le type historique `build` est conservé pour les phases déjà enregistrées.
+ */
 export const PHASE_TYPES = {
   base: {
-    name: 'Préparation générale',
+    name: 'Préparation générale (foncier)',
     short: 'Foncier',
     advice: 'Volume en endurance fondamentale, sorties longues faciles, renforcement et technique. Peu d’intensité.'
   },
+  buildVolume: {
+    name: 'Spécifique volume',
+    short: 'Spé volume',
+    group: 'spec',
+    advice: 'Augmenter progressivement la charge : sorties longues spécifiques (dénivelé, terrain, durée proche de la course), enchaînements sur deux jours. Intensité modérée (tempo, seuil long).'
+  },
+  buildIntensity: {
+    name: 'Spécifique intensité',
+    short: 'Spé intensité',
+    group: 'spec',
+    advice: 'Volume stable ou en léger retrait, qualité en hausse : fractionné VO₂max, seuil, côtes, 2 séances dures par semaine maximum, bien encadrées de récupération.'
+  },
+  buildRace: {
+    name: 'Spécifique allure course',
+    short: 'Spé course',
+    group: 'spec',
+    advice: 'Répétitions et simulations à l’allure cible, test du matériel et de la nutrition, sortie « répétition générale » 2 à 3 semaines avant la course.'
+  },
   build: {
-    name: 'Préparation spécifique',
+    name: 'Spécifique (mixte)',
     short: 'Spécifique',
-    advice: 'Séances au rythme de la course : seuil, fractionné, sorties longues spécifiques (dénivelé, allure cible).'
+    group: 'spec',
+    advice: 'Séances au rythme de la course : seuil, fractionné, sorties longues spécifiques (dénivelé, allure cible), en alternant semaines de charge et d’assimilation.'
   },
   taper: {
     name: 'Affûtage',
