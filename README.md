@@ -33,7 +33,7 @@ js/
     calendar-prompt.js      Modale « Ajouter au calendrier »
     persist.js              Attente de l'accusé de réception Firebase
   ui/                       Icônes SVG, modales, toasts, thème, pastille de synchro, graphiques
-  views/                    dashboard, training, races, metrics
+  views/                    dashboard, training, races, metrics, routes (parcours vélo)
 ```
 
 ## Lancer en local
@@ -85,3 +85,15 @@ Elle affiche la phase en cours (avec l'orientation des séances), la prochaine c
 Le planning hebdomadaire montre la phase de chaque jour et les courses du calendrier.
 
 Les phases sont enregistrées dans `objectives.seasonPhases` : ce nœud accepte déjà un contenu libre dans `database.rules.json`, aucune republication des règles n'est nécessaire.
+
+## Parcours vélo de route
+
+L'onglet **Parcours** génère des boucles de vélo de route à partir d'un point de départ (carte, adresse ou position GPS) :
+
+* **Séance** : endurance, récupération, intervalles, côtes, sortie longue ou libre — fixe l'intensité (en % de la FTP de l'onglet *Mesures*) et le dénivelé visé (modifiable).
+* **Vent** : prévisions horaires Open-Meteo au point de départ. Huit boucles sont calculées dans toutes les directions (la première face au vent), puis simulées heure par heure avec un modèle physique (puissance, poids, pente, vent de face/dos). La meilleure privilégie **l'aller face au vent et le retour vent dans le dos**. Le tracé est coloré selon le vent au moment du passage.
+* **Routes tranquilles** : itinéraires [BRouter](https://brouter.de) (OpenStreetMap), profils `fastbike`, `fastbike-lowtraffic` ou `fastbike-verylowtraffic` qui évitent les axes à fort trafic estimé. La part de grands axes, de départementales, de chemins non asphaltés et d'itinéraires cyclables balisés est affichée.
+* **Export GPX** (Garmin, Wahoo, Komoot, Strava…), lien vers la **heatmap Strava** centrée sur la boucle, lien pour retoucher le tracé dans BRouter-web.
+
+Services gratuits, sans clé : BRouter, Open-Meteo, Nominatim, tuiles CyclOSM / OSM / OpenTopoMap / Waymarked Trails. Leaflet est chargé à la demande depuis cdnjs.
+La heatmap Strava n'a pas d'API publique (tuiles réservées aux comptes connectés) : elle est proposée en lien externe plutôt qu'intégrée.

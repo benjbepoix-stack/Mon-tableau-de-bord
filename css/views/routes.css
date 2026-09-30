@@ -1,0 +1,89 @@
+/* =========================================================
+   VUE PARCOURS VÉLO
+   ========================================================= */
+.routes-grid { display: grid; gap: var(--sp-4); }
+:root { --wind-tail: #2ee6a8; --wind-cross: #ffc24b; --wind-head: #ff6b7a; }
+:root[data-theme="light"] { --wind-tail: #0ea46f; --wind-cross: #d99413; --wind-head: #e5484d; }
+
+.route-hint { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.45; }
+.route-hint--rider { padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); }
+
+.session-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.session-chip {
+  min-height: 36px; padding: 0 14px; border-radius: var(--r-pill);
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text-2); font-size: var(--fs-sm); font-weight: 700;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.session-chip[aria-checked="true"] { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+
+.start-row { display: grid; grid-template-columns: minmax(0, 1fr) 48px 48px; gap: var(--sp-2); }
+.start-row .btn { width: 48px; min-height: 48px; border-radius: var(--r-md); }
+
+.route-progress { display: flex; align-items: center; gap: var(--sp-3); }
+.route-progress .progress__label { white-space: nowrap; }
+
+/* ---------- Carte ---------- */
+.map-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.route-map { height: 58vh; min-height: 320px; max-height: 620px; background: var(--surface-2); z-index: 0; }
+:root:not([data-theme="light"]) .route-map .leaflet-tile-pane { filter: brightness(.82) saturate(.9); }
+.route-map .leaflet-control-attribution { font-size: 9.5px; }
+.route-map .leaflet-control-layers { border-radius: 12px; font: 600 12px var(--font); }
+.map-loading { display: grid; place-items: center; height: 100%; color: var(--text-3); font-size: var(--fs-sm); gap: var(--sp-2); }
+
+.map-legend { display: flex; flex-wrap: wrap; gap: var(--sp-3); padding: 10px var(--sp-4); font-size: 11px; font-weight: 700; color: var(--text-2); border-top: 1px solid var(--border); }
+.map-legend__item { display: inline-flex; align-items: center; gap: 6px; }
+.map-legend__item::before { content: ""; width: 16px; height: 4px; border-radius: 2px; background: var(--c); }
+.map-legend__item--tail { --c: var(--wind-tail); }
+.map-legend__item--cross { --c: var(--wind-cross); }
+.map-legend__item--head { --c: var(--wind-head); }
+
+.start-marker { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .45); }
+
+/* ---------- Bandeau vent ---------- */
+.wind-banner { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); min-height: 64px; }
+.wind-banner:empty { display: none; }
+.wind-arrow { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 14px; background: var(--blue-soft); color: var(--blue); }
+.wind-arrow svg { transition: transform var(--dur-slow) var(--ease); }
+.wind-banner__main { min-width: 0; flex: 1; }
+.wind-banner__title { font-weight: 800; font-size: var(--fs-md); }
+.wind-banner__sub { font-size: var(--fs-xs); color: var(--text-2); margin-top: 2px; }
+.wind-banner__advice { font-size: var(--fs-xs); color: var(--accent); font-weight: 700; margin-top: 3px; }
+
+/* ---------- Liste des propositions ---------- */
+.route-list { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 1fr); gap: var(--sp-2); overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x mandatory; }
+.route-option {
+  scroll-snap-align: start; text-align: left; padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--surface); border: 1.5px solid var(--border); display: flex; flex-direction: column; gap: 6px;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.route-option[aria-selected="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.route-option__top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.route-option__name { font-weight: 800; font-size: var(--fs-sm); }
+.route-option__stats { display: flex; gap: 10px; font-size: var(--fs-xs); color: var(--text-2); font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* ---------- Détail ---------- */
+.route-detail { margin-top: var(--sp-3); }
+.route-detail .stats-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 520px) { .route-detail .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.route-block { margin-top: var(--sp-5); }
+.route-block__title { font-size: var(--fs-xs); font-weight: 750; color: var(--text-2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: var(--sp-2); }
+.route-note { font-size: var(--fs-sm); color: var(--text-2); line-height: 1.5; }
+.route-note strong { color: var(--text); }
+.route-warn { display: flex; gap: 8px; align-items: flex-start; margin-top: var(--sp-2); padding: 10px 12px; border-radius: var(--r-md); background: var(--amber-soft); color: var(--amber); font-size: var(--fs-xs); font-weight: 650; }
+
+.split-bar { display: flex; height: 10px; border-radius: var(--r-pill); overflow: hidden; background: var(--surface-3); }
+.split-bar > span { background: var(--c); min-width: 0; }
+.split-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 11.5px; color: var(--text-2); font-weight: 650; }
+.split-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.split-legend span::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+
+.elev-chart { display: block; width: 100%; height: auto; }
+.elev-area { fill: url(#elevFill); }
+.elev-line { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; }
+
+.route-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-5); }
+.route-actions .btn { flex: 1 1 160px; }
+
+.route-credits { margin-top: var(--sp-6); text-align: center; font-size: 11px; color: var(--text-3); }
+.route-credits a { color: inherit; text-decoration: underline; }

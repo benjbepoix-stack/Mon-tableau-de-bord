@@ -12,11 +12,13 @@ import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.j
 import { initTraining, renderTraining, showTraining } from './views/training.js';
 import { initRaces, renderRaces, tickCountdowns } from './views/races.js';
 import { initMetrics, renderMetrics } from './views/metrics.js';
+import { initRoutes, showRoutes } from './views/routes.js';
 
 const VIEWS = {
   dashboardView: { kicker: 'Tableau de bord', title: 'Mon espace', show: renderDashboard },
   trainingView: { kicker: 'Planning sportif', title: 'Entraînement', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] },
   raceView: { kicker: 'Calendrier sportif', title: 'Mes courses', show: renderRaces, render: renderRaces, slices: ['races'] },
+  routesView: { kicker: 'Vélo de route', title: 'Parcours', show: showRoutes, render: showRoutes, slices: ['bodyMetrics'] },
   metricsView: { kicker: 'Suivi personnel', title: 'Mesures', show: renderMetrics, render: renderMetrics, slices: ['bodyMetrics'] }
 };
 const VIEW_KEY = 'dashboard_last_view';
@@ -80,6 +82,7 @@ function init() {
   initTraining();
   initRaces();
   initMetrics();
+  initRoutes();
 
   renderNotes();
   renderDashboard();

@@ -31,6 +31,7 @@
   <link rel="stylesheet" href="css/views/training.css">
   <link rel="stylesheet" href="css/views/races.css">
   <link rel="stylesheet" href="css/views/metrics.css">
+  <link rel="stylesheet" href="css/views/routes.css">
 
   <script type="module" src="js/main.js"></script>
 </head>
@@ -56,6 +57,7 @@
     <button type="button" class="tabbar__item is-active" data-view="dashboardView" aria-current="page"><span data-icon="home"></span><span>Accueil</span></button>
     <button type="button" class="tabbar__item" data-view="trainingView"><span data-icon="training"></span><span>Entraînement</span></button>
     <button type="button" class="tabbar__item" data-view="raceView"><span data-icon="flag"></span><span>Courses</span></button>
+    <button type="button" class="tabbar__item" data-view="routesView"><span data-icon="bike"></span><span>Parcours</span></button>
     <button type="button" class="tabbar__item" data-view="metricsView"><span data-icon="chart"></span><span>Mesures</span></button>
   </nav>
 
@@ -200,6 +202,54 @@
         <header class="section__head"><h2 class="section__title">Courses passées · <span id="raceHistoryYear"></span></h2></header>
         <div id="raceHistoryList" class="stack"></div>
       </section>
+    </section>
+
+    <!-- ================= PARCOURS VÉLO ================= -->
+    <section id="routesView" class="view" hidden aria-labelledby="headerTitle">
+      <div class="routes-grid">
+        <section class="card route-form-card">
+          <header class="card__head"><div><h2 class="card__title">Ma sortie vélo</h2><p class="card__sub">Boucle adaptée au vent, loin des grands axes</p></div></header>
+          <form class="form" id="routeForm" novalidate>
+            <div class="field">
+              <span class="field__label" id="sessionLabel">Type de séance</span>
+              <div class="session-chips" id="sessionChips" role="radiogroup" aria-labelledby="sessionLabel"></div>
+              <p class="route-hint" id="sessionHint"></p>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label class="field__label" for="r-km">Distance · km</label><input class="input" id="r-km" name="km" inputmode="numeric" autocomplete="off" required></div>
+              <div class="field"><label class="field__label" for="r-ascent">Dénivelé · m <span class="field__opt">(facultatif)</span></label><input class="input" id="r-ascent" name="ascent" inputmode="numeric" autocomplete="off" placeholder="Auto"></div>
+              <div class="field"><label class="field__label" for="r-date">Jour</label><input class="input" id="r-date" type="date" name="date" required></div>
+              <div class="field"><label class="field__label" for="r-time">Départ</label><input class="input" id="r-time" type="time" name="time" required></div>
+            </div>
+            <div class="field"><label class="field__label" for="r-quiet">Routes</label><select class="input select" id="r-quiet" name="quiet"></select></div>
+            <div class="field">
+              <label class="field__label" for="r-place">Point de départ</label>
+              <div class="start-row">
+                <input class="input" id="r-place" name="place" autocomplete="off" placeholder="Ville ou adresse" enterkeyhint="search">
+                <button type="button" class="btn btn--soft btn--icon" id="placeSearch" aria-label="Rechercher le lieu"><span data-icon="search" data-size="18"></span></button>
+                <button type="button" class="btn btn--soft btn--icon" id="locateMe" aria-label="Utiliser ma position"><span data-icon="locate" data-size="18"></span></button>
+              </div>
+              <p class="route-hint" id="startLabel"></p>
+            </div>
+            <p class="route-hint route-hint--rider" id="riderNote"></p>
+            <button type="submit" class="btn btn--primary btn--lg btn--block" id="routeSubmit"><span data-icon="sparkle" data-size="18"></span><span>Générer les parcours</span></button>
+            <div class="route-progress" id="routeProgress" hidden aria-live="polite"><div class="progress"><div class="progress__bar"></div></div><span class="progress__label"></span></div>
+          </form>
+        </section>
+
+        <section class="card map-card">
+          <div class="wind-banner" id="windBanner" aria-live="polite"></div>
+          <div class="route-map" id="routeMap" aria-label="Carte du parcours"></div>
+          <div class="map-legend" aria-hidden="true"><span class="map-legend__item map-legend__item--tail">Vent dans le dos</span><span class="map-legend__item map-legend__item--cross">De côté</span><span class="map-legend__item map-legend__item--head">De face</span></div>
+        </section>
+      </div>
+
+      <section class="section" id="routeResults" hidden>
+        <header class="section__head"><h2 class="section__title">Parcours proposés</h2></header>
+        <div class="route-list" id="routeList" role="listbox" aria-label="Parcours proposés"></div>
+        <section class="card route-detail" id="routeDetail" aria-live="polite"></section>
+      </section>
+      <p class="route-credits">Itinéraires <a href="https://brouter.de" target="_blank" rel="noopener">BRouter</a> · cartes © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, CyclOSM · vent <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a></p>
     </section>
 
     <!-- ================= MESURES ================= -->
