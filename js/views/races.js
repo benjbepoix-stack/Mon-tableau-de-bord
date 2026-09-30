@@ -12,6 +12,8 @@ import { offerCalendar } from '../features/calendar-prompt.js';
 
 let viewYear = new Date().getFullYear();
 let silentNext = false;
+let showAllUpcoming = false;
+const UPCOMING_PREVIEW = 3;
 
 const startOf = r => combine(r.date, r.time, '00:00');
 const isUpcoming = (r, now = new Date()) => startOf(r) > now;
@@ -156,7 +158,14 @@ export function renderRaces() {
   const list = sorted();
   const upcoming = list.filter(r => isUpcoming(r, now));
   renderHero(upcoming[0]);
-  $('#raceUpcomingList').innerHTML = upcoming.length ? upcoming.map(r => raceCard(r, now)).join('') : '<div class="empty-state"><p>Aucune course à venir.</p></div>';
+  const shown = showAllUpcoming ? upcoming : upcoming.slice(0, UPCOMING_PREVIEW);
+  $('#raceUpcomingList').innerHTML = upcoming.length ? shown.map(r => raceCard(r, now)).join('') : '<div class="empty-state"><p>Aucune course à venir.</p></div>';
+  const more = $('#raceMore');
+  more.hidden = upcoming.length <= UPCOMING_PREVIEW;
+  more.setAttribute('aria-expanded', String(showAllUpcoming));
+  more.innerHTML = showAllUpcoming
+    ? `${icon('chevronUp', 18)}<span>Réduire</span>`
+    : `${icon('chevronDown', 18)}<span>Développer (${upcoming.length - UPCOMING_PREVIEW} de plus)</span>`;
   renderStats(now);
 }
 
@@ -235,6 +244,12 @@ async function onClick(e) {
   if (!btn) return;
   const action = btn.dataset.action;
   if (action === 'add') return openEditor();
+  if (action === 'toggle-upcoming') {
+    showAllUpcoming = !showAllUpcoming;
+    renderRaces();
+    if (!showAllUpcoming) $('#raceUpcomingList').closest('.section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
   if (action === 'year-prev' || action === 'year-next') {
     viewYear += action === 'year-prev' ? -1 : 1;
     return renderStats(new Date());

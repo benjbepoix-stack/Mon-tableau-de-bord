@@ -62,3 +62,5 @@
   #raceUpcomingList > .empty-state, #raceHistoryList > .empty-state { grid-column: 1 / -1; }
   .stats-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
+
+.race-more { width: 100%; margin-top: var(--sp-3); }

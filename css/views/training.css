@@ -96,3 +96,78 @@
   .days { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); overflow: visible; margin: 0; padding: 4px 0 var(--sp-4); }
   .day-card { flex: none; }
 }
+
+/* =========================================================
+   SAISON : phases d'entraînement
+   ========================================================= */
+/* Couleur de chaque type de phase : --ph (vive) et --ph-soft (fond). */
+.phase--base { --ph: var(--blue); --ph-soft: var(--blue-soft); }
+.phase--build { --ph: var(--violet); --ph-soft: var(--violet-soft); }
+.phase--taper { --ph: var(--amber); --ph-soft: var(--amber-soft); }
+.phase--recovery { --ph: var(--accent); --ph-soft: var(--accent-soft); }
+.phase--transition { --ph: var(--text-3); --ph-soft: var(--surface-3); }
+
+.season-card { margin-bottom: var(--sp-4); }
+.phase-now { padding: 14px 16px; border-radius: var(--r-md); background: var(--ph-soft, var(--surface-2)); border: 1px solid var(--border); border-left: 4px solid var(--ph, var(--border-strong)); }
+.phase-now__kicker { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ph, var(--text-3)); }
+.phase-now__name { font-size: var(--fs-xl); font-weight: 850; letter-spacing: -.03em; margin-top: 2px; }
+.phase-now__dates { font-size: var(--fs-xs); color: var(--text-2); font-weight: 650; margin-top: 2px; }
+.phase-now__advice { font-size: var(--fs-sm); color: var(--text-2); margin-top: 8px; line-height: 1.45; }
+.phase-now__note { font-size: var(--fs-xs); color: var(--text-3); margin-top: 4px; font-style: italic; }
+.phase-now--empty .phase-now__name { font-size: var(--fs-md); }
+.season-next, .season-race { display: flex; align-items: center; gap: 8px; margin-top: var(--sp-2); font-size: var(--fs-sm); color: var(--text-2); font-weight: 600; }
+.season-race { padding: 10px 12px; border-radius: var(--r-md); background: var(--danger-soft); color: var(--text); }
+.season-race .icon { color: var(--danger); flex: none; }
+.season-race strong { font-weight: 800; }
+
+.season-nav { display: grid; grid-template-columns: 32px minmax(0, 1fr) 32px; align-items: center; gap: var(--sp-2); margin: var(--sp-4) 0 var(--sp-2); }
+.season-nav strong { text-align: center; font-size: var(--fs-sm); font-weight: 800; }
+.season-nav strong::first-letter { text-transform: uppercase; }
+.season-reset { margin: 0 auto var(--sp-2); }
+
+/* Calendrier macro : une ligne par mois, une case par jour */
+.macro { display: flex; flex-direction: column; gap: 5px; }
+.macro__row { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 6px; }
+.macro__month { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); line-height: 1.05; }
+.macro__month small { display: block; font-size: 9.5px; font-weight: 700; color: var(--text-3); letter-spacing: 0; }
+.macro__days { display: grid; grid-template-columns: repeat(31, minmax(0, 1fr)); gap: 2px; }
+.macro__day { position: relative; height: 22px; padding: 0; border-radius: 3px; background: var(--surface-3); opacity: .75; }
+.macro__day[class*="phase--"] { background: var(--ph); opacity: .85; }
+.macro__day.is-monday::before { content: ""; position: absolute; left: -2px; top: 3px; bottom: 3px; width: 1px; background: var(--border-strong); }
+.macro__day.is-race { opacity: 1; box-shadow: inset 0 0 0 2px var(--danger); }
+.macro__day.is-race::after { content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 1.5px var(--surface-solid); }
+.macro__day.is-today { opacity: 1; outline: 2px solid var(--text); outline-offset: 1px; z-index: 1; }
+.macro__day:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 2; }
+.macro__legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: var(--sp-3); font-size: 11px; color: var(--text-2); font-weight: 650; }
+.macro__legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+.phase-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--ph, var(--surface-3)); flex: none; }
+.phase-dot--race { background: var(--surface-3); box-shadow: inset 0 0 0 2px var(--danger); }
+.phase-dot--today { background: transparent; outline: 2px solid var(--text); outline-offset: -1px; }
+
+.phase-list { display: flex; flex-direction: column; margin-top: var(--sp-2); border-radius: var(--r-md); border: 1px solid var(--border); overflow: hidden; }
+.phase-row { display: flex; align-items: center; gap: var(--sp-3); padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.phase-row:last-child { border-bottom: 0; }
+.phase-row.is-past { opacity: .55; }
+.phase-row__body { flex: 1; min-width: 0; }
+.phase-row__body strong { display: block; font-size: var(--fs-sm); font-weight: 750; }
+.phase-row__body span { display: block; font-size: 11.5px; color: var(--text-3); overflow-wrap: anywhere; }
+.phase-advice { margin: -4px 0 var(--sp-3); font-size: var(--fs-xs); color: var(--text-2); line-height: 1.45; }
+
+/* Semaine : phase(s) et courses */
+.week-phase { margin-bottom: var(--sp-3); padding: 10px 12px; border-radius: var(--r-md); background: var(--ph-soft, var(--surface-2)); border-left: 4px solid var(--ph, var(--border-strong)); }
+.week-phase + .week-phase { margin-top: calc(var(--sp-2) - var(--sp-3)); }
+.week-phase strong { display: block; font-size: var(--fs-sm); font-weight: 800; color: var(--ph, var(--text-2)); }
+.week-phase strong span { font-weight: 650; color: var(--text-3); }
+.week-phase p { font-size: var(--fs-xs); color: var(--text-2); margin-top: 2px; line-height: 1.4; }
+.week-phase--none strong { color: var(--text-2); }
+.week-row { position: relative; }
+.week-row.has-phase::before { content: ""; position: absolute; left: 2px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--ph); }
+.week-row__race { display: block; font-weight: 800; color: var(--danger); }
+
+.day-card__badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.phase-chip { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: var(--r-pill); background: var(--ph-soft); color: var(--ph); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.day-card.is-race-day { border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+.race-banner { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 12px 14px; border-radius: var(--r-md); background: var(--danger-soft); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); text-align: left; }
+.race-banner strong { font-size: var(--fs-md); font-weight: 850; color: var(--text); }
+.race-banner span { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--text-2); font-weight: 600; }
