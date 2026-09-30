@@ -105,56 +105,65 @@
 
     <!-- ================= ENTRAÎNEMENT ================= -->
     <section id="trainingView" class="view" hidden aria-labelledby="headerTitle">
-      <div class="toolbar">
-        <button type="button" class="btn btn--primary" data-action="week-today"><span data-icon="calendar" data-size="18"></span><span>Aujourd’hui</span></button>
-        <button type="button" class="btn btn--soft" data-action="open-manager"><span data-icon="settings" data-size="18"></span><span>Sports &amp; séances</span></button>
+      <div class="segmented training-tabs" role="tablist" aria-label="Planning">
+        <button type="button" role="tab" id="tab-week" data-training-tab="week" aria-controls="trainingWeekPanel" aria-selected="true"><span data-icon="calendar" data-size="16"></span><span>Cette semaine</span></button>
+        <button type="button" role="tab" id="tab-season" data-training-tab="season" aria-controls="trainingSeasonPanel" aria-selected="false"><span data-icon="flag" data-size="16"></span><span>Saison</span></button>
       </div>
 
-      <section class="card season-card" id="seasonCard">
-        <header class="card__head">
-          <div><h2 class="card__title">Saison</h2><p class="card__sub">Phases d’entraînement et courses</p></div>
-          <button type="button" class="btn btn--primary btn--icon" data-season="add" aria-label="Ajouter une phase"><span data-icon="plus" data-size="20"></span></button>
-        </header>
-        <div id="seasonCurrent"></div>
-        <div class="season-nav">
-          <button type="button" class="icon-btn icon-btn--sm" data-season="prev" aria-label="Mois précédents"><span data-icon="chevronLeft" data-size="18"></span></button>
-          <strong id="seasonRange" aria-live="polite"></strong>
-          <button type="button" class="icon-btn icon-btn--sm" data-season="next" aria-label="Mois suivants"><span data-icon="chevronRight" data-size="18"></span></button>
+      <div id="trainingWeekPanel" role="tabpanel" aria-labelledby="tab-week">
+        <div class="toolbar toolbar--week">
+          <button type="button" class="btn btn--primary" data-action="week-today"><span data-icon="calendar" data-size="18"></span><span>Aujourd’hui</span></button>
+          <button type="button" class="btn btn--soft" data-action="open-manager"><span data-icon="settings" data-size="18"></span><span>Sports &amp; séances</span></button>
         </div>
-        <button type="button" class="link-btn link-btn--center season-reset" id="seasonReset" data-season="reset" hidden>Revenir à aujourd’hui</button>
-        <div id="seasonCalendar"></div>
-        <div id="seasonList"></div>
-      </section>
 
-      <div class="training-grid">
-        <section class="card week-card">
-          <header class="card__head"><h2 class="card__title">Cette semaine</h2><span class="card__meta" id="overviewWeek"></span></header>
-          <div id="weekPhase"></div>
-          <div id="weekMini" class="week-list"></div>
-          <div class="summary">
-            <div><strong id="sumDistance">0 km</strong><span>Distance</span></div>
-            <div><strong id="sumTime">0h00</strong><span>Durée</span></div>
-            <div><strong id="sumElevation">0 m</strong><span>D+</span></div>
-            <div><strong id="sumSessions">0</strong><span>Séances</span></div>
-          </div>
-        </section>
+        <div class="training-grid">
+          <section class="card week-card">
+            <header class="card__head"><h2 class="card__title">Cette semaine</h2><span class="card__meta" id="overviewWeek"></span></header>
+            <div id="weekPhase"></div>
+            <div id="weekMini" class="week-list"></div>
+            <div class="summary">
+              <div><strong id="sumDistance">0 km</strong><span>Distance</span></div>
+              <div><strong id="sumTime">0h00</strong><span>Durée</span></div>
+              <div><strong id="sumElevation">0 m</strong><span>D+</span></div>
+              <div><strong id="sumSessions">0</strong><span>Séances</span></div>
+            </div>
+          </section>
 
-        <section class="card">
-          <header class="card__head"><div><h2 class="card__title">Répartition</h2><p class="card__sub">Activités par sport cette semaine</p></div></header>
-          <div class="donut-chart">
-            <div class="donut" id="weekDonut"><div class="donut__center"><strong id="weekDonutTotal">0</strong><span>activités</span></div></div>
-            <div class="legend" id="weekLegend"></div>
-          </div>
-        </section>
+          <section class="card">
+            <header class="card__head"><div><h2 class="card__title">Répartition</h2><p class="card__sub">Activités par sport cette semaine</p></div></header>
+            <div class="donut-chart">
+              <div class="donut" id="weekDonut"><div class="donut__center"><strong id="weekDonutTotal">0</strong><span>activités</span></div></div>
+              <div class="legend" id="weekLegend"></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="week-nav">
+          <button type="button" class="icon-btn icon-btn--glass" data-action="week-prev" aria-label="Semaine précédente"><span data-icon="chevronLeft"></span></button>
+          <div class="week-nav__label" id="weekLabel" aria-live="polite"></div>
+          <button type="button" class="icon-btn icon-btn--glass" data-action="week-next" aria-label="Semaine suivante"><span data-icon="chevronRight"></span></button>
+        </div>
+        <section id="days" class="days" aria-label="Détail des jours de la semaine"></section>
+        <p class="footnote">Données synchronisées entre vos appareils. Météo : Besançon (Open-Meteo).</p>
       </div>
 
-      <div class="week-nav">
-        <button type="button" class="icon-btn icon-btn--glass" data-action="week-prev" aria-label="Semaine précédente"><span data-icon="chevronLeft"></span></button>
-        <div class="week-nav__label" id="weekLabel" aria-live="polite"></div>
-        <button type="button" class="icon-btn icon-btn--glass" data-action="week-next" aria-label="Semaine suivante"><span data-icon="chevronRight"></span></button>
+      <div id="trainingSeasonPanel" role="tabpanel" aria-labelledby="tab-season" hidden>
+        <section class="card season-card" id="seasonCard">
+          <header class="card__head">
+            <div><h2 class="card__title">Saison</h2><p class="card__sub">Phases d’entraînement et courses</p></div>
+            <button type="button" class="btn btn--primary btn--icon" data-season="add" aria-label="Ajouter une phase"><span data-icon="plus" data-size="20"></span></button>
+          </header>
+          <div id="seasonCurrent"></div>
+          <div class="season-nav">
+            <button type="button" class="icon-btn icon-btn--sm" data-season="prev" aria-label="Mois précédents"><span data-icon="chevronLeft" data-size="18"></span></button>
+            <strong id="seasonRange" aria-live="polite"></strong>
+            <button type="button" class="icon-btn icon-btn--sm" data-season="next" aria-label="Mois suivants"><span data-icon="chevronRight" data-size="18"></span></button>
+          </div>
+          <button type="button" class="link-btn link-btn--center season-reset" id="seasonReset" data-season="reset" hidden>Revenir à aujourd’hui</button>
+          <div id="seasonCalendar"></div>
+          <div id="seasonList"></div>
+        </section>
       </div>
-      <section id="days" class="days" aria-label="Détail des jours de la semaine"></section>
-      <p class="footnote">Données synchronisées entre vos appareils. Météo : Besançon (Open-Meteo).</p>
     </section>
 
     <!-- ================= COURSES ================= -->

@@ -213,9 +213,14 @@ export function initSeason({ gotoDay }) {
   onGotoDay = gotoDay;
   $('#seasonCard').addEventListener('click', onClick);
   const form = $('#phaseForm');
-  form.elements.type.innerHTML = Object.entries(PHASE_TYPES)
-    .map(([k, t]) => `<option value="${k}">${esc(t.name)}</option>`)
-    .join('');
+  const option = ([k, t]) => `<option value="${k}">${esc(t.name)}</option>`;
+  const types = Object.entries(PHASE_TYPES);
+  const spec = types.filter(([, t]) => t.group === 'spec');
+  form.elements.type.innerHTML = [
+    ...types.filter(([k]) => k === 'base').map(option),
+    `<optgroup label="Préparation spécifique">${spec.map(option).join('')}</optgroup>`,
+    ...types.filter(([k, t]) => k !== 'base' && t.group !== 'spec').map(option)
+  ].join('');
   form.elements.type.addEventListener('change', updateAdvice);
   form.addEventListener('submit', onSubmit);
 }

@@ -1,5 +1,6 @@
 /* Vue Entraînement : planning hebdomadaire, météo, familles de sport. */
-import { $, esc, uid, slugify, parseNumber, round, plural } from '../core/utils.js';
+import { $, $$, esc, uid, slugify, parseNumber, round, plural } from '../core/utils.js';
+import { readText, write } from '../services/storage.js';
 import { addDays, dateKey, fromKey, mondayOf, formatDate, parseDuration, minutesLabel, todayKey } from '../core/dates.js';
 import { state, commit } from '../core/store.js';
 import { defaultSession, normalizeDay, isRestTraining, REST_TRAINING } from '../core/schema.js';
@@ -17,6 +18,8 @@ const DAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 let weekStart = mondayOf(new Date());
 let weather = null; // { key, data } | { key, error }
 let weatherLoading = false;
+const TAB_KEY = 'training_tab';
+let tab = readText(TAB_KEY, 'week') === 'season' ? 'season' : 'week';
 
 const familyById = id => state.families.find(f => f.id === id);
 /** Séances d'un jour ; le jour est matérialisé dans l'état pour garder des id stables. */
@@ -154,6 +157,7 @@ export function renderTraining() {
   const keys = weekKeys();
   $('#weekLabel').innerHTML = `<strong>Semaine du ${formatDate(weekStart, { day: 'numeric', month: 'long' })}</strong><span>au ${formatDate(addDays(weekStart, 6), { day: 'numeric', month: 'long', year: 'numeric' })}</span>`;
   const phases = getPhases();
+  renderTabs();
   renderSeason();
   renderOverview(keys, phases);
   renderDays(keys, phases);
@@ -206,6 +210,8 @@ function updateSession(k, id, field, value) {
 }
 
 async function onClick(e) {
+  const tabBtn = e.target.closest('[data-training-tab]');
+  if (tabBtn) return setTab(tabBtn.dataset.trainingTab);
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const block = btn.closest('[data-session]');
@@ -392,11 +398,28 @@ function onManagerSubmit(e) {
   input.value = '';
 }
 
+/* ---------- Onglets « Cette semaine » / « Saison » ---------- */
+function renderTabs() {
+  $$('[data-training-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.trainingTab === tab)));
+  $('#trainingWeekPanel').hidden = tab !== 'week';
+  $('#trainingSeasonPanel').hidden = tab !== 'season';
+}
+
+function setTab(next) {
+  if (next === tab) return;
+  tab = next;
+  write(TAB_KEY, tab);
+  renderTabs();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 /** Affiche la semaine contenant `key` et amène le jour à l'écran (depuis le calendrier de saison). */
 function gotoDay(key) {
   const d = fromKey(key);
   if (!d) return;
   weekStart = mondayOf(d);
+  tab = 'week';
+  write(TAB_KEY, tab);
   showTraining();
   requestAnimationFrame(() => {
     const days = $('#days');
