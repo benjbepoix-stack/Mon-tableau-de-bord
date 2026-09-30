@@ -22,6 +22,7 @@ js/
     store.js                État central + persistance locale + diffusion des changements
     schema.js               Normalisation / validation de forme des données
     validation.js           Règles de validation des formulaires
+    season.js               Phases d'entraînement (types, conseils, phase d'un jour, courses d'un jour)
     dates.js, utils.js      Utilitaires
   services/
     firebase.js             Synchronisation (chargement dynamique, file d'écriture, état réseau)
@@ -75,3 +76,11 @@ Un bouton calendrier est aussi disponible sur chaque rendez-vous, événement et
 Rendez-vous et événements peuvent se répéter (tous les jours, semaines, mois ou ans — ex. un anniversaire). La date saisie est la première occurrence ; l'accueil affiche la prochaine occurrence et l'export `.ics` inclut la règle `RRULE`.
 
 > Depuis l'app installée sur l'écran d'accueil, si la fiche ne s'ouvre pas, utilisez le bouton « Partager le fichier .ics ».
+
+## Saison (phases d'entraînement)
+
+Dans l'onglet **Entraînement**, la carte « Saison » permet de planifier ses phases : préparation générale (foncier), préparation spécifique, affûtage, récupération, transition.
+Elle affiche la phase en cours (avec l'orientation des séances), la prochaine course et un calendrier macro sur six mois (phases en couleur, courses cerclées de rouge ; un appui ouvre la semaine correspondante).
+Le planning hebdomadaire montre la phase de chaque jour et les courses du calendrier.
+
+Les phases sont enregistrées dans `objectives.seasonPhases` : ce nœud accepte déjà un contenu libre dans `database.rules.json`, aucune republication des règles n'est nécessaire.

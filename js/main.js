@@ -15,7 +15,7 @@ import { initMetrics, renderMetrics } from './views/metrics.js';
 
 const VIEWS = {
   dashboardView: { kicker: 'Tableau de bord', title: 'Mon espace', show: renderDashboard },
-  trainingView: { kicker: 'Planning sportif', title: 'Entraînement', show: showTraining, render: renderTraining, slices: ['families', 'plans'] },
+  trainingView: { kicker: 'Planning sportif', title: 'Entraînement', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] },
   raceView: { kicker: 'Calendrier sportif', title: 'Mes courses', show: renderRaces, render: renderRaces, slices: ['races'] },
   metricsView: { kicker: 'Suivi personnel', title: 'Mesures', show: renderMetrics, render: renderMetrics, slices: ['bodyMetrics'] }
 };

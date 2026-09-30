@@ -1,6 +1,6 @@
 /* Vue Entraînement : planning hebdomadaire, météo, familles de sport. */
 import { $, esc, uid, slugify, parseNumber, round, plural } from '../core/utils.js';
-import { addDays, dateKey, mondayOf, formatDate, parseDuration, minutesLabel, todayKey } from '../core/dates.js';
+import { addDays, dateKey, fromKey, mondayOf, formatDate, parseDuration, minutesLabel, todayKey } from '../core/dates.js';
 import { state, commit } from '../core/store.js';
 import { defaultSession, normalizeDay, isRestTraining, REST_TRAINING } from '../core/schema.js';
 import { openSheet, confirmDialog, promptDialog } from '../ui/dialog.js';
@@ -8,6 +8,8 @@ import { toast, toastError } from '../ui/toast.js';
 import { icon } from '../ui/icons.js';
 import { renderDonut } from '../ui/charts.js';
 import { fetchWeek, WEATHER_PLACE } from '../services/weather.js';
+import { PHASE_TYPES, getPhases, phaseOn, racesOn } from '../core/season.js';
+import { renderSeason, initSeason } from './season.js';
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const DAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -32,16 +34,37 @@ function sessionLabel(s) {
   return f ? `${f.name} · ${s.training}` : s.training;
 }
 
+const raceLabel = r => `🏁 ${r.name}${r.time ? ` · ${r.time}` : ''}`;
+const raceFacts = r => [r.sport, r.distance ? `${String(r.distance).replace('.', ',')} km` : '', r.elevation ? `${r.elevation} m D+` : '', r.target ? `objectif ${r.target}` : ''].filter(Boolean).join(' · ');
+
 /* ---------- Rendu ---------- */
-function renderOverview(keys) {
+/** Phase(s) de la semaine affichée, avec l'orientation des séances. */
+function renderWeekPhase(keys, phases) {
+  const inWeek = [...new Map(keys.map(k => phaseOn(k, phases)).filter(Boolean).map(p => [p.id, p])).values()];
+  $('#weekPhase').innerHTML = inWeek.length
+    ? inWeek
+        .map(p => {
+          const t = PHASE_TYPES[p.type];
+          const span = inWeek.length > 1 ? ` <span>(${formatDate(fromKey(p.start < keys[0] ? keys[0] : p.start), { weekday: 'short' })} → ${formatDate(fromKey(p.end > keys[6] ? keys[6] : p.end), { weekday: 'short' })})</span>` : '';
+          return `<div class="week-phase phase--${p.type}"><strong>${esc(t.name)}${span}</strong><p>${esc(t.advice)}</p></div>`;
+        })
+        .join('')
+    : '<div class="week-phase week-phase--none"><strong>Aucune phase planifiée cette semaine</strong><p>Planifiez vos phases dans « Saison » pour orienter vos séances.</p></div>';
+}
+
+function renderOverview(keys, phases) {
   const today = todayKey();
+  renderWeekPhase(keys, phases);
   $('#overviewWeek').textContent = `${formatDate(weekStart, { day: '2-digit', month: '2-digit' })} — ${formatDate(addDays(weekStart, 6), { day: '2-digit', month: '2-digit' })}`;
   $('#weekMini').innerHTML = keys
     .map((k, i) => {
       const labels = sessionsOf(k).map(sessionLabel).filter(Boolean);
-      return `<button type="button" class="week-row ${k === today ? 'is-today' : ''}" data-action="goto-day" data-day="${k}">
+      const races = racesOn(k).map(r => `<span class="week-row__race">${esc(raceLabel(r))}</span>`).join('');
+      const phase = phaseOn(k, phases);
+      const body = labels.length ? labels.map(esc).join('<br>') : races ? '' : 'Repos libre';
+      return `<button type="button" class="week-row ${k === today ? 'is-today' : ''} ${phase ? `has-phase phase--${phase.type}` : ''}" data-action="goto-day" data-day="${k}">
         <span class="week-row__day">${DAY_SHORT[i]}</span>
-        <span class="week-row__label ${labels.length ? '' : 'is-empty'}">${labels.length ? labels.map(esc).join('<br>') : 'Repos libre'}</span>
+        <span class="week-row__label ${labels.length || races ? '' : 'is-empty'}">${races}${body}</span>
       </button>`;
     })
     .join('');
@@ -103,18 +126,21 @@ function weatherHTML(k) {
   return `<div class="weather">${body}${refresh}</div>`;
 }
 
-function renderDays(keys) {
+function renderDays(keys, phases = getPhases()) {
   const container = $('#days');
   const scroll = container.scrollLeft;
   const today = todayKey();
   container.innerHTML = keys
     .map((k, i) => {
       const d = addDays(weekStart, i);
-      return `<article class="day-card ${k === today ? 'is-today' : ''}" id="day-${k}">
+      const phase = phaseOn(k, phases);
+      const races = racesOn(k);
+      return `<article class="day-card ${k === today ? 'is-today' : ''} ${races.length ? 'is-race-day' : ''}" id="day-${k}">
         <header class="day-card__head">
           <div><h3 class="day-card__name">${DAYS[i]}</h3><div class="day-card__date">${formatDate(d, { day: 'numeric', month: 'long' })}</div></div>
-          ${k === today ? '<span class="badge badge--accent">Aujourd’hui</span>' : ''}
+          <div class="day-card__badges">${phase ? `<span class="phase-chip phase--${phase.type}">${esc(PHASE_TYPES[phase.type].short)}</span>` : ''}${k === today ? '<span class="badge badge--accent">Aujourd’hui</span>' : ''}</div>
         </header>
+        ${races.map(r => `<button type="button" class="race-banner" data-action="open-races" aria-label="Voir la course ${esc(r.name)}"><strong>${esc(raceLabel(r))}</strong>${raceFacts(r) ? `<span>${esc(raceFacts(r))}</span>` : ''}${r.location ? `<span>${icon('pin', 12)} ${esc(r.location)}</span>` : ''}</button>`).join('')}
         ${weatherHTML(k)}
         <div class="day-card__sessions">${sessionsOf(k).map((s, idx) => sessionHTML(k, s, idx)).join('')}</div>
         <button type="button" class="btn btn--dashed" data-action="add-session" data-day="${k}">${icon('plus', 16)}<span>Ajouter une séance</span></button>
@@ -127,8 +153,10 @@ function renderDays(keys) {
 export function renderTraining() {
   const keys = weekKeys();
   $('#weekLabel').innerHTML = `<strong>Semaine du ${formatDate(weekStart, { day: 'numeric', month: 'long' })}</strong><span>au ${formatDate(addDays(weekStart, 6), { day: 'numeric', month: 'long', year: 'numeric' })}</span>`;
-  renderOverview(keys);
-  renderDays(keys);
+  const phases = getPhases();
+  renderSeason();
+  renderOverview(keys, phases);
+  renderDays(keys, phases);
   if ($('#sportSheet') && !$('#sportSheet').hidden) renderManager();
 }
 
@@ -194,6 +222,9 @@ async function onClick(e) {
       break;
     case 'goto-day':
       $(`#day-${btn.dataset.day}`)?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+      break;
+    case 'open-races':
+      document.querySelector('[data-view="raceView"]')?.click();
       break;
     case 'refresh-weather':
       if (!weatherLoading) loadWeather(true);
@@ -361,7 +392,22 @@ function onManagerSubmit(e) {
   input.value = '';
 }
 
+/** Affiche la semaine contenant `key` et amène le jour à l'écran (depuis le calendrier de saison). */
+function gotoDay(key) {
+  const d = fromKey(key);
+  if (!d) return;
+  weekStart = mondayOf(d);
+  showTraining();
+  requestAnimationFrame(() => {
+    const days = $('#days');
+    const card = $(`#day-${key}`);
+    if (card) days.scrollTo({ left: card.offsetLeft - days.firstElementChild.offsetLeft, behavior: 'smooth' });
+    $('.week-nav')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
 export function initTraining() {
+  initSeason({ gotoDay });
   const view = $('#trainingView');
   view.addEventListener('click', onClick);
   view.addEventListener('change', onChange);

@@ -110,9 +110,26 @@
         <button type="button" class="btn btn--soft" data-action="open-manager"><span data-icon="settings" data-size="18"></span><span>Sports &amp; séances</span></button>
       </div>
 
+      <section class="card season-card" id="seasonCard">
+        <header class="card__head">
+          <div><h2 class="card__title">Saison</h2><p class="card__sub">Phases d’entraînement et courses</p></div>
+          <button type="button" class="btn btn--primary btn--icon" data-season="add" aria-label="Ajouter une phase"><span data-icon="plus" data-size="20"></span></button>
+        </header>
+        <div id="seasonCurrent"></div>
+        <div class="season-nav">
+          <button type="button" class="icon-btn icon-btn--sm" data-season="prev" aria-label="Mois précédents"><span data-icon="chevronLeft" data-size="18"></span></button>
+          <strong id="seasonRange" aria-live="polite"></strong>
+          <button type="button" class="icon-btn icon-btn--sm" data-season="next" aria-label="Mois suivants"><span data-icon="chevronRight" data-size="18"></span></button>
+        </div>
+        <button type="button" class="link-btn link-btn--center season-reset" id="seasonReset" data-season="reset" hidden>Revenir à aujourd’hui</button>
+        <div id="seasonCalendar"></div>
+        <div id="seasonList"></div>
+      </section>
+
       <div class="training-grid">
         <section class="card week-card">
           <header class="card__head"><h2 class="card__title">Cette semaine</h2><span class="card__meta" id="overviewWeek"></span></header>
+          <div id="weekPhase"></div>
           <div id="weekMini" class="week-list"></div>
           <div class="summary">
             <div><strong id="sumDistance">0 km</strong><span>Distance</span></div>
@@ -150,6 +167,7 @@
           <button type="button" class="btn btn--primary btn--icon" data-action="add" aria-label="Ajouter une course"><span data-icon="plus" data-size="20"></span></button>
         </header>
         <div id="raceUpcomingList" class="stack"></div>
+        <button type="button" class="btn btn--soft race-more" id="raceMore" data-action="toggle-upcoming" aria-controls="raceUpcomingList" hidden></button>
       </section>
 
       <section class="section card">
@@ -251,9 +269,28 @@
           <div class="field only-timed"><label class="field__label" for="i-time">Début</label><input class="input" id="i-time" type="time" name="time"></div>
           <div class="field only-timed"><label class="field__label" for="i-end">Fin <span class="field__opt">(facultatif)</span></label><input class="input" id="i-end" type="time" name="endTime"></div>
         </div>
-        <div class="field only-timed"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans (anniversaire…)</option></select></div>
+        <div class="field only-timed"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select></div>
         <div class="field only-timed"><label class="field__label" for="i-location">Lieu <span class="field__opt">(facultatif)</span></label><input class="input" id="i-location" name="location" maxlength="120" placeholder="Ex. 12 rue de la Paix, Besançon" autocomplete="off"></div>
         <div class="field"><label class="field__label" for="i-note">Note <span class="field__opt">(facultatif)</span></label><textarea class="input textarea" id="i-note" name="note" maxlength="500" rows="3" placeholder="Détails…"></textarea></div>
+        <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Éditeur de phase d'entraînement -->
+  <div class="sheet-backdrop" id="phaseSheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="phaseSheetTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <header class="sheet__head"><h2 class="sheet__title" id="phaseSheetTitle">Nouvelle phase</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <form class="form" id="phaseForm" novalidate>
+        <input type="hidden" name="editId">
+        <div class="field"><label class="field__label" for="ph-type">Phase</label><select class="input select" id="ph-type" name="type" required></select></div>
+        <p class="phase-advice" id="phaseAdvice"></p>
+        <div class="form-grid">
+          <div class="field"><label class="field__label" for="ph-start">Début</label><input class="input" id="ph-start" type="date" name="start" required></div>
+          <div class="field"><label class="field__label" for="ph-end">Fin</label><input class="input" id="ph-end" type="date" name="end" required></div>
+        </div>
+        <div class="field"><label class="field__label" for="ph-note">Note <span class="field__opt">(facultatif)</span></label><input class="input" id="ph-note" name="note" maxlength="200" placeholder="Ex. Objectif : Trail des Forts" autocomplete="off"></div>
         <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
       </form>
     </div>
