@@ -100,3 +100,39 @@ export function countdown(target, now = new Date()) {
   if (hours > 0) return `${hours} h · ${mins} min`;
   return `${mins} min`;
 }
+
+/* ---------- Périodicité (rendez-vous / événements) ---------- */
+export const REPEATS = {
+  daily: { label: 'Tous les jours', rrule: 'DAILY' },
+  weekly: { label: 'Toutes les semaines', rrule: 'WEEKLY' },
+  monthly: { label: 'Tous les mois', rrule: 'MONTHLY' },
+  yearly: { label: 'Tous les ans', rrule: 'YEARLY' }
+};
+export const isRepeat = v => Object.hasOwn(REPEATS, v);
+
+/** k-ième occurrence d'une date répétée (le 31 -> dernier jour du mois, le 29/02 -> 28/02). */
+export function occurrenceKey(key, repeat, k) {
+  const d = fromKey(key);
+  if (!d || !isRepeat(repeat) || k <= 0) return key;
+  if (repeat === 'daily' || repeat === 'weekly') return dateKey(addDays(d, k * (repeat === 'daily' ? 1 : 7)));
+  const month = d.getMonth() + (repeat === 'monthly' ? k : 12 * k);
+  const last = new Date(d.getFullYear(), month + 1, 0).getDate();
+  return dateKey(new Date(d.getFullYear(), month, Math.min(d.getDate(), last), 12));
+}
+
+/**
+ * Date de la prochaine occurrence non terminée d'un élément répété
+ * (fin = `endTime`, sinon `time`, sinon fin de journée). Sans périodicité : sa date.
+ */
+export function nextOccurrenceKey({ date, time, endTime, repeat }, now = new Date()) {
+  if (!isRepeat(repeat) || !fromKey(date)) return date;
+  const ends = key => combine(key, endTime || time, '23:59');
+  const perStep = { daily: 1, weekly: 7, monthly: 31, yearly: 366 }[repeat];
+  const elapsed = Math.floor((now - fromKey(date)) / 86400000);
+  let k = Math.max(0, Math.floor(elapsed / perStep) - 1);
+  for (let guard = 0; guard < 1000; guard++, k++) {
+    const key = occurrenceKey(date, repeat, k);
+    if (ends(key) >= now) return key;
+  }
+  return date;
+}
