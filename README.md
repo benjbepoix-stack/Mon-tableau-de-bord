@@ -99,3 +99,7 @@ Données transmises au raccourci (texte JSON) : `{"titre": "…", "notes": "…"
 ## Mensurations sur mannequin
 
 « Nouvelle prise de mensurations » ouvre une fenêtre avec une silhouette : chaque zone (poitrine, bras, taille, hanche, cuisse, mollet) est tracée sur le corps, la case de saisie est à côté et la consigne de mesure s’affiche quand on touche une zone ou une case. La valeur de la prise précédente est rappelée sous chaque case. Modifier une prise depuis l’historique rouvre le même mannequin.
+
+## Mises à jour
+
+`sw.js` (service worker) vérifie à chaque ouverture si les fichiers de l’app ont changé sur le serveur et garde la dernière version pour le mode hors ligne. Une version publiée sur GitHub Pages apparaît donc à la réouverture de l’app, sans attendre l’expiration du cache du navigateur.
