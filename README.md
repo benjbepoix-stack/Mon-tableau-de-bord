@@ -85,3 +85,17 @@ Elle affiche la phase en cours (avec l'orientation des séances), la prochaine c
 Le planning hebdomadaire montre la phase de chaque jour et les courses du calendrier.
 
 Les phases sont enregistrées dans `objectives.seasonPhases` : ce nœud accepte déjà un contenu libre dans `database.rules.json`, aucune republication des règles n'est nécessaire.
+
+## Tâches → app Rappels (iPhone)
+
+Chaque tâche a une échéance et une **heure d’alerte** facultatives. Après l’enregistrement, ou avec le bouton cloche d’une tâche, la fenêtre « Ajouter aux Rappels » propose :
+
+* **Ajouter aux Rappels** : lance le raccourci iOS *Dashboard vers Rappels*, qui crée le rappel avec sa date, son alerte (9 h par défaut si aucune heure) et sa note. Une page web ne peut pas écrire directement dans Rappels : ce raccourci se crée **une fois** dans l’app Raccourcis, les étapes sont affichées dans la fenêtre (le bouton « Raccourci créé » mémorise la configuration sur l’appareil).
+* **Partager vers Rappels** : sans configuration, via la feuille de partage (titre seul, alerte à régler dans Rappels).
+* Hors iPhone : téléchargement d’un fichier `.ics` (VTODO) avec alerte, lu par la plupart des gestionnaires de tâches.
+
+Données transmises au raccourci (texte JSON) : `{"titre": "…", "notes": "…", "date": "AAAA-MM-JJ HH:MM"}` (`date` vide sans échéance).
+
+## Mensurations sur mannequin
+
+« Nouvelle prise de mensurations » ouvre une fenêtre avec une silhouette : chaque zone (poitrine, bras, taille, hanche, cuisse, mollet) est tracée sur le corps, la case de saisie est à côté et la consigne de mesure s’affiche quand on touche une zone ou une case. La valeur de la prise précédente est rappelée sous chaque case. Modifier une prise depuis l’historique rouvre le même mannequin.

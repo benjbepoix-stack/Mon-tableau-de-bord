@@ -4,10 +4,11 @@ import { formatKey, todayKey } from '../core/dates.js';
 import { state, commit } from '../core/store.js';
 import { MEASURE_FIELDS } from '../core/schema.js';
 import { rules, validate, showErrors, clearErrors, formValues } from '../core/validation.js';
-import { openSheet, confirmDialog, isOpen } from '../ui/dialog.js';
+import { openSheet, closeSheet, confirmDialog, isOpen } from '../ui/dialog.js';
 import { toast } from '../ui/toast.js';
 import { icon } from '../ui/icons.js';
 import { renderLineChart } from '../ui/charts.js';
+import { bodyMapHTML, bindBodyMap } from '../features/body-map.js';
 
 const WINDOW = 6;
 const SERIES = {
@@ -83,7 +84,7 @@ function renderCompare() {
 }
 
 export function renderMetrics() {
-  ['weightForm', 'ftpForm', 'measureForm'].forEach(id => {
+  ['weightForm', 'ftpForm'].forEach(id => {
     const input = $(`#${id}`).elements.date;
     if (!input.value) input.value = todayKey();
   });
@@ -111,20 +112,43 @@ function measureRow(v, id) {
   return row;
 }
 
+/* ---------- Prise de mensurations (mannequin) ---------- */
+function openMeasureSheet(row = null) {
+  const form = $('#measureForm');
+  clearErrors(form);
+  const rows = state.bodyMetrics.measurements;
+  // « préc. » : la prise précédant celle qu'on saisit ou modifie.
+  const before = row ? rows.filter(r => r.date < row.date || (r.date === row.date && r.id !== row.id)).pop() : rows[rows.length - 1];
+  $('#measureTitle').textContent = row ? 'Modifier la prise' : 'Nouvelle prise';
+  form.elements.editId.value = row?.id || '';
+  form.elements.date.value = row?.date || todayKey();
+  $('#bodyMapHost').innerHTML = bodyMapHTML(row || {}, before || {});
+  openSheet('measureSheet', { focus: false });
+}
+
+function onMeasureSubmit(form, v) {
+  const { valid, errors } = validate(v, measureSchema());
+  if (!valid) return showErrors(form, errors);
+  if (!MEASURE_FIELDS.some(([k]) => v[k])) return showErrors(form, { [MEASURE_FIELDS[0][0]]: 'Renseignez au moins une mesure.' });
+  const list = state.bodyMetrics.measurements;
+  const index = v.editId ? list.findIndex(r => r.id === v.editId) : -1;
+  if (index >= 0) list[index] = measureRow(v, v.editId);
+  else list.push(measureRow(v, uid()));
+  list.sort(byDate);
+  refIndex = null;
+  commit('bodyMetrics');
+  closeSheet('measureSheet');
+  toast(index >= 0 ? 'Prise modifiée' : 'Mensurations enregistrées');
+}
+
 function onAdd(e) {
   const form = e.target.closest('form[data-kind]');
   if (!form) return;
   e.preventDefault();
   const kind = form.dataset.kind;
   const v = formValues(form);
-  if (kind === 'measurements') {
-    const { valid, errors } = validate(v, measureSchema());
-    if (!valid) return showErrors(form, errors);
-    if (!MEASURE_FIELDS.some(([k]) => v[k])) return showErrors(form, { [MEASURE_FIELDS[0][0]]: 'Renseignez au moins une mesure.' });
-    state.bodyMetrics.measurements.push(measureRow(v, uid()));
-    state.bodyMetrics.measurements.sort(byDate);
-    refIndex = null;
-  } else {
+  if (kind === 'measurements') return onMeasureSubmit(form, v);
+  {
     const { valid, errors } = validate(v, seriesSchema(kind));
     if (!valid) return showErrors(form, errors);
     state.bodyMetrics[kind].push({ id: uid(), date: v.date, value: parseNumber(v.value) });
@@ -195,6 +219,10 @@ async function onHistoryClick(e) {
       history.editing = null;
       return renderHistory();
     case 'edit':
+      if (type === 'measurements') {
+        closeSheet('historySheet');
+        return openMeasureSheet(row);
+      }
       history.editing = id;
       return renderHistory();
     case 'delete':
@@ -240,6 +268,7 @@ export function initMetrics() {
     if (!btn) return;
     const { action, kind, dir } = btn.dataset;
     if (action === 'history') openHistory(kind);
+    else if (action === 'measure') openMeasureSheet();
     else if (action === 'window') {
       offsets[kind] = Math.max(0, offsets[kind] + Number(dir));
       renderSeries(kind);
@@ -248,6 +277,9 @@ export function initMetrics() {
       renderCompare();
     }
   });
+  const measureSheet = $('#measureSheet');
+  measureSheet.addEventListener('submit', onAdd);
+  bindBodyMap(measureSheet);
   const sheet = $('#historySheet');
   sheet.addEventListener('click', onHistoryClick);
   sheet.addEventListener('submit', onHistorySubmit);
