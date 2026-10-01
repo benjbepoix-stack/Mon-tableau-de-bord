@@ -1,6 +1,6 @@
 {
-  "name": "Mon Dashboard",
-  "short_name": "Dashboard",
+  "name": "Carnet",
+  "short_name": "Carnet",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0a0e17",
