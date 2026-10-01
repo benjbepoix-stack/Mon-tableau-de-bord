@@ -6,6 +6,7 @@ import { rules, validate, showErrors, clearErrors, formValues } from '../core/va
 import { openSheet, closeSheet, confirmDialog, isOpen } from '../ui/dialog.js';
 import { toast, toastError } from '../ui/toast.js';
 import { icon } from '../ui/icons.js';
+import { offerReminder } from '../features/reminders.js';
 import { offerCalendar } from '../features/calendar-prompt.js';
 import { confirmSaved } from '../features/persist.js';
 
@@ -97,11 +98,13 @@ function renderTasks() {
   el.innerHTML = sorted
     .map(t => {
       const overdue = !t.done && t.date && t.date < todayKey();
-      const sub = [t.date ? `<span class="${overdue ? 'is-overdue' : ''}">${formatKey(t.date, { weekday: 'short', day: 'numeric', month: 'short' })}</span>` : '', t.note ? `<span>${esc(t.note)}</span>` : ''].filter(Boolean).join('');
+      const when = t.date ? `${formatKey(t.date, { weekday: 'short', day: 'numeric', month: 'short' })}${t.time ? ` · ${t.time}` : ''}` : '';
+      const sub = [when ? `<span class="${overdue ? 'is-overdue' : ''}">${when}</span>` : '', t.note ? `<span>${esc(t.note)}</span>` : ''].filter(Boolean).join('');
       return `<div class="task ${t.done ? 'is-done' : ''}" data-id="${esc(t.id)}" data-type="tasks">
         <button type="button" class="task__check" data-action="toggle" role="checkbox" aria-checked="${t.done}" aria-label="${t.done ? 'Marquer comme à faire' : 'Marquer comme terminée'}">${icon('check', 15)}</button>
         <div class="task__body"><div class="task__title">${esc(t.title)}</div>${sub ? `<div class="task__sub">${sub}</div>` : ''}</div>
         <div class="item-card__actions">
+          ${t.done ? '' : `<button type="button" class="icon-btn" data-action="reminder" aria-label="Ajouter « ${esc(t.title)} » aux Rappels" title="Ajouter aux Rappels">${icon('bell', 17)}</button>`}
           <button type="button" class="icon-btn" data-action="edit" aria-label="Modifier">${icon('edit', 17)}</button>
           <button type="button" class="icon-btn icon-btn--danger" data-action="delete" aria-label="Supprimer">${icon('trash', 17)}</button>
         </div>
@@ -172,6 +175,7 @@ function openEditor(type, id = null) {
   const isTask = type === 'tasks';
   form.dataset.kind = type;
   $('#itemDateLabel').textContent = isTask ? 'Échéance (facultatif)' : 'Date';
+  $('#itemTimeLabel').innerHTML = isTask ? 'Heure de l’alerte <span class="field__opt">(facultatif)</span>' : 'Début';
   form.elements.date.required = !isTask;
   $('#itemTitleInput').placeholder = isTask ? 'Ex. Appeler le garage' : type === 'appointments' ? 'Ex. Dentiste' : 'Ex. Dîner entre amis';
   if (item) ['title', 'date', 'time', 'endTime', 'repeat', 'location', 'note'].forEach(k => (form.elements[k].value = item[k] || ''));
@@ -203,7 +207,8 @@ async function onSubmit(e) {
   const type = v.type;
   if (!TYPES[type]) return;
   const isTask = type === 'tasks';
-  if (isTask) Object.assign(v, { time: '', endTime: '', repeat: '', location: '' });
+  if (isTask) Object.assign(v, { endTime: '', repeat: '', location: '' });
+  if (isTask && v.time && !v.date) return showErrors(form, { time: 'Indiquez aussi une date d’échéance pour l’alerte.' });
 
   const { valid, errors } = validate(v, itemSchema(type));
   if (!valid) return showErrors(form, errors);
@@ -230,7 +235,10 @@ async function onSubmit(e) {
   submit.disabled = false;
   closeSheet('itemSheet');
 
-  if (type === 'appointments' && item.date) {
+  const dueChanged = !existing || existing.date !== item.date || (existing.time || '') !== (item.time || '');
+  if (isTask && dueChanged) {
+    offerReminder(item, { heading: existing ? 'Tâche modifiée' : 'Tâche ajoutée' });
+  } else if (type === 'appointments' && item.date) {
     offerCalendar(toCalendarEvent(item, type), { heading: existing ? 'Rendez-vous modifié' : 'Rendez-vous enregistré', synced });
   } else {
     toast(existing ? 'Modifications enregistrées' : `${TYPES[type].one} ajouté${type === 'events' ? '' : type === 'tasks' ? 'e' : ''}`);
@@ -268,6 +276,9 @@ async function onClick(e) {
     case 'edit':
       if (isOpen('archiveSheet')) closeSheet('archiveSheet');
       openEditor(type, id);
+      break;
+    case 'reminder':
+      offerReminder(item);
       break;
     case 'calendar':
       offerCalendar(toCalendarEvent(item, type), { heading: 'Ajouter au calendrier ?' });

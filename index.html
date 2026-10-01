@@ -246,16 +246,7 @@
 
       <section class="card metric-card">
         <header class="metric-card__head"><div><h2 class="card__title">Mensurations</h2><p class="card__sub">Comparaison avec une prise de référence</p></div></header>
-        <form class="form-grid form-grid--3" id="measureForm" data-kind="measurements" novalidate>
-          <div class="field field--full"><label class="field__label" for="m-date">Date de la prise</label><input class="input" id="m-date" type="date" name="date" required></div>
-          <div class="field"><label class="field__label" for="m-thigh">Cuisse · cm</label><input class="input" id="m-thigh" name="thigh" inputmode="decimal" autocomplete="off"></div>
-          <div class="field"><label class="field__label" for="m-calf">Mollet · cm</label><input class="input" id="m-calf" name="calf" inputmode="decimal" autocomplete="off"></div>
-          <div class="field"><label class="field__label" for="m-waist">Taille · cm</label><input class="input" id="m-waist" name="waist" inputmode="decimal" autocomplete="off"></div>
-          <div class="field"><label class="field__label" for="m-hip">Hanche · cm</label><input class="input" id="m-hip" name="hip" inputmode="decimal" autocomplete="off"></div>
-          <div class="field"><label class="field__label" for="m-chest">Poitrine · cm</label><input class="input" id="m-chest" name="chest" inputmode="decimal" autocomplete="off"></div>
-          <div class="field"><label class="field__label" for="m-arm">Bras · cm</label><input class="input" id="m-arm" name="arm" inputmode="decimal" autocomplete="off"></div>
-          <div class="field field--full"><button type="submit" class="btn btn--add btn--block"><span data-icon="plus" data-size="18"></span><span>Enregistrer la prise</span></button></div>
-        </form>
+        <button type="button" class="btn btn--add btn--block" data-action="measure"><span data-icon="body" data-size="18"></span><span>Nouvelle prise de mensurations</span></button>
         <div class="divider"></div>
         <div id="measureCompare"></div>
         <button type="button" class="link-btn link-btn--center" data-action="history" data-kind="measurements">Voir tout l’historique</button>
@@ -275,7 +266,7 @@
         <div class="field"><label class="field__label" for="itemTitleInput">Titre</label><input class="input" id="itemTitleInput" name="title" maxlength="100" required autocomplete="off" enterkeyhint="next"></div>
         <div class="form-grid">
           <div class="field field--full"><label class="field__label" for="i-date" id="itemDateLabel">Date</label><input class="input" id="i-date" type="date" name="date"></div>
-          <div class="field only-timed"><label class="field__label" for="i-time">Début</label><input class="input" id="i-time" type="time" name="time"></div>
+          <div class="field"><label class="field__label" for="i-time" id="itemTimeLabel">Début</label><input class="input" id="i-time" type="time" name="time"></div>
           <div class="field only-timed"><label class="field__label" for="i-end">Fin <span class="field__opt">(facultatif)</span></label><input class="input" id="i-end" type="time" name="endTime"></div>
         </div>
         <div class="field only-timed"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select></div>
@@ -364,6 +355,25 @@
       <header class="sheet__head"><h2 class="sheet__title" id="historyTitle">Historique</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
       <div class="sheet__scroll" id="historyContent"></div>
     </div>
+  </div>
+
+  <!-- Prise de mensurations sur mannequin -->
+  <div class="sheet-backdrop" id="measureSheet" hidden>
+    <div class="sheet sheet--tall sheet--measure" role="dialog" aria-modal="true" aria-labelledby="measureTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <header class="sheet__head"><div><h2 class="sheet__title" id="measureTitle">Nouvelle prise</h2><p class="sheet__sub">Mètre ruban à plat, sans serrer, de préférence le matin.</p></div><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <form class="form" id="measureForm" data-kind="measurements" novalidate>
+        <input type="hidden" name="editId">
+        <div class="field"><label class="field__label" for="m-date">Date de la prise</label><input class="input" id="m-date" type="date" name="date" required></div>
+        <div id="bodyMapHost"></div>
+        <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Export d'une tâche vers Rappels -->
+  <div class="sheet-backdrop sheet-backdrop--dialog" id="reminderSheet" hidden>
+    <div class="sheet sheet--dialog" role="dialog" aria-modal="true" aria-labelledby="reminderTitle" tabindex="-1" id="reminderContent"></div>
   </div>
 
   <!-- Export calendrier iOS -->
