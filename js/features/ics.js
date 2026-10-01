@@ -112,34 +112,6 @@ export function buildICS(event) {
   return lines.map(foldLine).join('\r\n') + '\r\n';
 }
 
-/**
- * Tâche au format iCalendar (VTODO) avec alerte à l'échéance.
- * Lu par la plupart des gestionnaires de tâches (Thunderbird, Outlook, Tasks.org…).
- * @param {{id:string,title:string,date?:string,time?:string,note?:string}} task
- */
-export function buildTodoICS(task) {
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:${PRODID}`, 'METHOD:PUBLISH', 'BEGIN:VTODO', `UID:${escapeText(task.id)}@mon-dashboard`, `DTSTAMP:${toUTC(new Date())}`, `SUMMARY:${escapeText(task.title)}`];
-  const due = task.date ? combine(task.date, isTime(task.time) ? task.time : '09:00') : null;
-  if (due) lines.push(isTime(task.time) ? `DUE:${toUTC(due)}` : `DUE;VALUE=DATE:${toDateValue(due)}`);
-  if (task.note) lines.push(`DESCRIPTION:${escapeText(task.note)}`);
-  lines.push('STATUS:NEEDS-ACTION');
-  if (due) lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${escapeText(task.title)}`, `TRIGGER;VALUE=DATE-TIME:${toUTC(due)}`, 'END:VALARM');
-  lines.push('END:VTODO', 'END:VCALENDAR');
-  return lines.map(foldLine).join('\r\n') + '\r\n';
-}
-
-/** Télécharge un fichier texte (hors iOS). */
-export function downloadFile(content, name, type) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
-}
-
 export const isIOS = () =>
   /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
