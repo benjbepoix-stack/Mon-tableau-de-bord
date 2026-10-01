@@ -1,4 +1,4 @@
-# Mon Dashboard
+# Carnet
 
 Tableau de bord personnel (PWA installable sur iPhone) : rendez-vous, événements, tâches, notes, planning d'entraînement, courses et mesures physiques.
 HTML / CSS / JavaScript purs (modules ES), sans étape de build ni dépendance payante. Synchronisation multi-appareils via **Firebase Realtime Database** (offre gratuite).

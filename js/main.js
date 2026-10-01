@@ -34,7 +34,7 @@ function switchView(id, { scroll = true } = {}) {
   });
   $('#headerKicker').textContent = VIEWS[id].kicker;
   $('#headerTitle').textContent = VIEWS[id].title;
-  document.title = `${VIEWS[id].title} · Mon Dashboard`;
+  document.title = `${VIEWS[id].title} · Carnet`;
   VIEWS[id].show();
   try {
     sessionStorage.setItem(VIEW_KEY, id);
