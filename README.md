@@ -88,13 +88,7 @@ Les phases sont enregistrées dans `objectives.seasonPhases` : ce nœud accepte 
 
 ## Tâches → app Rappels (iPhone)
 
-Chaque tâche a une échéance et une **heure d’alerte** facultatives. Après l’enregistrement, ou avec le bouton cloche d’une tâche, la fenêtre « Ajouter aux Rappels » propose :
-
-* **Ajouter aux Rappels** : lance le raccourci iOS *Dashboard vers Rappels*, qui crée le rappel avec sa date, son alerte (9 h par défaut si aucune heure) et sa note. Une page web ne peut pas écrire directement dans Rappels : ce raccourci se crée **une fois** dans l’app Raccourcis, les étapes sont affichées dans la fenêtre (le bouton « Raccourci créé » mémorise la configuration sur l’appareil).
-* **Partager vers Rappels** : sans configuration, via la feuille de partage (titre seul, alerte à régler dans Rappels).
-* Hors iPhone : téléchargement d’un fichier `.ics` (VTODO) avec alerte, lu par la plupart des gestionnaires de tâches.
-
-Données transmises au raccourci (texte JSON) : `{"titre": "…", "notes": "…", "date": "AAAA-MM-JJ HH:MM"}` (`date` vide sans échéance).
+Sur iPhone, chaque tâche datée et non terminée a un bouton cloche : il copie le titre et l’échéance (« Appeler le garage — samedi 3 octobre à 10:30 ») puis ouvre l’app Rappels, où il suffit de coller. Une page web ne peut pas créer elle-même un rappel.
 
 ## Mensurations sur mannequin
 

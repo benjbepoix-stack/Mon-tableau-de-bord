@@ -7,12 +7,12 @@ import { esc } from '../core/utils.js';
 
 /** Zones : clé de donnée, libellé, côté de la case, hauteur (repère 0–440), bande [x1, x2] et consigne. */
 export const ZONES = [
-  { key: 'chest', label: 'Poitrine', side: 'right', y: 128, band: [120, 200], tip: 'Ruban horizontal sous les aisselles, à hauteur des mamelons, en fin d’expiration.' },
-  { key: 'arm', label: 'Bras', side: 'left', y: 122, band: [95, 118], tip: 'Biceps relâché, bras le long du corps, à mi-distance entre l’épaule et le coude.' },
-  { key: 'waist', label: 'Taille', side: 'left', y: 190, band: [128, 192], tip: 'Au niveau du nombril, ventre relâché, sans rentrer le ventre.' },
-  { key: 'hip', label: 'Hanche', side: 'right', y: 228, band: [122, 198], tip: 'Au point le plus large des fesses, pieds joints.' },
-  { key: 'thigh', label: 'Cuisse', side: 'left', y: 276, band: [124, 158], tip: 'Debout, jambe relâchée, au plus large : environ 15 cm sous le pli de l’aine.' },
-  { key: 'calf', label: 'Mollet', side: 'right', y: 352, band: [169, 196], tip: 'Debout, poids réparti sur les deux jambes, au point le plus large du mollet.' }
+  { key: 'arm', label: 'Bras', side: 'right', y: 160, band: [212, 227], tip: 'Biceps relâché, bras le long du corps, à mi-distance entre l’épaule et le coude.' },
+  { key: 'chest', label: 'Poitrine', side: 'left', y: 128, band: [117, 203], tip: 'Ruban horizontal sous les aisselles, à hauteur des mamelons, en fin d’expiration.' },
+  { key: 'waist', label: 'Taille', side: 'left', y: 188, band: [127, 193], tip: 'Au niveau du nombril, ventre relâché, sans rentrer le ventre.' },
+  { key: 'hip', label: 'Hanche', side: 'right', y: 230, band: [114, 206], tip: 'Au point le plus large des fesses, pieds joints.' },
+  { key: 'thigh', label: 'Cuisse', side: 'left', y: 280, band: [117, 155], tip: 'Debout, jambe relâchée, au plus large : environ 15 cm sous le pli de l’aine.' },
+  { key: 'calf', label: 'Mollet', side: 'right', y: 352, band: [166, 197], tip: 'Debout, poids réparti sur les deux jambes, au point le plus large du mollet.' }
 ];
 
 const W = 320;
@@ -20,18 +20,31 @@ const H = 440;
 const LEFT_EDGE = 70; // bord intérieur des cases de gauche (repère SVG)
 const RIGHT_EDGE = 250;
 
-/** Silhouette neutre, de face (centre x = 160). */
+/* Silhouette de face, proportions d'environ 8 têtes (sommet y = 14, pieds y = 424).
+   Une moitié droite est dessinée puis reproduite en miroir autour de l'axe x = 160. */
+const HALF = `M160 60
+  C164 60 168 62 168 66 L168 76
+  C176 82 196 82 210 87
+  C221 92 225 106 225 128
+  L228 184 L234 246
+  C236 258 236 268 230 272
+  C224 274 221 266 222 252
+  L216 186 L205 122
+  C204 140 201 164 194 188
+  C191 202 205 214 206 232
+  C207 258 204 282 200 302
+  C197 314 194 322 195 332
+  C198 352 199 376 190 402
+  L190 412 C197 416 197 424 186 424
+  L172 424 L171 404
+  C166 380 166 356 170 332
+  C170 304 168 276 160 256 Z`;
+
 const BODY = `
   <g class="bm-body">
-    <circle cx="160" cy="40" r="22"/>
-    <rect x="150" y="58" width="20" height="20" rx="6"/>
-    <path d="M116 86Q160 74 204 86L200 140Q192 172 192 190Q202 212 200 238Q160 252 120 238Q118 212 128 190Q128 172 120 140Z"/>
-    <path class="bm-limb" d="M111 96L99 160L93 226" stroke-width="22"/>
-    <path class="bm-limb" d="M209 96L221 160L227 226" stroke-width="22"/>
-    <path class="bm-limb" d="M142 236L139 320" stroke-width="36"/>
-    <path class="bm-limb" d="M139 320L137 414" stroke-width="25"/>
-    <path class="bm-limb" d="M178 236L181 320" stroke-width="36"/>
-    <path class="bm-limb" d="M181 320L183 414" stroke-width="25"/>
+    <ellipse cx="160" cy="38" rx="19" ry="24"/>
+    <path d="${HALF}"/>
+    <path d="${HALF}" transform="translate(320 0) scale(-1 1)"/>
   </g>`;
 
 /**

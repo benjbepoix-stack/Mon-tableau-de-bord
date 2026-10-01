@@ -6,7 +6,7 @@ import { rules, validate, showErrors, clearErrors, formValues } from '../core/va
 import { openSheet, closeSheet, confirmDialog, isOpen } from '../ui/dialog.js';
 import { toast, toastError } from '../ui/toast.js';
 import { icon } from '../ui/icons.js';
-import { offerReminder } from '../features/reminders.js';
+import { canOpenReminders, openReminders } from '../features/reminders.js';
 import { offerCalendar } from '../features/calendar-prompt.js';
 import { confirmSaved } from '../features/persist.js';
 
@@ -104,7 +104,7 @@ function renderTasks() {
         <button type="button" class="task__check" data-action="toggle" role="checkbox" aria-checked="${t.done}" aria-label="${t.done ? 'Marquer comme à faire' : 'Marquer comme terminée'}">${icon('check', 15)}</button>
         <div class="task__body"><div class="task__title">${esc(t.title)}</div>${sub ? `<div class="task__sub">${sub}</div>` : ''}</div>
         <div class="item-card__actions">
-          ${t.done ? '' : `<button type="button" class="icon-btn" data-action="reminder" aria-label="Ajouter « ${esc(t.title)} » aux Rappels" title="Ajouter aux Rappels">${icon('bell', 17)}</button>`}
+          ${canOpenReminders(t) ? `<button type="button" class="icon-btn" data-action="reminder" aria-label="Ouvrir Rappels pour « ${esc(t.title)} »" title="Ouvrir Rappels">${icon('bell', 17)}</button>` : ''}
           <button type="button" class="icon-btn" data-action="edit" aria-label="Modifier">${icon('edit', 17)}</button>
           <button type="button" class="icon-btn icon-btn--danger" data-action="delete" aria-label="Supprimer">${icon('trash', 17)}</button>
         </div>
@@ -175,7 +175,7 @@ function openEditor(type, id = null) {
   const isTask = type === 'tasks';
   form.dataset.kind = type;
   $('#itemDateLabel').textContent = isTask ? 'Échéance (facultatif)' : 'Date';
-  $('#itemTimeLabel').innerHTML = isTask ? 'Heure de l’alerte <span class="field__opt">(facultatif)</span>' : 'Début';
+  $('#itemTimeLabel').innerHTML = isTask ? 'Heure <span class="field__opt">(facultatif)</span>' : 'Début';
   form.elements.date.required = !isTask;
   $('#itemTitleInput').placeholder = isTask ? 'Ex. Appeler le garage' : type === 'appointments' ? 'Ex. Dentiste' : 'Ex. Dîner entre amis';
   if (item) ['title', 'date', 'time', 'endTime', 'repeat', 'location', 'note'].forEach(k => (form.elements[k].value = item[k] || ''));
@@ -208,7 +208,7 @@ async function onSubmit(e) {
   if (!TYPES[type]) return;
   const isTask = type === 'tasks';
   if (isTask) Object.assign(v, { endTime: '', repeat: '', location: '' });
-  if (isTask && v.time && !v.date) return showErrors(form, { time: 'Indiquez aussi une date d’échéance pour l’alerte.' });
+  if (isTask && v.time && !v.date) return showErrors(form, { time: 'Indiquez aussi une date d’échéance.' });
 
   const { valid, errors } = validate(v, itemSchema(type));
   if (!valid) return showErrors(form, errors);
@@ -235,10 +235,7 @@ async function onSubmit(e) {
   submit.disabled = false;
   closeSheet('itemSheet');
 
-  const dueChanged = !existing || existing.date !== item.date || (existing.time || '') !== (item.time || '');
-  if (isTask && dueChanged) {
-    offerReminder(item, { heading: existing ? 'Tâche modifiée' : 'Tâche ajoutée' });
-  } else if (type === 'appointments' && item.date) {
+  if (type === 'appointments' && item.date) {
     offerCalendar(toCalendarEvent(item, type), { heading: existing ? 'Rendez-vous modifié' : 'Rendez-vous enregistré', synced });
   } else {
     toast(existing ? 'Modifications enregistrées' : `${TYPES[type].one} ajouté${type === 'events' ? '' : type === 'tasks' ? 'e' : ''}`);
@@ -278,7 +275,7 @@ async function onClick(e) {
       openEditor(type, id);
       break;
     case 'reminder':
-      offerReminder(item);
+      openReminders(item);
       break;
     case 'calendar':
       offerCalendar(toCalendarEvent(item, type), { heading: 'Ajouter au calendrier ?' });

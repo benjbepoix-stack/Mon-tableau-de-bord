@@ -8,7 +8,6 @@ import { renderStatus } from './ui/status.js';
 import { toastError } from './ui/toast.js';
 import { icon } from './ui/icons.js';
 import { initCalendarPrompt } from './features/calendar-prompt.js';
-import { initReminders } from './features/reminders.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining, renderTraining, showTraining } from './views/training.js';
 import { initRaces, renderRaces, tickCountdowns } from './views/races.js';
@@ -77,7 +76,6 @@ function init() {
 
   initDialogs();
   initCalendarPrompt();
-  initReminders();
   initDashboard();
   initTraining();
   initRaces();
