@@ -9,7 +9,6 @@ import { toast, toastError } from '../ui/toast.js';
 import { icon } from '../ui/icons.js';
 import { renderDonut } from '../ui/charts.js';
 import { fetchWeek, getPlace, setPlace, searchPlaces } from '../services/weather.js';
-import { exportTraining } from '../features/export.js';
 import { PHASE_TYPES, getPhases, phaseOn, racesOn } from '../core/season.js';
 import { renderSeason, initSeason } from './season.js';
 
@@ -277,9 +276,6 @@ async function onClick(e) {
       commit('plans');
       break;
     }
-    case 'export-training':
-      exportTraining();
-      break;
     case 'open-manager':
       renderManager();
       openSheet('sportSheet', { focus: false });

@@ -103,10 +103,3 @@ Sur iPhone, chaque tâche datée et non terminée a un bouton cloche : il copie 
 ## Météo
 
 Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Entraînement) permet de changer de ville (recherche via l’API de géocodage gratuite d’Open-Meteo) ; le choix est mémorisé sur l’appareil.
-
-## Export CSV
-
-* **Mesures** (onglet Mesures, carte « Export ») : poids, FTP vélo et mensurations.
-* **Entraînements** (onglet Entraînement → « Exporter (CSV) ») : toutes les séances planifiées, triées par date.
-
-Utilise la feuille de partage native quand disponible (pour enregistrer dans Fichiers, l’envoyer par mail…), sinon un téléchargement classique.
