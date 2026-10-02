@@ -1,10 +1,71 @@
 /* Service worker : chaque ouverture de l'app vérifie auprès du serveur si les fichiers
    ont changé (requête conditionnelle, très légère) ; la dernière version reçue sert
    de secours hors ligne. Les mises à jour publiées sont ainsi visibles dès la
-   réouverture, sans mélange d'anciens et de nouveaux fichiers. */
-const CACHE = 'dashboard-v1';
+   réouverture, sans mélange d'anciens et de nouveaux fichiers.
 
-self.addEventListener('install', () => self.skipWaiting());
+   À l'installation, l'app-shell (HTML/CSS/JS/icônes) est aussi pré-mis en cache :
+   un tout premier lancement hors ligne (avant toute visite en ligne réussie)
+   affiche donc l'app au lieu d'un écran blanc. */
+const CACHE = 'dashboard-v2';
+
+const PRECACHE_URLS = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './css/tokens.css',
+  './css/base.css',
+  './css/components.css',
+  './css/layout.css',
+  './css/views/dashboard.css',
+  './css/views/metrics.css',
+  './css/views/races.css',
+  './css/views/training.css',
+  './js/main.js',
+  './js/config/firebase-config.js',
+  './js/core/dates.js',
+  './js/core/schema.js',
+  './js/core/season.js',
+  './js/core/store.js',
+  './js/core/utils.js',
+  './js/core/validation.js',
+  './js/features/body-map.js',
+  './js/features/calendar-prompt.js',
+  './js/features/ics.js',
+  './js/features/persist.js',
+  './js/features/reminders.js',
+  './js/services/firebase.js',
+  './js/services/storage.js',
+  './js/services/weather.js',
+  './js/ui/charts.js',
+  './js/ui/dialog.js',
+  './js/ui/icons.js',
+  './js/ui/status.js',
+  './js/ui/theme.js',
+  './js/ui/toast.js',
+  './js/views/dashboard.js',
+  './js/views/metrics.js',
+  './js/views/races.js',
+  './js/views/season.js',
+  './js/views/training.js',
+  './icon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './apple-touch-icon.png'
+];
+
+async function precache() {
+  const cache = await caches.open(CACHE);
+  // addAll échouerait en bloc au premier fichier manquant ; on isole chaque échec
+  // pour que le reste de l'app-shell reste disponible hors ligne.
+  await Promise.all(
+    PRECACHE_URLS.map(url => cache.add(url).catch(err => console.warn('[sw] précache échoué:', url, err)))
+  );
+}
+
+self.addEventListener('install', e => {
+  e.waitUntil(precache().then(() => self.skipWaiting()));
+});
+
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())

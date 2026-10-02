@@ -114,6 +114,7 @@
         <div class="toolbar toolbar--week">
           <button type="button" class="btn btn--primary" data-action="week-today"><span data-icon="calendar" data-size="18"></span><span>Aujourd’hui</span></button>
           <button type="button" class="btn btn--soft" data-action="open-manager"><span data-icon="settings" data-size="18"></span><span>Sports &amp; séances</span></button>
+          <button type="button" class="btn btn--soft" data-action="export-training"><span data-icon="share" data-size="18"></span><span>Exporter (CSV)</span></button>
         </div>
 
         <div class="training-grid">
@@ -144,7 +145,7 @@
           <button type="button" class="icon-btn icon-btn--glass" data-action="week-next" aria-label="Semaine suivante"><span data-icon="chevronRight"></span></button>
         </div>
         <section id="days" class="days" aria-label="Détail des jours de la semaine"></section>
-        <p class="footnote">Données synchronisées entre vos appareils. Météo : Besançon (Open-Meteo).</p>
+        <p class="footnote">Données synchronisées entre vos appareils. Météo : <span id="weatherPlaceLabel">Besançon</span> (Open-Meteo).</p>
       </div>
 
       <div id="trainingSeasonPanel" role="tabpanel" aria-labelledby="tab-season" hidden>
@@ -250,6 +251,11 @@
         <div class="divider"></div>
         <div id="measureCompare"></div>
         <button type="button" class="link-btn link-btn--center" data-action="history" data-kind="measurements">Voir tout l’historique</button>
+      </section>
+
+      <section class="card metric-card">
+        <header class="metric-card__head"><div><h2 class="card__title">Export</h2><p class="card__sub">Télécharger votre historique</p></div></header>
+        <button type="button" class="btn btn--soft btn--block" data-action="export-metrics"><span data-icon="share" data-size="18"></span><span>Exporter les mesures (CSV)</span></button>
       </section>
     </section>
   </main>

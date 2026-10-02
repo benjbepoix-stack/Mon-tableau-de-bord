@@ -97,3 +97,16 @@ Sur iPhone, chaque tâche datée et non terminée a un bouton cloche : il copie 
 ## Mises à jour
 
 `sw.js` (service worker) vérifie à chaque ouverture si les fichiers de l’app ont changé sur le serveur et garde la dernière version pour le mode hors ligne. Une version publiée sur GitHub Pages apparaît donc à la réouverture de l’app, sans attendre l’expiration du cache du navigateur.
+
+À l’installation, l’app-shell (HTML/CSS/JS/icônes) est aussi pré-mis en cache : un tout premier lancement hors ligne (avant toute visite en ligne réussie) affiche donc l’app au lieu d’un écran blanc.
+
+## Météo
+
+Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Entraînement) permet de changer de ville (recherche via l’API de géocodage gratuite d’Open-Meteo) ; le choix est mémorisé sur l’appareil.
+
+## Export CSV
+
+* **Mesures** (onglet Mesures, carte « Export ») : poids, FTP vélo et mensurations.
+* **Entraînements** (onglet Entraînement → « Exporter (CSV) ») : toutes les séances planifiées, triées par date.
+
+Utilise la feuille de partage native quand disponible (pour enregistrer dans Fichiers, l’envoyer par mail…), sinon un téléchargement classique.

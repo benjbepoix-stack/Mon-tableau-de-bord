@@ -9,6 +9,7 @@ import { toast } from '../ui/toast.js';
 import { icon } from '../ui/icons.js';
 import { renderLineChart } from '../ui/charts.js';
 import { bodyMapHTML, bindBodyMap } from '../features/body-map.js';
+import { exportMetrics } from '../features/export.js';
 
 const WINDOW = 6;
 const SERIES = {
@@ -269,6 +270,7 @@ export function initMetrics() {
     const { action, kind, dir } = btn.dataset;
     if (action === 'history') openHistory(kind);
     else if (action === 'measure') openMeasureSheet();
+    else if (action === 'export-metrics') exportMetrics();
     else if (action === 'window') {
       offsets[kind] = Math.max(0, offsets[kind] + Number(dir));
       renderSeries(kind);

@@ -1,7 +1,47 @@
 /* Prévisions météo Open-Meteo (gratuit, sans clé) avec cache mémoire. */
 import { addDays, dateKey } from '../core/dates.js';
+import { readJSON, write } from './storage.js';
 
-export const WEATHER_PLACE = { name: 'Besançon', lat: 47.2378, lon: 6.0241 };
+const DEFAULT_PLACE = { name: 'Besançon', lat: 47.2378, lon: 6.0241 };
+const PLACE_KEY = 'weather_place';
+
+/** Lieu météo courant (par défaut Besançon, modifiable par l'utilisateur). */
+export function getPlace() {
+  const saved = readJSON(PLACE_KEY, null);
+  return saved && typeof saved.lat === 'number' && typeof saved.lon === 'number' ? saved : DEFAULT_PLACE;
+}
+
+/** Change le lieu météo et vide le cache (les prévisions précédentes ne sont plus valables). */
+export function setPlace(place) {
+  write(PLACE_KEY, place);
+  cache.clear();
+}
+
+export const isDefaultPlace = () => !readJSON(PLACE_KEY, null);
+
+/**
+ * Cherche des villes par nom via l'API de géocodage Open-Meteo (gratuite, sans clé).
+ * @returns {Promise<Array<{name, admin1, country, lat, lon}>>}
+ */
+export async function searchPlaces(query) {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
+  url.searchParams.set('name', q);
+  url.searchParams.set('count', '6');
+  url.searchParams.set('language', 'fr');
+  url.searchParams.set('format', 'json');
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const json = await response.json();
+  return (json.results || []).map(r => ({
+    name: r.name,
+    admin1: r.admin1 || '',
+    country: r.country || '',
+    lat: r.latitude,
+    lon: r.longitude
+  }));
+}
 
 const WMO = {
   0: ['☀️', 'Ciel dégagé'], 1: ['🌤️', 'Principalement dégagé'], 2: ['⛅', 'Partiellement nuageux'], 3: ['☁️', 'Couvert'],
@@ -32,14 +72,15 @@ export async function fetchWeek(weekStart, { force = false } = {}) {
   const end = endWanted > max ? max : endWanted;
   if (start > end) return {}; // semaine entièrement hors fenêtre : pas d'appel réseau
 
-  const key = `${dateKey(start)}_${dateKey(end)}`;
+  const place = getPlace();
+  const key = `${place.lat},${place.lon}_${dateKey(start)}_${dateKey(end)}`;
   const hit = cache.get(key);
   if (!force && hit && Date.now() - hit.at < CACHE_TTL) return hit.data;
 
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   Object.entries({
-    latitude: WEATHER_PLACE.lat,
-    longitude: WEATHER_PLACE.lon,
+    latitude: place.lat,
+    longitude: place.lon,
     daily: 'weather_code,temperature_2m_min,temperature_2m_max,wind_speed_10m_max',
     timezone: 'Europe/Paris',
     wind_speed_unit: 'kmh',

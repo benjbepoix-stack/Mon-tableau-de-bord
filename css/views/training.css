@@ -65,7 +65,7 @@
 .day-card__date { font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; }
 .day-card__sessions { display: flex; flex-direction: column; gap: var(--sp-2); }
 
-.weather { position: relative; display: flex; align-items: center; gap: var(--sp-3); min-height: 60px; padding: 10px 48px 10px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); }
+.weather { position: relative; display: flex; align-items: center; gap: var(--sp-3); min-height: 60px; padding: 10px 80px 10px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); }
 .weather__icon { font-size: 26px; width: 32px; text-align: center; flex: none; }
 .weather__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .weather__text strong { font-size: var(--fs-sm); font-weight: 750; }
@@ -73,6 +73,8 @@
 .weather__refresh { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--accent); }
 .weather__refresh:active:not(:disabled) { transform: translateY(-50%) scale(.9); }
 .weather__refresh.is-spinning .icon { animation: spin .8s linear infinite; }
+.weather__place { position: absolute; right: 42px; top: 50%; transform: translateY(-50%); color: var(--text-2); }
+.weather__place:active { transform: translateY(-50%) scale(.9); }
 
 .session { padding: var(--sp-3); border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); animation: pop-in var(--dur) var(--ease); }
 .session__head { display: flex; align-items: center; justify-content: space-between; margin: -4px -4px 8px 0; }

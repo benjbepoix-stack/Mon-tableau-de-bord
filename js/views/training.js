@@ -8,7 +8,8 @@ import { openSheet, confirmDialog, promptDialog } from '../ui/dialog.js';
 import { toast, toastError } from '../ui/toast.js';
 import { icon } from '../ui/icons.js';
 import { renderDonut } from '../ui/charts.js';
-import { fetchWeek, WEATHER_PLACE } from '../services/weather.js';
+import { fetchWeek, getPlace, setPlace, searchPlaces } from '../services/weather.js';
+import { exportTraining } from '../features/export.js';
 import { PHASE_TYPES, getPhases, phaseOn, racesOn } from '../core/season.js';
 import { renderSeason, initSeason } from './season.js';
 
@@ -117,16 +118,17 @@ function sessionHTML(k, s, idx) {
 
 function weatherHTML(k) {
   const refresh = `<button type="button" class="icon-btn icon-btn--sm weather__refresh ${weatherLoading ? 'is-spinning' : ''}" data-action="refresh-weather" aria-label="Actualiser la météo">${icon('refresh', 16)}</button>`;
+  const changePlace = `<button type="button" class="icon-btn icon-btn--sm weather__place" data-action="change-weather-place" aria-label="Changer de ville">${icon('pin', 16)}</button>`;
   let body;
   if (weatherLoading && !weather?.data) body = `<span class="skeleton skeleton--icon"></span><div class="weather__text"><span class="skeleton skeleton--line"></span><span class="skeleton skeleton--line skeleton--short"></span></div>`;
   else if (weather?.error) body = `<span class="weather__icon">⚠️</span><div class="weather__text"><strong>Météo indisponible</strong><span>Vérifiez la connexion puis actualisez.</span></div>`;
   else {
     const w = weather?.data?.[k];
     body = w
-      ? `<span class="weather__icon">${w.icon}</span><div class="weather__text"><strong>${esc(w.label)}</strong><span>${w.min}° / ${w.max}° · vent ${w.wind} km/h · ${WEATHER_PLACE.name}</span></div>`
+      ? `<span class="weather__icon">${w.icon}</span><div class="weather__text"><strong>${esc(w.label)}</strong><span>${w.min}° / ${w.max}° · vent ${w.wind} km/h · ${esc(getPlace().name)}</span></div>`
       : `<span class="weather__icon">—</span><div class="weather__text"><strong>Prévision non disponible</strong><span>Date hors de la fenêtre météo.</span></div>`;
   }
-  return `<div class="weather">${body}${refresh}</div>`;
+  return `<div class="weather">${body}${changePlace}${refresh}</div>`;
 }
 
 function renderDays(keys, phases = getPhases()) {
@@ -156,6 +158,7 @@ function renderDays(keys, phases = getPhases()) {
 export function renderTraining() {
   const keys = weekKeys();
   $('#weekLabel').innerHTML = `<strong>Semaine du ${formatDate(weekStart, { day: 'numeric', month: 'long' })}</strong><span>au ${formatDate(addDays(weekStart, 6), { day: 'numeric', month: 'long', year: 'numeric' })}</span>`;
+  $('#weatherPlaceLabel').textContent = getPlace().name;
   const phases = getPhases();
   renderTabs();
   renderSeason();
@@ -235,6 +238,31 @@ async function onClick(e) {
     case 'refresh-weather':
       if (!weatherLoading) loadWeather(true);
       break;
+    case 'change-weather-place': {
+      const query = await promptDialog({
+        title: 'Changer de ville',
+        label: 'Ville',
+        value: getPlace().name,
+        placeholder: 'ex. Besançon, Chamonix, Annecy…',
+        confirmLabel: 'Rechercher'
+      });
+      if (!query) break;
+      try {
+        const results = await searchPlaces(query);
+        if (!results.length) {
+          toastError(`Aucune ville trouvée pour « ${query} ».`);
+          break;
+        }
+        const best = results[0];
+        setPlace({ name: best.admin1 ? `${best.name} (${best.admin1})` : best.name, lat: best.lat, lon: best.lon });
+        toast(`Météo réglée sur ${best.name}${best.country ? ' · ' + best.country : ''}.`);
+        loadWeather(true);
+      } catch (error) {
+        console.warn('[météo] géocodage', error);
+        toastError('Recherche de ville indisponible pour le moment.');
+      }
+      break;
+    }
     case 'add-session': {
       const k = btn.dataset.day;
       sessionsOf(k).push(defaultSession());
@@ -249,6 +277,9 @@ async function onClick(e) {
       commit('plans');
       break;
     }
+    case 'export-training':
+      exportTraining();
+      break;
     case 'open-manager':
       renderManager();
       openSheet('sportSheet', { focus: false });
