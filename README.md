@@ -103,3 +103,10 @@ Sur iPhone, chaque tâche datée et non terminée a un bouton cloche : il copie 
 ## Météo
 
 Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Entraînement) permet de changer de ville (recherche via l’API de géocodage gratuite d’Open-Meteo) ; le choix est mémorisé sur l’appareil.
+
+## Lien avec Garage
+
+- **Tâches envoyées depuis Garage** : un rappel d'entretien (vidange, contrôle technique…) envoyé depuis l'app **Garage** arrive directement comme tâche datée dans l'onglet Accueil, au même titre qu'une tâche créée ici. Rien à faire côté Carnet.
+- **Widget « Garage »** : une carte dédiée sur l'accueil (entre Tâches et Notes) affiche, en lecture seule et en direct, les 3 échéances les plus urgentes de chaque véhicule (retard en rouge, bientôt en orange), publiées par Garage via `app/garage_alerts`. Carnet ne fait que lire ce chemin — aucune écriture, aucune donnée renvoyée vers Garage. La carte reste masquée tant qu'aucune donnée n'a été publiée (app Garage non utilisée, ou pas encore synchronisée). Détail dans `js/features/garage-widget.js`.
+
+⚠️ **Étape unique à faire manuellement** : le chemin `garage_alerts` doit être autorisé dans les règles de cette base Firebase. Le fichier `database.rules.json` de ce dépôt a été mis à jour en conséquence, mais Claude ne peut pas déployer des règles Firebase depuis cet environnement — il faut copier son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier) une seule fois. Tant que ce n'est pas fait, le widget reste vide (Garage retentera automatiquement l'envoi dès que les règles seront en place, sans rien à refaire).

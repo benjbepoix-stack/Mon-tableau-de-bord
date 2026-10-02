@@ -8,6 +8,7 @@ import { renderStatus } from './ui/status.js';
 import { toastError } from './ui/toast.js';
 import { icon } from './ui/icons.js';
 import { initCalendarPrompt } from './features/calendar-prompt.js';
+import { initGarageWidget } from './features/garage-widget.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining, renderTraining, showTraining } from './views/training.js';
 import { initRaces, renderRaces, tickCountdowns } from './views/races.js';
@@ -120,6 +121,7 @@ function init() {
     onError: message => toastError(`Synchronisation : ${message}`),
     getSnapshot: snapshot
   });
+  initGarageWidget();
 
   document.documentElement.classList.add('is-ready');
 

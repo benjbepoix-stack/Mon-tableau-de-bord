@@ -4,6 +4,7 @@ const svg = (paths, size = 20) =>
 
 const P = {
   home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
+  wrench: '<path d="M14.5 5.5a4 4 0 0 0 5 5L12 18a2.1 2.1 0 0 1-3-3l7.5-7.5a4 4 0 0 1-2-2z"/><path d="M6 21l-2-2"/>',
   training: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
   flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
   chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',

@@ -28,6 +28,11 @@
       "bodyMetrics": {
         "$series": { ".validate": "$series === 'weight' || $series === 'ftp' || $series === 'measurements'" }
       },
+      "garage_alerts": {
+        "$vehicleId": {
+          ".validate": "newData.hasChildren(['vehicleName', 'updatedAt']) && newData.child('vehicleName').isString() && newData.child('vehicleName').val().length <= 100"
+        }
+      },
       "$other": { ".validate": false }
     }
   }

@@ -92,6 +92,13 @@
 .is-overdue { color: var(--danger); font-weight: 700; }
 .task .item-card__actions { margin: 0; }
 
+/* Widget Garage (lecture seule, données publiées par l'app Garage) */
+.garage-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--text-3); }
+.garage-dot.is-late { background: var(--danger); box-shadow: 0 0 0 4px var(--danger-soft); }
+.garage-dot.is-soon { background: var(--amber); box-shadow: 0 0 0 4px var(--amber-soft); }
+.garage-widget__live { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: var(--r-pill); padding: 4px 10px 4px 8px; }
+.garage-widget__live i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); font-style: normal; }
+
 /* Notes */
 .save-state { font-size: 11.5px; color: var(--text-3); font-weight: 600; transition: color var(--dur) var(--ease); }
 .save-state.is-saving { color: var(--amber); }
