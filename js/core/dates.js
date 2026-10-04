@@ -55,13 +55,19 @@ export const formatKey = (key, options = { day: 'numeric', month: 'short', year:
   return d ? formatDate(d, options) : '—';
 };
 
-/** « Aujourd'hui », « Demain », « Dans 3 jours »… */
-export function relativeDay(key) {
+/** Nombre de jours entre aujourd'hui et `key` (négatif si passé) ; null si date invalide. */
+export function daysUntil(key) {
   const d = fromKey(key);
-  if (!d) return '';
+  if (!d) return null;
   const today = new Date();
   today.setHours(12, 0, 0, 0);
-  const diff = Math.round((d - today) / 86400000);
+  return Math.round((d - today) / 86400000);
+}
+
+/** « Aujourd'hui », « Demain », « Dans 3 jours »… */
+export function relativeDay(key) {
+  const diff = daysUntil(key);
+  if (diff === null) return '';
   if (diff === 0) return 'Aujourd’hui';
   if (diff === 1) return 'Demain';
   if (diff === -1) return 'Hier';

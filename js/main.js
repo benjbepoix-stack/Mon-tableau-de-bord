@@ -9,6 +9,7 @@ import { toastError } from './ui/toast.js';
 import { icon } from './ui/icons.js';
 import { initCalendarPrompt } from './features/calendar-prompt.js';
 import { initGarageWidget } from './features/garage-widget.js';
+import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining, renderTraining, showTraining } from './views/training.js';
 import { initRaces, renderRaces, tickCountdowns } from './views/races.js';
@@ -54,6 +55,15 @@ function onStateChange(slices) {
   if (view.render && view.slices.some(s => slices.includes(s))) view.render();
 }
 
+/** Depuis le pop-up de démarrage : ouvre le tableau de bord et met la tâche en évidence. */
+function goToTask(id) {
+  switchView('dashboardView');
+  setTimeout(() => {
+    const row = document.querySelector(`#tasks [data-id="${CSS.escape(id)}"]`);
+    row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 80);
+}
+
 function initGlobalErrors() {
   let last = 0;
   const report = error => {
@@ -81,6 +91,7 @@ function init() {
   initTraining();
   initRaces();
   initMetrics();
+  initOverduePrompt({ onView: goToTask });
 
   renderNotes();
   renderDashboard();
@@ -121,7 +132,11 @@ function init() {
     onError: message => toastError(`Synchronisation : ${message}`),
     getSnapshot: snapshot
   });
-  initGarageWidget();
+  // Pop-up de démarrage (tâches + entretiens en retard) : on laisse une
+  // chance au résumé Garage d'arriver, sans bloquer indéfiniment si l'app
+  // Garage est hors ligne ou n'a encore rien publié.
+  initGarageWidget({ onData: checkOverdue });
+  setTimeout(() => checkOverdue(null), 2500);
 
   document.documentElement.classList.add('is-ready');
 

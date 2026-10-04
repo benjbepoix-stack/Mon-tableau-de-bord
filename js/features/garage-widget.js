@@ -36,8 +36,13 @@ function render(data) {
     : `<div class="empty-state"><span class="empty-state__icon">${icon('check', 22)}</span><p>Tout est à jour sur vos véhicules.</p></div>`;
 }
 
-/** Démarre l'écoute en direct ; n'affiche jamais d'erreur (fonctionnalité annexe). */
-export async function initGarageWidget() {
+/**
+ * Démarre l'écoute en direct ; n'affiche jamais d'erreur (fonctionnalité annexe).
+ * `onData`, si fourni, reçoit les données brutes à chaque mise à jour (et une
+ * seule fois avec `null` si Garage est hors ligne ou injoignable) — utilisé
+ * par le pop-up de démarrage pour y ajouter les entretiens en retard.
+ */
+export async function initGarageWidget({ onData } = {}) {
   try {
     const [appMod, dbMod] = await Promise.all([import(`${SDK}/firebase-app.js`), import(`${SDK}/firebase-database.js`)]);
     const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
@@ -47,12 +52,15 @@ export async function initGarageWidget() {
       snap => {
         $('#garageLive').hidden = false;
         render(snap.val());
+        onData?.(snap.val());
       },
       () => {
         $('#garageLive').hidden = true;
+        onData?.(null);
       }
     );
   } catch {
     // Hors ligne ou SDK indisponible : le widget reste simplement masqué.
+    onData?.(null);
   }
 }

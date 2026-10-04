@@ -31,6 +31,7 @@ js/
   features/
     ics.js                  Génération iCalendar (RFC 5545) + ouverture Calendrier iOS
     calendar-prompt.js      Modale « Ajouter au calendrier »
+    overdue-prompt.js       Pop-up de démarrage : tâches et entretiens Garage en retard
     persist.js              Attente de l'accusé de réception Firebase
   ui/                       Icônes SVG, modales, toasts, thème, pastille de synchro, graphiques
   views/                    dashboard, training, races, metrics
@@ -110,3 +111,15 @@ Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Entra�
 - **Widget « Garage »** : une carte dédiée sur l'accueil (entre Tâches et Notes) affiche, en lecture seule et en direct, les 3 échéances les plus urgentes de chaque véhicule (retard en rouge, bientôt en orange), publiées par Garage via `app/garage_alerts`. Carnet ne fait que lire ce chemin — aucune écriture, aucune donnée renvoyée vers Garage. La carte reste masquée tant qu'aucune donnée n'a été publiée (app Garage non utilisée, ou pas encore synchronisée). Détail dans `js/features/garage-widget.js`.
 
 ⚠️ **Étape unique à faire manuellement** : le chemin `garage_alerts` doit être autorisé dans les règles de cette base Firebase. Le fichier `database.rules.json` de ce dépôt a été mis à jour en conséquence, mais Claude ne peut pas déployer des règles Firebase depuis cet environnement — il faut copier son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier) une seule fois. Tant que ce n'est pas fait, le widget reste vide (Garage retentera automatiquement l'envoi dès que les règles seront en place, sans rien à refaire).
+
+## Pop-up de démarrage (tâches et entretiens en retard)
+
+Au lancement de l'app, s'il existe des tâches en retard (échéance passée, non cochées) et/ou des entretiens en retard remontés par Garage (`garage_alerts`, niveau « en retard »), une fenêtre s'ouvre automatiquement pour les passer en revue une par une (« Suivant » puis « Terminé » ; « Voir cette tâche » pour les tâches, qui ouvre l'accueil directement dessus). Un seul passage par session. Si Garage ne répond pas sous 2,5 s (hors ligne, jamais utilisé), le pop-up s'affiche tout de même avec les seules tâches en retard. Détail dans `js/features/overdue-prompt.js`.
+
+## Échéances à moins de 10 jours
+
+Sur l'accueil, un rendez-vous ou un événement dont l'échéance tombe dans les 10 jours (ou déjà aujourd'hui) est mis en évidence : liseré et icône d'alerte rouges sur la carte, badge de date assorti.
+
+## Planning de la semaine
+
+À l'ouverture de l'app, le planning hebdomadaire (onglet Entraînement → Cette semaine) défile automatiquement jusqu'à la carte du jour, plutôt que de rester sur le lundi de la semaine affichée.

@@ -184,9 +184,21 @@ async function loadWeather(force = false) {
   }
 }
 
+let scrolledToTodayOnOpen = false;
+
 export function showTraining() {
   renderTraining();
   loadWeather();
+  // Au tout premier affichage de l'app (pas à chaque re-rendu), le planning
+  // s'ouvre sur la journée d'aujourd'hui plutôt que sur le lundi de la semaine.
+  if (!scrolledToTodayOnOpen) {
+    scrolledToTodayOnOpen = true;
+    requestAnimationFrame(() => {
+      const days = $('#days');
+      const card = $(`#day-${todayKey()}`);
+      if (days?.firstElementChild && card) days.scrollLeft = card.offsetLeft - days.firstElementChild.offsetLeft;
+    });
+  }
 }
 
 /* ---------- Mutations ---------- */

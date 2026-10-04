@@ -1,6 +1,6 @@
 /* Vue Dashboard : prochain rendez-vous / événement, tâches, notes. */
-import { $, $$, esc, uid, debounce, plural } from '../core/utils.js';
-import { combine, formatDate, formatKey, fromKey, relativeDay, todayKey, isRepeat, nextOccurrenceKey, REPEATS } from '../core/dates.js';
+import { $, $$, esc, uid, debounce } from '../core/utils.js';
+import { combine, formatDate, formatKey, fromKey, relativeDay, daysUntil, todayKey, isRepeat, nextOccurrenceKey, REPEATS } from '../core/dates.js';
 import { state, commit } from '../core/store.js';
 import { rules, validate, showErrors, clearErrors, formValues } from '../core/validation.js';
 import { openSheet, closeSheet, confirmDialog, isOpen } from '../ui/dialog.js';
@@ -17,6 +17,7 @@ const TYPES = {
 };
 
 let archive = { type: 'appointments', tab: 'upcoming' };
+const SOON_DAYS = 10;
 
 /* ---------- Sélecteurs ---------- */
 /** Élément tel qu'affiché : un élément répété prend la date de sa prochaine occurrence. */
@@ -51,13 +52,15 @@ function timeLabel(x) {
 
 function itemCard(x, type, { featured = false } = {}) {
   const d = fromKey(x.date);
+  const diff = x.date ? daysUntil(x.date) : null;
+  const soon = diff !== null && diff >= 0 && diff <= SOON_DAYS;
   const chip = d
-    ? `<div class="date-chip date-chip--${type}"><span class="date-chip__day">${d.getDate()}</span><span class="date-chip__month">${formatDate(d, { month: 'short' })}</span></div>`
+    ? `<div class="date-chip date-chip--${type} ${soon ? 'is-soon' : ''}"><span class="date-chip__day">${d.getDate()}</span><span class="date-chip__month">${formatDate(d, { month: 'short' })}</span></div>`
     : '';
-  const meta = [x.date ? `<span class="tag tag--${type}">${relativeDay(x.date)}</span>` : '', timeLabel(x) ? `<span>${icon('clock', 13)}${timeLabel(x)}</span>` : '', isRepeat(x.repeat) ? `<span>${icon('repeat', 13)}${REPEATS[x.repeat].label}</span>` : '', x.location ? `<span>${icon('pin', 13)}${esc(x.location)}</span>` : '']
+  const meta = [x.date ? `<span class="tag tag--${type} ${soon ? 'is-soon' : ''}">${soon ? icon('alert', 12) : ''}${relativeDay(x.date)}</span>` : '', timeLabel(x) ? `<span>${icon('clock', 13)}${timeLabel(x)}</span>` : '', isRepeat(x.repeat) ? `<span>${icon('repeat', 13)}${REPEATS[x.repeat].label}</span>` : '', x.location ? `<span>${icon('pin', 13)}${esc(x.location)}</span>` : '']
     .filter(Boolean)
     .join('');
-  return `<article class="item-card ${featured ? 'item-card--featured' : ''}" data-id="${esc(x.id)}" data-type="${type}">
+  return `<article class="item-card ${featured ? 'item-card--featured' : ''} ${soon ? 'item-card--soon' : ''}" data-id="${esc(x.id)}" data-type="${type}">
     ${chip}
     <div class="item-card__body">
       <h3 class="item-card__title">${esc(x.title)}</h3>
@@ -116,15 +119,9 @@ function renderTasks() {
 function renderGreeting() {
   const h = new Date().getHours();
   const hello = h < 5 ? 'Bonne nuit' : h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
-  const remaining = state.dashboard.tasks.filter(t => !t.done).length;
-  const todayItems = [...state.dashboard.appointments, ...state.dashboard.events].map(view).filter(x => x.date === todayKey()).length;
   $('#greeting').innerHTML = `
     <div class="hero__date">${formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long' })}</div>
-    <div class="hero__title">${hello} 👋</div>
-    <div class="hero__stats">
-      <div class="hero__stat"><strong>${remaining}</strong><span>${plural(remaining, 'tâche restante', 'tâches restantes')}</span></div>
-      <div class="hero__stat"><strong>${todayItems}</strong><span>${plural(todayItems, 'rendez-vous', 'rendez-vous')} aujourd’hui</span></div>
-    </div>`;
+    <div class="hero__title">${hello} 👋</div>`;
 }
 
 export function renderNotes() {
