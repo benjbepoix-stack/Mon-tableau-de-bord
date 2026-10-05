@@ -112,6 +112,12 @@ Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Entra�
 
 ⚠️ **Étape unique à faire manuellement** : le chemin `garage_alerts` doit être autorisé dans les règles de cette base Firebase. Le fichier `database.rules.json` de ce dépôt a été mis à jour en conséquence, mais Claude ne peut pas déployer des règles Firebase depuis cet environnement — il faut copier son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier) une seule fois. Tant que ce n'est pas fait, le widget reste vide (Garage retentera automatiquement l'envoi dès que les règles seront en place, sans rien à refaire).
 
+## Lien avec Ma Maison
+
+**Widget « Maison »** : une carte sur l'accueil (sous la carte Garage) affiche, en lecture seule et en direct, ce qu'a publié l'app **Ma Maison** dans `app/maison_alerts` : entretiens en retard (rouge) ou proches (orange), garanties qui expirent, et le nombre de tâches de saison du mois. Carnet ne fait que lire ce chemin. La carte reste masquée tant que Ma Maison n'a rien publié. Détail dans `js/features/maison-widget.js`.
+
+⚠️ **Étape unique à faire manuellement** : comme pour Garage, le chemin `maison_alerts` doit être autorisé dans les règles Firebase de Carnet. `database.rules.json` est à jour : copiez son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier).
+
 ## Pop-up de démarrage (tâches et entretiens en retard)
 
 Au lancement de l'app, s'il existe des tâches en retard (échéance passée, non cochées) et/ou des entretiens en retard remontés par Garage (`garage_alerts`, niveau « en retard »), une fenêtre s'ouvre automatiquement pour les passer en revue une par une (« Suivant » puis « Terminé » ; « Voir cette tâche » pour les tâches, qui ouvre l'accueil directement dessus). Un seul passage par session. Si Garage ne répond pas sous 2,5 s (hors ligne, jamais utilisé), le pop-up s'affiche tout de même avec les seules tâches en retard. Détail dans `js/features/overdue-prompt.js`.

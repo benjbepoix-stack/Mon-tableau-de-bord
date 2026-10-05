@@ -9,6 +9,7 @@ import { toastError } from './ui/toast.js';
 import { icon } from './ui/icons.js';
 import { initCalendarPrompt } from './features/calendar-prompt.js';
 import { initGarageWidget } from './features/garage-widget.js';
+import { initMaisonWidget } from './features/maison-widget.js';
 import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining, renderTraining, showTraining } from './views/training.js';
@@ -136,6 +137,7 @@ function init() {
   // chance au résumé Garage d'arriver, sans bloquer indéfiniment si l'app
   // Garage est hors ligne ou n'a encore rien publié.
   initGarageWidget({ onData: checkOverdue });
+  initMaisonWidget();
   setTimeout(() => checkOverdue(null), 2500);
 
   document.documentElement.classList.add('is-ready');

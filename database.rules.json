@@ -33,6 +33,9 @@
           ".validate": "newData.hasChildren(['vehicleName', 'updatedAt']) && newData.child('vehicleName').isString() && newData.child('vehicleName').val().length <= 100"
         }
       },
+      "maison_alerts": {
+        ".validate": "newData.hasChildren(['name', 'updatedAt']) && newData.child('name').isString() && newData.child('name').val().length <= 100"
+      },
       "$other": { ".validate": false }
     }
   }
