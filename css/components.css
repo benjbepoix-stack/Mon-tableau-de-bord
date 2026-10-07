@@ -467,10 +467,20 @@
 .cal-hint { font-size: 11.5px; color: var(--text-3); }
 
 
-/* ---------- Champs secondaires repliés ---------- */
-.more-fields { margin: 2px 0 4px; }
-.more-fields > summary { display: inline-flex; align-items: center; gap: 6px; padding: 6px 2px; cursor: pointer; list-style: none; font-size: var(--fs-sm); font-weight: 750; color: var(--accent); }
+/* ---------- Formulaires : espacement vertical homogène ---------- */
+.form-grid { row-gap: var(--sp-4); }
+/* Une ligne par champ de texte long (note…) */
+.form-grid > .field:has(textarea) { grid-column: 1 / -1; }
+
+/* ---------- Champs facultatifs repliés (« Plus de détails ») ---------- */
+.more-fields > summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; font-size: var(--fs-sm); font-weight: 750; color: var(--accent); }
 .more-fields > summary::-webkit-details-marker { display: none; }
 .more-fields > summary::after { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform .2s; }
 .more-fields[open] > summary::after { transform: rotate(225deg) translateY(-2px); }
-.more-fields[open] > summary { margin-bottom: 8px; }
+.more-fields__body { display: flex; flex-direction: column; gap: var(--sp-4); margin-top: var(--sp-4); }
+/* Blocs sans classe regroupant des champs (affichés selon un choix) : même espacement que le formulaire. */
+.form > div:not([class]):not([hidden]) { display: flex; flex-direction: column; gap: var(--sp-4); }
+/* Champ resté seul sur sa ligne : pleine largeur (sauf grilles dont des champs s'affichent selon un choix). */
+.form-grid:not(:has([data-kind], [data-for], [hidden])) > .field:last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* Libellés de longueurs différentes : les cases restent alignées. */
+.form-grid { align-items: end; }
