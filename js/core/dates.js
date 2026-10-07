@@ -142,3 +142,37 @@ export function nextOccurrenceKey({ date, time, endTime, repeat }, now = new Dat
   }
   return date;
 }
+
+/**
+ * Tâche répétée cochée : échéance suivante, strictement après la dernière
+ * échéance faite et après le jour où elle a été cochée (une tâche faite en
+ * retard ne revient pas pour les occurrences déjà passées). Les occurrences
+ * se comptent depuis `anchor` (première échéance) pour éviter toute dérive
+ * (« le 31 de chaque mois » reste le dernier jour des mois courts).
+ */
+export function nextTaskDate({ date, anchor, repeat, doneAt }) {
+  const base = isDateKey(anchor) ? anchor : date;
+  if (!isRepeat(repeat) || !fromKey(base)) return date;
+  const after = doneAt && doneAt > date ? doneAt : date;
+  for (let k = 1; k < 5000; k++) {
+    const key = occurrenceKey(base, repeat, k);
+    if (key > after) return key;
+  }
+  return date;
+}
+
+/** Occurrences d'un élément répété (ou non) comprises entre deux dates incluses. */
+export function occurrencesBetween({ date, repeat }, from, to) {
+  if (!isDateKey(date) || date > to) return [];
+  if (!isRepeat(repeat)) return date >= from ? [date] : [];
+  const out = [];
+  const perStep = { daily: 1, weekly: 7, monthly: 28, yearly: 365 }[repeat];
+  // Saut direct près de `from` (pas de boucle depuis une date très ancienne).
+  let k = Math.max(0, Math.floor((fromKey(from) - fromKey(date)) / 86400000 / perStep) - 2);
+  for (let guard = 0; guard < 500; guard++, k++) {
+    const key = occurrenceKey(date, repeat, k);
+    if (key > to) break;
+    if (key >= from) out.push(key);
+  }
+  return out;
+}

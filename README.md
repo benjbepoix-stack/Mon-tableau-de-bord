@@ -1,8 +1,8 @@
 # Carnet
 
 Tableau de bord personnel (PWA installable sur iPhone), point d'entrée quotidien. Trois onglets :
-- **Accueil** : séance du jour, puis rendez-vous, événements et courses (d'Allure) dans l'ordre chronologique ; notes.
-- **Tâches** : tâches saisies ici, et en lecture seule celles venant d'Allure (course à préparer, résultat à noter), de Garage et de Ma Maison.
+- **Accueil** : séance du jour, puis rendez-vous, événements et courses (d'Allure) des 30 prochains jours (le reste se déplie sous « Plus tard »), ou vue calendrier du mois ; notes.
+- **Tâches** : tâches saisies ici (répétables), et en lecture seule celles venant d'Allure (course à préparer, résultat à noter), de Garage, de Ma Maison et de son calendrier de saison.
 - **Planning** : planning sportif de la semaine (séances, météo), avec les phases de saison et les courses d'Allure.
 
 La saison, les courses et les mesures se gèrent dans l'app **Allure** (même base Firebase, mêmes données : rien n'est copié).
@@ -104,13 +104,13 @@ Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Planni
 ## Lien avec Garage
 
 - **Tâches envoyées depuis Garage** : un rappel d'entretien (vidange, contrôle technique…) envoyé depuis l'app **Garage** arrive directement comme tâche datée dans l'onglet Tâches, au même titre qu'une tâche créée ici. Rien à faire côté Carnet.
-- **Widget « Garage »** : une carte dédiée dans l'onglet Tâches affiche, en lecture seule et en direct, les 3 échéances les plus urgentes de chaque véhicule (retard en rouge, bientôt en orange), publiées par Garage via `app/garage_alerts`. Carnet ne fait que lire ce chemin — aucune écriture, aucune donnée renvoyée vers Garage. La carte reste masquée tant qu'aucune donnée n'a été publiée (app Garage non utilisée, ou pas encore synchronisée). Détail dans `js/features/garage-widget.js`.
+- **Section « Garage »** : dans l'onglet Tâches, en lecture seule et en direct, tout ce qui est en retard ou dû dans les 30 jours sur chaque véhicule (retard en rouge, bientôt en orange, avec la date d'échéance quand elle existe), publié par Garage via `app/garage_alerts`. Les échéances datées apparaissent aussi dans le calendrier du mois. Carnet ne fait que lire ce chemin. La section reste masquée tant que Garage n'a rien publié. Détail dans `js/features/linked-apps.js`.
 
 ⚠️ **Étape unique à faire manuellement** : le chemin `garage_alerts` doit être autorisé dans les règles de cette base Firebase. Le fichier `database.rules.json` de ce dépôt a été mis à jour en conséquence, mais Claude ne peut pas déployer des règles Firebase depuis cet environnement — il faut copier son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier) une seule fois. Tant que ce n'est pas fait, le widget reste vide (Garage retentera automatiquement l'envoi dès que les règles seront en place, sans rien à refaire).
 
 ## Lien avec Ma Maison
 
-**Widget « Maison »** : une carte dans l'onglet Tâches (sous la carte Garage) affiche, en lecture seule et en direct, ce qu'a publié l'app **Ma Maison** dans `app/maison_alerts` : entretiens en retard (rouge) ou proches (orange), garanties qui expirent, et le nombre de tâches de saison du mois. Carnet ne fait que lire ce chemin. La carte reste masquée tant que Ma Maison n'a rien publié. Détail dans `js/features/maison-widget.js`.
+**Sections « Maison » et « Saison »** : dans l'onglet Tâches, en lecture seule et en direct, ce qu'a publié l'app **Ma Maison** dans `app/maison_alerts` : entretiens en retard ou à moins de 30 jours et garanties qui expirent (avec leur date, aussi dans le calendrier du mois), puis les tâches du calendrier de saison du mois restant à faire. Un appui ouvre Ma Maison. Détail dans `js/features/linked-apps.js`.
 
 ⚠️ **Étape unique à faire manuellement** : comme pour Garage, le chemin `maison_alerts` doit être autorisé dans les règles Firebase de Carnet. `database.rules.json` est à jour : copiez son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier).
 
@@ -118,9 +118,18 @@ Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Planni
 
 Au lancement de l'app, s'il existe des tâches en retard (échéance passée, non cochées) et/ou des entretiens en retard remontés par Garage (`garage_alerts`, niveau « en retard »), une fenêtre s'ouvre automatiquement pour les passer en revue une par une (« Suivant » puis « Terminé » ; « Voir cette tâche » pour les tâches, qui ouvre l'accueil directement dessus). Un seul passage par session. Si Garage ne répond pas sous 2,5 s (hors ligne, jamais utilisé), le pop-up s'affiche tout de même avec les seules tâches en retard. Détail dans `js/features/overdue-prompt.js`.
 
-## Échéances à moins de 10 jours
+## Accueil : 30 prochains jours et calendrier du mois
 
-Sur l'accueil, un rendez-vous ou un événement dont l'échéance tombe dans les 10 jours (ou déjà aujourd'hui) est mis en évidence : liseré et icône d'alerte rouges sur la carte, badge de date assorti.
+- L'accueil n'affiche que les rendez-vous, événements et courses des **30 prochains jours** ; les suivants se déplient sous « Plus tard (N) ».
+- **Échéance à 10 jours ou moins** : carte encadrée en couleur — ambre, rouge pour aujourd'hui et demain — avec badge de date assorti.
+- **Vue « Mois »** (bascule en haut de « À venir », choix mémorisé sur l'appareil) : calendrier mensuel avec une pastille par type (RDV, événement, course, tâche, garage / maison), occurrences des éléments répétés comprises ; toucher un jour liste ce qu'il contient.
+
+## Tâches répétées et tâches cochées
+
+- Une tâche datée peut se répéter (jour, semaine, mois, an — champ « Répétition » dans « Plus de détails »).
+- Une tâche cochée reste visible, barrée, jusqu'au soir, puis **disparaît le lendemain**.
+- Une tâche **répétée** cochée n'est pas supprimée : le lendemain, elle revient décochée à sa **prochaine échéance** (« Revient le … » s'affiche en attendant). Faite en retard, elle saute les échéances déjà passées. Les occurrences se comptent depuis la première échéance (« le 31 de chaque mois » reste le dernier jour des mois courts).
+- Ce ménage n'a lieu qu'une fois les données du cloud reçues, pour ne jamais écraser une tâche ajoutée sur un autre appareil. Détail dans `js/features/task-tidy.js`.
 
 ## Planning de la semaine
 

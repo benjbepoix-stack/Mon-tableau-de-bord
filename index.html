@@ -71,8 +71,19 @@
             <button type="button" class="btn btn--soft btn--sm" data-open="events"><span data-icon="plus" data-size="16"></span><span>Événement</span></button>
           </div>
         </header>
-        <div class="stack" id="agenda"></div>
-        <button type="button" class="link-btn link-btn--center" id="agendaMore" hidden></button>
+        <div class="segmented agenda-mode" role="tablist" id="agendaMode" aria-label="Affichage de l’agenda">
+          <button type="button" role="tab" data-agenda-mode="list" aria-selected="true">30 prochains jours</button>
+          <button type="button" role="tab" data-agenda-mode="month" aria-selected="false">Mois</button>
+        </div>
+        <div id="agendaListPanel">
+          <div class="stack" id="agenda"></div>
+          <button type="button" class="link-btn link-btn--center agenda-more" id="agendaMore" aria-controls="agendaLater" hidden></button>
+          <div class="stack" id="agendaLater" hidden></div>
+        </div>
+        <div id="agendaMonthPanel" hidden>
+          <div class="card mcal" id="monthCal"></div>
+          <div id="monthCalDay"></div>
+        </div>
         <div class="agenda-links"><button type="button" class="link-btn" data-view-all="appointments">Historique des RDV</button><button type="button" class="link-btn" data-view-all="events">Historique des événements</button></div>
       </section>
 
@@ -115,6 +126,11 @@
           <span class="garage-widget__live" id="maisonLive" hidden><i></i>en direct</span>
         </header>
         <div class="card card--list" id="maisonWidget"></div>
+      </section>
+
+      <section class="section" id="seasonSection" hidden>
+        <header class="section__head"><h2 class="section__title" id="seasonTitle">Saison</h2><a class="link-btn" href="https://benjbepoix-stack.github.io/Ma-maison/#/entretien/saison">Ouvrir Ma Maison</a></header>
+        <div class="card card--list" id="seasonWidget"></div>
       </section>
     </section>
 
@@ -179,7 +195,7 @@
         
         
         
-        <details class="more-fields"><summary>Plus de détails</summary><div class="more-fields__body"><div class="field only-timed"><label class="field__label" for="i-end">Fin <span class="field__opt">(facultatif)</span></label><input class="input" id="i-end" type="time" name="endTime"></div><div class="field only-timed"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select></div><div class="field only-timed"><label class="field__label" for="i-location">Lieu <span class="field__opt">(facultatif)</span></label><input class="input" id="i-location" name="location" maxlength="120" placeholder="Ex. 12 rue de la Paix, Besançon" autocomplete="off"></div><div class="field"><label class="field__label" for="i-note">Note <span class="field__opt">(facultatif)</span></label><textarea class="input textarea" id="i-note" name="note" maxlength="500" rows="3" placeholder="Détails…"></textarea></div></div></details>
+        <details class="more-fields" id="itemMore"><summary>Plus de détails</summary><div class="more-fields__body"><div class="field only-timed"><label class="field__label" for="i-end">Fin <span class="field__opt">(facultatif)</span></label><input class="input" id="i-end" type="time" name="endTime"></div><div class="field"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select><p class="field__help" id="itemRepeatHelp" hidden>Une fois cochée, la tâche revient le lendemain, décochée, à sa prochaine échéance.</p></div><div class="field only-timed"><label class="field__label" for="i-location">Lieu <span class="field__opt">(facultatif)</span></label><input class="input" id="i-location" name="location" maxlength="120" placeholder="Ex. 12 rue de la Paix, Besançon" autocomplete="off"></div><div class="field"><label class="field__label" for="i-note">Note <span class="field__opt">(facultatif)</span></label><textarea class="input textarea" id="i-note" name="note" maxlength="500" rows="3" placeholder="Détails…"></textarea></div></div></details>
         <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
       </form>
     </div>

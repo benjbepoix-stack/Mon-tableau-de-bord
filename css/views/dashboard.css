@@ -36,9 +36,6 @@
   animation: pop-in var(--dur-slow) var(--ease);
   transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-.item-card--featured { box-shadow: var(--shadow-md), var(--inner-highlight); }
-/* Échéance dans 10 jours ou moins : liseré et badge distincts, pour repérer l'urgence d'un coup d'œil. */
-.item-card--soon { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 25%, transparent), var(--shadow-sm), var(--inner-highlight); }
 @media (hover: hover) {
   .item-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md), var(--inner-highlight); }
 }
@@ -55,7 +52,6 @@
 .date-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 52px; height: 56px; border-radius: 15px; flex: none; background: var(--surface-2); border: 1px solid var(--border); }
 .date-chip--appointments { background: var(--blue-soft); color: var(--blue); border-color: transparent; }
 .date-chip--events { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
-.date-chip.is-soon { background: var(--danger-soft); color: var(--danger); }
 .date-chip__day { font-size: 21px; font-weight: 850; line-height: 1; letter-spacing: -.03em; }
 .date-chip__month { font-size: 10.5px; font-weight: 750; text-transform: uppercase; margin-top: 3px; letter-spacing: .06em; }
 

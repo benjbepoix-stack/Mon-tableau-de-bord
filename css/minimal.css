@@ -66,11 +66,15 @@ body { background: var(--bg); }
 .section__icon { display: none; }
 .btn--blue, .btn--amber { background: var(--gradient-accent); color: var(--accent-ink); }
 .date-chip { background: var(--surface-2); color: var(--text); border: 0; }
-.date-chip.is-soon { background: var(--accent-soft); color: var(--accent); }
 .date-chip--races { background: linear-gradient(135deg, #7b5cff, #ff4f9a 55%, #ff9f43); color: #fff; }
 .tag { background: var(--surface-2); color: var(--text-2); }
-.tag.is-soon, .tag--races { background: var(--accent-soft); color: var(--accent); }
+.tag--races { background: var(--accent-soft); color: var(--accent); }
 .item-card { background: var(--surface); border-color: var(--border); box-shadow: none; }
+/* Échéance à 10 jours ou moins : carte encadrée en couleur (ambre), rouge pour aujourd'hui et demain. */
+.item-card--soon { border: 1.5px solid var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); }
+.item-card--urgent { border: 1.5px solid var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.date-chip.is-soon, .tag.is-soon { background: var(--amber-soft); color: var(--amber); }
+.date-chip.is-urgent, .tag.is-urgent { background: var(--danger-soft); color: var(--danger); }
 .item-card--race { text-decoration: none; color: inherit; }
 .item-card--race .item-card__title svg { color: var(--accent); vertical-align: -2px; }
 .agenda-links { display: flex; justify-content: center; gap: var(--sp-4); flex-wrap: wrap; margin-top: var(--sp-2); }
@@ -91,3 +95,37 @@ a.task { text-decoration: none; color: inherit; }
 .today-card .link-btn { align-self: flex-start; }
 a.link-btn { text-decoration: none; }
 .input--wheel.is-zero { color: var(--text-3); }
+
+/* Agenda : 30 prochains jours / mois */
+.agenda-mode { margin-bottom: var(--sp-3); }
+.agenda-more { align-items: center; gap: 4px; }
+#agendaLater { margin-top: var(--sp-3); }
+.field__help { margin-top: 6px; font-size: var(--fs-xs); color: var(--text-3); line-height: 1.4; }
+.task__repeat { display: inline-flex; align-items: center; gap: 3px; }
+
+/* Calendrier du mois */
+.mcal { padding: var(--sp-3) var(--sp-3) var(--sp-4); }
+.mcal__nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: var(--sp-2); }
+.mcal__title { font-size: var(--fs-md); font-weight: 800; }
+.mcal__week, .mcal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.mcal__week span { text-align: center; font-size: 11px; font-weight: 800; color: var(--text-3); padding-bottom: 4px; }
+.mcal__day { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; min-height: 46px; padding: 6px 0 4px; border-radius: 12px; border: 1.5px solid transparent; color: var(--text); font-variant-numeric: tabular-nums; transition: background var(--dur) var(--ease); }
+.mcal__day:hover { background: var(--surface-2); }
+.mcal__day.is-past { color: var(--text-3); }
+.mcal__day.is-today .mcal__num { background: var(--gradient-accent); color: var(--accent-ink); }
+.mcal__day[aria-pressed="true"] { background: var(--surface-3); }
+.mcal__day.is-soon { border-color: var(--amber); }
+.mcal__day.is-urgent { border-color: var(--danger); }
+.mcal__num { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-size: var(--fs-sm); font-weight: 750; }
+.mcal__dots { display: flex; gap: 3px; min-height: 6px; }
+.mcal__legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: var(--sp-3); font-size: 11px; color: var(--text-3); font-weight: 650; }
+.mcal__legend span { display: inline-flex; align-items: center; gap: 5px; }
+.cal-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--text-3); }
+.cal-dot--appointments { background: var(--blue); }
+.cal-dot--events { background: var(--amber); }
+.cal-dot--races { background: linear-gradient(135deg, #7b5cff, #ff4f9a); }
+.cal-dot--tasks { background: var(--accent); }
+.cal-dot--garage, .cal-dot--maison { background: var(--violet); }
+#monthCalDay:not(:empty) { margin-top: var(--sp-4); }
+.cal-row { display: flex; align-items: center; gap: var(--sp-3); padding: 12px 10px 12px 14px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); color: inherit; text-decoration: none; }
+.cal-row .cal-dot { width: 10px; height: 10px; }

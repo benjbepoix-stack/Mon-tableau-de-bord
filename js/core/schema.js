@@ -47,8 +47,15 @@ function normalizeItem(raw, withDone) {
   };
   if (isTime(raw.endTime)) item.endTime = raw.endTime;
   if (raw.location) item.location = str(raw.location, 120);
-  if (!withDone && isRepeat(raw.repeat)) item.repeat = raw.repeat;
-  if (withDone) item.done = Boolean(raw.done);
+  // Périodicité : rendez-vous / événements, et tâches datées (une tâche répétée a besoin d'une échéance).
+  if (isRepeat(raw.repeat) && (!withDone || item.date)) item.repeat = raw.repeat;
+  if (withDone) {
+    item.done = Boolean(raw.done);
+    // Jour où la tâche a été cochée : elle disparaît (ou repart, si répétée) le lendemain.
+    if (item.done && isDateKey(raw.doneAt)) item.doneAt = raw.doneAt;
+    // Tâche répétée : date de la première échéance, pour que « le 31 de chaque mois » ne dérive pas.
+    if (item.repeat && isDateKey(raw.anchor)) item.anchor = raw.anchor;
+  }
   return item;
 }
 

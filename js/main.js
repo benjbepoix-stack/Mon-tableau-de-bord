@@ -8,8 +8,8 @@ import { renderStatus } from './ui/status.js';
 import { toastError } from './ui/toast.js';
 import { icon } from './ui/icons.js';
 import { initCalendarPrompt } from './features/calendar-prompt.js';
-import { initGarageWidget } from './features/garage-widget.js';
-import { initMaisonWidget } from './features/maison-widget.js';
+import { initLinkedApps, onLinkedChange } from './features/linked-apps.js';
+import { tidyTasks } from './features/task-tidy.js';
 import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining, renderTraining, showTraining } from './views/training.js';
@@ -26,6 +26,13 @@ const VIEWS = {
 };
 const VIEW_KEY = 'dashboard_last_view';
 let currentView = 'dashboardView';
+/** Données du cloud reçues (ou mode local) : le ménage des tâches cochées peut se faire sans risque. */
+let settled = false;
+
+function settle() {
+  settled = true;
+  tidyTasks();
+}
 
 function switchView(id, { scroll = true } = {}) {
   if (!VIEWS[id]) id = 'dashboardView';
@@ -118,24 +125,31 @@ function init() {
 
   // Retour au premier plan : les dates relatives ont pu changer.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flushNow();
-    else VIEWS[currentView].show();
+    if (document.visibilityState === 'hidden') return flushNow();
+    if (settled) tidyTasks(); // nouveau jour : tâches cochées la veille retirées ou reprogrammées
+    VIEWS[currentView].show();
   });
   window.addEventListener('pagehide', flushNow);
 
   // Synchronisation cloud
   setCloudSink(pushCloud);
   initCloud({
-    onRemote: (cloud, skip) => applyRemote(cloud, skip),
-    onStatus: renderStatus,
+    onRemote: (cloud, skip) => {
+      applyRemote(cloud, skip);
+      if (settled) tidyTasks();
+    },
+    onStatus: (status, detail) => {
+      renderStatus(status, detail);
+      if (!settled && (status === 'online' || status === 'local')) settle();
+    },
     onError: message => toastError(`Synchronisation : ${message}`),
     getSnapshot: snapshot
   });
   // Pop-up de démarrage (tâches + entretiens en retard) : on laisse une
   // chance au résumé Garage d'arriver, sans bloquer indéfiniment si l'app
   // Garage est hors ligne ou n'a encore rien publié.
-  initGarageWidget({ onData: checkOverdue });
-  initMaisonWidget();
+  initLinkedApps({ onGarage: checkOverdue });
+  onLinkedChange(() => currentView === 'dashboardView' && renderDashboard());
   setTimeout(() => checkOverdue(null), 2500);
 
   document.documentElement.classList.add('is-ready');
