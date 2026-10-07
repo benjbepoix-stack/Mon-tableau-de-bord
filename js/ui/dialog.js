@@ -16,11 +16,26 @@ function syncLock() {
   document.documentElement.classList.toggle('is-locked', stack.length > 0);
 }
 
+/**
+ * Champs secondaires repliés (« Plus de détails ») : fermés pour une nouvelle
+ * saisie, ouverts à la modification si l'un d'eux est déjà rempli.
+ */
+function syncMoreFields(el) {
+  el.querySelectorAll('details.more-fields').forEach(d => {
+    const editing = Boolean(d.closest('form')?.querySelector('[name="editId"]')?.value);
+    const filled =
+      [...d.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea')].some(i => i.value && i.value !== '00:00') ||
+      [...d.querySelectorAll('select')].some(x => x.selectedIndex > 0);
+    d.open = editing && filled;
+  });
+}
+
 export function openSheet(target, { onClose, focus = true } = {}) {
   const el = typeof target === 'string' ? document.getElementById(target) : target;
   if (!el) return;
   if (stack.some(s => s.el === el)) return;
   stack.push({ el, onClose, returnFocus: document.activeElement });
+  syncMoreFields(el);
   el.hidden = false;
   void el.offsetWidth; // force le reflow pour déclencher la transition
   el.classList.add('is-open');

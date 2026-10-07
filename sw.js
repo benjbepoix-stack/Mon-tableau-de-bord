@@ -6,7 +6,7 @@
    À l'installation, l'app-shell (HTML/CSS/JS/icônes) est aussi pré-mis en cache :
    un tout premier lancement hors ligne (avant toute visite en ligne réussie)
    affiche donc l'app au lieu d'un écran blanc. */
-const CACHE = 'dashboard-v7';
+const CACHE = 'dashboard-v8';
 
 const PRECACHE_URLS = [
   './',

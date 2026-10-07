@@ -52,6 +52,7 @@ export function showErrors(form, errors) {
     const input = form.querySelector(`[name="${name}"]`);
     if (!input) continue;
     input.setAttribute('aria-invalid', 'true');
+    input.closest('details.more-fields')?.setAttribute('open', '');
     const field = input.closest('.field') || input.parentElement;
     const hint = document.createElement('p');
     hint.className = 'field-error';
