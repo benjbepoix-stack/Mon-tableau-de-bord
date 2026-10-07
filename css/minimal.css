@@ -1,6 +1,6 @@
 /* =========================================================
-   CARNET — style minimaliste (identique à Allure) (anthracite, cartes pleines,
-   un seul accent en dégradé) ; couleurs Aurore.
+   CARNET — style minimaliste (commun aux apps) (anthracite, cartes pleines,
+   un seul accent en dégradé) ; couleurs Menthe.
    Chargé en dernier : surcharge les jetons de Carnet.
    ========================================================= */
 :root {
@@ -37,9 +37,9 @@
   --text-3: #9295a2;
 }
 
-/* ---------- Couleurs : Aurore (violet → rose → orange) ---------- */
-:root, :root[data-theme="light"] { --accent: #b65cff; --accent-2: #ff8a4c; --accent-ink: #fff; --accent-soft: rgba(182, 92, 255, .14); --gradient-accent: linear-gradient(135deg, #7b5cff, #ff4f9a 55%, #ff9f43); --shadow-accent: 0 10px 24px -10px rgba(255, 79, 154, .55); }
-:root[data-theme="light"] { --accent: #8e3cf0; --accent-soft: rgba(142, 60, 240, .1); }
+/* ---------- Couleurs : Menthe (vert d'eau → turquoise) ---------- */
+:root, :root[data-theme="light"] { --accent: #2ee6a8; --accent-2: #1fb9d6; --accent-ink: #052119; --accent-soft: rgba(46, 230, 168, .14); --gradient-accent: linear-gradient(135deg, #2ee6a8, #1fb9d6); --shadow-accent: 0 10px 24px -10px rgba(46, 230, 168, .5); }
+:root[data-theme="light"] { --accent: #0e9f73; --accent-soft: rgba(14, 159, 115, .1); }
 
 /* ---------- Surfaces : pleines, sans verre ni halo ---------- */
 body { background: var(--bg); }
@@ -67,7 +67,7 @@ body { background: var(--bg); }
 .btn--blue, .btn--amber { background: var(--gradient-accent); color: var(--accent-ink); }
 .date-chip { background: var(--surface-2); color: var(--text); border: 0; }
 .date-chip.is-soon { background: var(--accent-soft); color: var(--accent); }
-.date-chip--races { background: var(--gradient-accent); color: #fff; }
+.date-chip--races { background: linear-gradient(135deg, #7b5cff, #ff4f9a 55%, #ff9f43); color: #fff; }
 .tag { background: var(--surface-2); color: var(--text-2); }
 .tag.is-soon, .tag--races { background: var(--accent-soft); color: var(--accent); }
 .item-card { background: var(--surface); border-color: var(--border); box-shadow: none; }

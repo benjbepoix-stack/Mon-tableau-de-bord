@@ -6,7 +6,7 @@ Tableau de bord personnel (PWA installable sur iPhone), point d'entrée quotidie
 - **Planning** : planning sportif de la semaine (séances, météo), avec les phases de saison et les courses d'Allure.
 
 La saison, les courses et les mesures se gèrent dans l'app **Allure** (même base Firebase, mêmes données : rien n'est copié).
-Style minimaliste commun à Allure (anthracite, accent Aurore violet → orange).
+Style minimaliste commun aux apps (anthracite, cartes pleines), couleur Menthe ; les courses gardent la couleur Aurore d'Allure.
 HTML / CSS / JavaScript purs (modules ES), sans étape de build ni dépendance payante. Synchronisation multi-appareils via **Firebase Realtime Database** (offre gratuite).
 
 ## Structure
