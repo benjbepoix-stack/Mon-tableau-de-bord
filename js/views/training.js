@@ -105,7 +105,7 @@ function sessionHTML(k, s, idx) {
     </div>
     <div class="session__metrics">
       <label class="mini-field"><span>Distance · km</span><input class="input input--center" type="text" inputmode="decimal" data-field="distance" value="${esc(s.distance)}" placeholder="0"${dis}></label>
-      <label class="mini-field"><span>Durée · h:min</span><input class="input input--center" type="time" step="60" data-field="time" value="${esc(s.time)}"${dis}></label>
+      <label class="mini-field"><span>Durée · h:min</span><input class="input input--center input--wheel${s.time && s.time !== '00:00' ? '' : ' is-zero'}" type="time" step="60" data-field="time" value="${esc(s.time || '00:00')}"${dis}></label>
       <label class="mini-field"><span>D+ · m</span><input class="input input--center" type="text" inputmode="numeric" data-field="elevation" value="${esc(s.elevation)}" placeholder="0"${dis}></label>
     </div>
   </div>`;
@@ -291,7 +291,9 @@ function onChange(e) {
   const field = e.target.dataset.field;
   const block = e.target.closest('[data-session]');
   if (!field || !block) return;
-  updateSession(block.dataset.day, block.dataset.session, field, e.target.value.trim());
+  // Durée : la roulette part de 00:00, qui signifie « non renseignée ».
+  const value = field === 'time' && e.target.value === '00:00' ? '' : e.target.value.trim();
+  updateSession(block.dataset.day, block.dataset.session, field, value);
 }
 
 /* ---------- Gestion des sports ---------- */
@@ -431,6 +433,9 @@ function onManagerSubmit(e) {
 
 export function initTraining() {
   const view = $('#trainingView');
+  view.addEventListener('input', e => {
+    if (e.target.matches('.input--wheel')) e.target.classList.toggle('is-zero', !e.target.value || e.target.value === '00:00');
+  });
   view.addEventListener('click', onClick);
   view.addEventListener('change', onChange);
   const sheet = $('#sportSheet');

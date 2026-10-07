@@ -90,3 +90,4 @@ a.task { text-decoration: none; color: inherit; }
 .today-card__empty { color: var(--text-2); }
 .today-card .link-btn { align-self: flex-start; }
 a.link-btn { text-decoration: none; }
+.input--wheel.is-zero { color: var(--text-3); }
