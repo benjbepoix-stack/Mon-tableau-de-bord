@@ -1,4 +1,4 @@
-/* Vue Dashboard : prochain rendez-vous / événement, tâches, notes. */
+/* Accueil (séance du jour, agenda chronologique : RDV, événements, courses d'Allure, notes) et Tâches. */
 import { $, $$, esc, uid, debounce } from '../core/utils.js';
 import { combine, formatDate, formatKey, fromKey, relativeDay, daysUntil, todayKey, isRepeat, nextOccurrenceKey, REPEATS } from '../core/dates.js';
 import { state, commit } from '../core/store.js';
@@ -9,6 +9,12 @@ import { icon } from '../ui/icons.js';
 import { canOpenReminders, openReminders } from '../features/reminders.js';
 import { offerCalendar } from '../features/calendar-prompt.js';
 import { confirmSaved } from '../features/persist.js';
+import { isRestTraining, REST_TRAINING } from '../core/schema.js';
+import { PHASE_TYPES, phaseOn, racesOn } from '../core/season.js';
+
+export const ALLURE_URL = 'https://benjbepoix-stack.github.io/Allure/';
+const AGENDA_PREVIEW = 8;
+let agendaAll = false;
 
 const TYPES = {
   tasks: { add: 'Nouvelle tâche', edit: 'Modifier la tâche', one: 'Tâche', none: 'Aucune tâche' },
@@ -75,14 +81,54 @@ function itemCard(x, type, { featured = false } = {}) {
   </article>`;
 }
 
-function renderHighlight(type, selector) {
-  const next = upcoming(type)[0];
-  const count = upcoming(type).length;
-  $(selector).innerHTML = next
-    ? itemCard(next, type, { featured: true })
-    : `<div class="empty-state"><span class="empty-state__icon">${icon(type === 'appointments' ? 'calendar' : 'sparkle', 22)}</span><p>${TYPES[type].none}</p><button type="button" class="btn btn--soft btn--sm" data-open="${type}">${icon('plus', 16)}<span>Ajouter</span></button></div>`;
-  const more = $(`[data-view-all="${type}"]`);
-  if (more) more.textContent = count > 1 ? `Tout afficher (${count})` : 'Historique';
+/* ---------- Séance du jour ---------- */
+function renderToday() {
+  const key = todayKey();
+  const families = state.families || [];
+  const sessions = (Array.isArray(state.plans?.[key]) ? state.plans[key] : []).filter(x => x.training);
+  const phase = phaseOn(key);
+  const races = racesOn(key);
+  const line = x => {
+    if (isRestTraining(x.training)) return { title: REST_TRAINING, facts: '' };
+    const f = families.find(a => a.id === x.family);
+    const facts = [x.distance ? `${String(x.distance).replace('.', ',')} km` : '', x.time ? x.time.replace(/^0(\d)/, '$1').replace(':', 'h') : '', x.elevation ? `${x.elevation} m D+` : ''].filter(Boolean).join(' · ');
+    return { title: f ? `${f.name} · ${x.training}` : x.training, facts };
+  };
+  const rows = [
+    ...races.map(r => `<div class="today-card__row is-race">${icon('flag', 18)}<div><strong>${esc(r.name)}</strong>${r.time ? `<span>Départ ${r.time}</span>` : ''}</div></div>`),
+    ...sessions.map(line).map(l => `<div class="today-card__row">${icon('training', 18)}<div><strong>${esc(l.title)}</strong>${l.facts ? `<span>${esc(l.facts)}</span>` : ''}</div></div>`)
+  ];
+  $('#todaySession').innerHTML = `
+    <div class="today-card__head"><span class="today-card__kicker">Séance du jour</span>${phase ? `<span class="today-card__phase phase--${phase.type}">${esc(PHASE_TYPES[phase.type].short)}</span>` : ''}</div>
+    ${rows.length ? rows.join('') : `<p class="today-card__empty">Rien de prévu aujourd’hui.</p>`}
+    <button type="button" class="link-btn" data-goto="trainingView">${rows.length ? 'Voir la semaine' : 'Planifier une séance'}</button>`;
+}
+
+/* ---------- Agenda chronologique ---------- */
+function raceItem(r) {
+  const d = fromKey(r.date);
+  const meta = [`<span class="tag tag--races">${icon('flag', 12)}Course · ${relativeDay(r.date)}</span>`, r.time ? `<span>${icon('clock', 13)}${r.time}</span>` : '', r.location ? `<span>${icon('pin', 13)}${esc(r.location)}</span>` : '', r.distance ? `<span>${String(r.distance).replace('.', ',')} km</span>` : '']
+    .filter(Boolean)
+    .join('');
+  return `<a class="item-card item-card--race" href="${ALLURE_URL}">
+    <div class="date-chip date-chip--races"><span class="date-chip__day">${d.getDate()}</span><span class="date-chip__month">${formatDate(d, { month: 'short' })}</span></div>
+    <div class="item-card__body"><h3 class="item-card__title">${esc(r.name)}</h3><div class="item-card__meta">${meta}</div></div>
+  </a>`;
+}
+
+function renderAgenda() {
+  const today = todayKey();
+  const races = (state.races || []).filter(r => r.date >= today).map(r => ({ ...r, kind: 'races' }));
+  const items = [...upcoming('appointments').map(x => ({ ...x, kind: 'appointments' })), ...upcoming('events').map(x => ({ ...x, kind: 'events' })), ...races].sort(
+    (a, b) => startOf(a) - startOf(b)
+  );
+  const shown = agendaAll ? items : items.slice(0, AGENDA_PREVIEW);
+  $('#agenda').innerHTML = items.length
+    ? shown.map(x => (x.kind === 'races' ? raceItem(x) : itemCard(x, x.kind))).join('')
+    : `<div class="empty-state"><p>Rien à venir.</p></div>`;
+  const more = $('#agendaMore');
+  more.hidden = items.length <= AGENDA_PREVIEW;
+  more.textContent = agendaAll ? 'Réduire' : `Tout afficher (${items.length})`;
 }
 
 function renderTasks() {
@@ -94,7 +140,7 @@ function renderTasks() {
     : '';
   const el = $('#tasks');
   if (!tasks.length) {
-    el.innerHTML = `<div class="empty-state"><span class="empty-state__icon">${icon('check', 22)}</span><p>Aucune tâche. Profitez-en !</p></div>`;
+    el.innerHTML = `<div class="empty-state"><p>Aucune tâche.</p></div>`;
     return;
   }
   const sorted = [...tasks].sort((a, b) => Number(a.done) - Number(b.done) || (a.date || '9999').localeCompare(b.date || '9999'));
@@ -116,23 +162,14 @@ function renderTasks() {
     .join('');
 }
 
-function renderGreeting() {
-  const h = new Date().getHours();
-  const hello = h < 5 ? 'Bonne nuit' : h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
-  $('#greeting').innerHTML = `
-    <div class="hero__date">${formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long' })}</div>
-    <div class="hero__title">${hello} 👋</div>`;
-}
-
 export function renderNotes() {
   const el = $('#notes');
   if (document.activeElement !== el && el.value !== state.notes) el.value = state.notes;
 }
 
 export function renderDashboard() {
-  renderGreeting();
-  renderHighlight('appointments', '#nextAppointment');
-  renderHighlight('events', '#nextEvent');
+  renderToday();
+  renderAgenda();
   renderTasks();
   if (isOpen('archiveSheet')) renderArchive();
 }
@@ -241,6 +278,10 @@ async function onSubmit(e) {
 
 /* ---------- Actions ---------- */
 async function onClick(e) {
+  if (e.target.closest('#agendaMore')) {
+    agendaAll = !agendaAll;
+    return renderAgenda();
+  }
   const open = e.target.closest('[data-open]');
   if (open) return openEditor(open.dataset.open);
   const viewAll = e.target.closest('[data-view-all]');
@@ -289,6 +330,7 @@ async function onClick(e) {
 
 export function initDashboard() {
   $('#dashboardView').addEventListener('click', onClick);
+  $('#tasksView').addEventListener('click', onClick);
   $('#archiveSheet').addEventListener('click', onClick);
   $('#itemForm').addEventListener('submit', onSubmit);
 

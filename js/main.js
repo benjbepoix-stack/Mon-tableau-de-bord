@@ -1,5 +1,5 @@
 /* Point d'entrée : initialise l'état, les vues, la navigation et la synchronisation. */
-import { $, $$, debounce } from './core/utils.js';
+import { $, $$ } from './core/utils.js';
 import { state, loadLocal, subscribe, commit, applyRemote, setCloudSink, snapshot } from './core/store.js';
 import { initCloud, pushCloud, flushNow } from './services/firebase.js';
 import { initDialogs } from './ui/dialog.js';
@@ -13,14 +13,16 @@ import { initMaisonWidget } from './features/maison-widget.js';
 import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining, renderTraining, showTraining } from './views/training.js';
-import { initRaces, renderRaces, tickCountdowns } from './views/races.js';
-import { initMetrics, renderMetrics } from './views/metrics.js';
+import { renderSportTasks } from './features/sport-tasks.js';
 
+const showTasks = () => {
+  renderDashboard();
+  renderSportTasks();
+};
 const VIEWS = {
-  dashboardView: { kicker: 'Tableau de bord', title: 'Mon espace', show: renderDashboard },
-  trainingView: { kicker: 'Planning sportif', title: 'Entraînement', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] },
-  raceView: { kicker: 'Calendrier sportif', title: 'Mes courses', show: renderRaces, render: renderRaces, slices: ['races'] },
-  metricsView: { kicker: 'Suivi personnel', title: 'Mesures', show: renderMetrics, render: renderMetrics, slices: ['bodyMetrics'] }
+  dashboardView: { kicker: 'Carnet', title: 'Accueil', show: renderDashboard, render: renderDashboard, slices: ['races', 'plans', 'families', 'objectives'] },
+  tasksView: { kicker: 'Carnet', title: 'Tâches', show: showTasks, render: renderSportTasks, slices: ['races'] },
+  trainingView: { kicker: 'Carnet', title: 'Planning', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
 };
 const VIEW_KEY = 'dashboard_last_view';
 let currentView = 'dashboardView';
@@ -58,7 +60,7 @@ function onStateChange(slices) {
 
 /** Depuis le pop-up de démarrage : ouvre le tableau de bord et met la tâche en évidence. */
 function goToTask(id) {
-  switchView('dashboardView');
+  switchView('tasksView');
   setTimeout(() => {
     const row = document.querySelector(`#tasks [data-id="${CSS.escape(id)}"]`);
     row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -90,8 +92,6 @@ function init() {
   initCalendarPrompt();
   initDashboard();
   initTraining();
-  initRaces();
-  initMetrics();
   initOverduePrompt({ onView: goToTask });
 
   renderNotes();
@@ -99,6 +99,10 @@ function init() {
   subscribe(onStateChange);
 
   $$('[data-view]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
+  document.addEventListener('click', e => {
+    const go = e.target.closest('[data-goto]');
+    if (go) switchView(go.dataset.goto);
+  });
   $('#themeToggle').addEventListener('click', () => {
     commit('theme', { theme: state.theme === 'light' ? 'dark' : 'light' });
   });
@@ -111,8 +115,6 @@ function init() {
   }
   switchView(initial, { scroll: false });
 
-  // Comptes à rebours des courses (sans re-rendu complet)
-  setInterval(() => currentView === 'raceView' && tickCountdowns(), 30000);
 
   // Retour au premier plan : les dates relatives ont pu changer.
   document.addEventListener('visibilitychange', () => {
@@ -120,10 +122,6 @@ function init() {
     else VIEWS[currentView].show();
   });
   window.addEventListener('pagehide', flushNow);
-  window.addEventListener(
-    'resize',
-    debounce(() => currentView === 'metricsView' && renderMetrics(), 150)
-  );
 
   // Synchronisation cloud
   setCloudSink(pushCloud);

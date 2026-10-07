@@ -1,6 +1,5 @@
 /* Vue Entraînement : planning hebdomadaire, météo, familles de sport. */
 import { $, $$, esc, uid, slugify, parseNumber, round, plural } from '../core/utils.js';
-import { readText, write } from '../services/storage.js';
 import { addDays, dateKey, fromKey, mondayOf, formatDate, parseDuration, minutesLabel, todayKey } from '../core/dates.js';
 import { state, commit } from '../core/store.js';
 import { defaultSession, normalizeDay, isRestTraining, REST_TRAINING } from '../core/schema.js';
@@ -10,7 +9,6 @@ import { icon } from '../ui/icons.js';
 import { renderDonut } from '../ui/charts.js';
 import { fetchWeek, getPlace, setPlace, searchPlaces } from '../services/weather.js';
 import { PHASE_TYPES, getPhases, phaseOn, racesOn } from '../core/season.js';
-import { renderSeason, initSeason } from './season.js';
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const DAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -18,8 +16,6 @@ const DAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 let weekStart = mondayOf(new Date());
 let weather = null; // { key, data } | { key, error }
 let weatherLoading = false;
-const TAB_KEY = 'training_tab';
-let tab = readText(TAB_KEY, 'week') === 'season' ? 'season' : 'week';
 
 const familyById = id => state.families.find(f => f.id === id);
 /** Séances d'un jour ; le jour est matérialisé dans l'état pour garder des id stables. */
@@ -52,7 +48,7 @@ function renderWeekPhase(keys, phases) {
           return `<div class="week-phase phase--${p.type}"><strong>${esc(t.name)}${span}</strong><p>${esc(t.advice)}</p></div>`;
         })
         .join('')
-    : '<div class="week-phase week-phase--none"><strong>Aucune phase planifiée cette semaine</strong><p>Planifiez vos phases dans « Saison » pour orienter vos séances.</p></div>';
+    : '';
 }
 
 function renderOverview(keys, phases) {
@@ -159,8 +155,6 @@ export function renderTraining() {
   $('#weekLabel').innerHTML = `<strong>Semaine du ${formatDate(weekStart, { day: 'numeric', month: 'long' })}</strong><span>au ${formatDate(addDays(weekStart, 6), { day: 'numeric', month: 'long', year: 'numeric' })}</span>`;
   $('#weatherPlaceLabel').textContent = getPlace().name;
   const phases = getPhases();
-  renderTabs();
-  renderSeason();
   renderOverview(keys, phases);
   renderDays(keys, phases);
   if ($('#sportSheet') && !$('#sportSheet').hidden) renderManager();
@@ -224,8 +218,6 @@ function updateSession(k, id, field, value) {
 }
 
 async function onClick(e) {
-  const tabBtn = e.target.closest('[data-training-tab]');
-  if (tabBtn) return setTab(tabBtn.dataset.trainingTab);
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const block = btn.closest('[data-session]');
@@ -437,39 +429,7 @@ function onManagerSubmit(e) {
   input.value = '';
 }
 
-/* ---------- Onglets « Cette semaine » / « Saison » ---------- */
-function renderTabs() {
-  $$('[data-training-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.trainingTab === tab)));
-  $('#trainingWeekPanel').hidden = tab !== 'week';
-  $('#trainingSeasonPanel').hidden = tab !== 'season';
-}
-
-function setTab(next) {
-  if (next === tab) return;
-  tab = next;
-  write(TAB_KEY, tab);
-  renderTabs();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-/** Affiche la semaine contenant `key` et amène le jour à l'écran (depuis le calendrier de saison). */
-function gotoDay(key) {
-  const d = fromKey(key);
-  if (!d) return;
-  weekStart = mondayOf(d);
-  tab = 'week';
-  write(TAB_KEY, tab);
-  showTraining();
-  requestAnimationFrame(() => {
-    const days = $('#days');
-    const card = $(`#day-${key}`);
-    if (card) days.scrollTo({ left: card.offsetLeft - days.firstElementChild.offsetLeft, behavior: 'smooth' });
-    $('.week-nav')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-}
-
 export function initTraining() {
-  initSeason({ gotoDay });
   const view = $('#trainingView');
   view.addEventListener('click', onClick);
   view.addEventListener('change', onChange);

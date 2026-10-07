@@ -1,0 +1,92 @@
+/* =========================================================
+   CARNET — style minimaliste (identique à Allure) (anthracite, cartes pleines,
+   un seul accent en dégradé) ; couleurs Aurore.
+   Chargé en dernier : surcharge les jetons de Carnet.
+   ========================================================= */
+:root {
+  --bg: #16171c;
+  --bg-2: #16171c;
+  --surface: #1f2026;
+  --surface-solid: #1f2026;
+  --surface-2: #26272e;
+  --surface-3: #2e3038;
+  --field: #26272e;
+  --border: rgba(255, 255, 255, .05);
+  --border-strong: rgba(255, 255, 255, .1);
+  --text: #f4f4f6;
+  --text-2: #a3a5b0;
+  --text-3: #6b6e7a;
+  --r-lg: 22px;
+  --r-xl: 28px;
+  --shadow-md: 0 10px 30px -14px rgba(0, 0, 0, .6);
+  --inner-highlight: none;
+  --glass-blur: none;
+}
+:root[data-theme="light"] {
+  --bg: #f4f4f7;
+  --bg-2: #f4f4f7;
+  --surface: #ffffff;
+  --surface-solid: #ffffff;
+  --surface-2: #f0f0f4;
+  --surface-3: #e7e7ed;
+  --field: #f0f0f4;
+  --border: rgba(20, 20, 40, .06);
+  --border-strong: rgba(20, 20, 40, .12);
+  --text: #15161b;
+  --text-2: #5d606c;
+  --text-3: #9295a2;
+}
+
+/* ---------- Couleurs : Aurore (violet → rose → orange) ---------- */
+:root, :root[data-theme="light"] { --accent: #b65cff; --accent-2: #ff8a4c; --accent-ink: #fff; --accent-soft: rgba(182, 92, 255, .14); --gradient-accent: linear-gradient(135deg, #7b5cff, #ff4f9a 55%, #ff9f43); --shadow-accent: 0 10px 24px -10px rgba(255, 79, 154, .55); }
+:root[data-theme="light"] { --accent: #8e3cf0; --accent-soft: rgba(142, 60, 240, .1); }
+
+/* ---------- Surfaces : pleines, sans verre ni halo ---------- */
+body { background: var(--bg); }
+.ambient { display: none; }
+.card, .race-card, .metric-card { background: var(--surface); border-color: var(--border); box-shadow: none; }
+.card--hero, .card--gradient, .race-hero { background: var(--surface); border: 0; }
+.race-hero { position: relative; overflow: hidden; }
+.race-hero::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--gradient-accent); }
+.topbar { background: var(--bg); }
+.topbar__kicker { background: var(--gradient-accent); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tabbar { grid-template-columns: repeat(3, 1fr); width: min(360px, calc(100% - 24px)); background: color-mix(in srgb, var(--surface-solid) 94%, transparent); border-color: var(--border); }
+.tabbar__item.is-active { color: var(--text); background: var(--surface-3); }
+.tabbar__item.is-active [data-icon] { color: var(--accent); }
+.btn--primary, .btn--add { background: var(--gradient-accent); color: var(--accent-ink); border: 0; box-shadow: var(--shadow-accent); }
+.badge { background: var(--surface-3); color: var(--text-2); }
+.badge--glass { background: var(--accent-soft); color: var(--accent); border: 0; }
+.input, .select, .textarea { background: var(--field); border-color: transparent; }
+.sync-pill { background: var(--surface-2); }
+@media (min-width: 960px) { .tabbar { grid-template-columns: repeat(3, auto); width: auto; } }
+
+
+/* ---------- Carnet ---------- */
+.card--gradient, .hero { background: var(--surface); }
+.section__icon { display: none; }
+.btn--blue, .btn--amber { background: var(--gradient-accent); color: var(--accent-ink); }
+.date-chip { background: var(--surface-2); color: var(--text); border: 0; }
+.date-chip.is-soon { background: var(--accent-soft); color: var(--accent); }
+.date-chip--races { background: var(--gradient-accent); color: #fff; }
+.tag { background: var(--surface-2); color: var(--text-2); }
+.tag.is-soon, .tag--races { background: var(--accent-soft); color: var(--accent); }
+.item-card { background: var(--surface); border-color: var(--border); box-shadow: none; }
+.item-card--race { text-decoration: none; color: inherit; }
+.item-card--race .item-card__title svg { color: var(--accent); vertical-align: -2px; }
+.agenda-links { display: flex; justify-content: center; gap: var(--sp-4); flex-wrap: wrap; margin-top: var(--sp-2); }
+.section--first { margin-top: 0; }
+a.task { text-decoration: none; color: inherit; }
+
+/* Séance du jour */
+.today-card { display: flex; flex-direction: column; gap: 10px; padding: var(--sp-4) var(--sp-5); position: relative; overflow: hidden; }
+.today-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--gradient-accent); }
+.today-card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.today-card__kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.today-card__phase { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; background: var(--ph-soft, var(--surface-2)); color: var(--ph, var(--text-2)); }
+.today-card__row { display: flex; align-items: flex-start; gap: 12px; }
+.today-card__row svg { flex: none; margin-top: 2px; color: var(--accent); }
+.today-card__row strong { display: block; font-size: var(--fs-lg); font-weight: 800; letter-spacing: -.01em; }
+.today-card__row span { display: block; font-size: var(--fs-sm); color: var(--text-2); margin-top: 2px; }
+.today-card__empty { color: var(--text-2); }
+.today-card .link-btn { align-self: flex-start; }
+a.link-btn { text-decoration: none; }

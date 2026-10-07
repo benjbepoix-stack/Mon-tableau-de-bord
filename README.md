@@ -1,6 +1,12 @@
 # Carnet
 
-Tableau de bord personnel (PWA installable sur iPhone) : rendez-vous, événements, tâches, notes, planning d'entraînement, courses et mesures physiques.
+Tableau de bord personnel (PWA installable sur iPhone), point d'entrée quotidien. Trois onglets :
+- **Accueil** : séance du jour, puis rendez-vous, événements et courses (d'Allure) dans l'ordre chronologique ; notes.
+- **Tâches** : tâches saisies ici, et en lecture seule celles venant d'Allure (course à préparer, résultat à noter), de Garage et de Ma Maison.
+- **Planning** : planning sportif de la semaine (séances, météo), avec les phases de saison et les courses d'Allure.
+
+La saison, les courses et les mesures se gèrent dans l'app **Allure** (même base Firebase, mêmes données : rien n'est copié).
+Style minimaliste commun à Allure (anthracite, accent Aurore violet → orange).
 HTML / CSS / JavaScript purs (modules ES), sans étape de build ni dépendance payante. Synchronisation multi-appareils via **Firebase Realtime Database** (offre gratuite).
 
 ## Structure
@@ -34,7 +40,7 @@ js/
     overdue-prompt.js       Pop-up de démarrage : tâches et entretiens Garage en retard
     persist.js              Attente de l'accusé de réception Firebase
   ui/                       Icônes SVG, modales, toasts, thème, pastille de synchro, graphiques
-  views/                    dashboard, training, races, metrics
+  views/                    dashboard (accueil + tâches), training (planning)
 ```
 
 ## Lancer en local
@@ -78,22 +84,12 @@ Rendez-vous et événements peuvent se répéter (tous les jours, semaines, mois
 
 > Depuis l'app installée sur l'écran d'accueil, si la fiche ne s'ouvre pas, utilisez le bouton « Partager le fichier .ics ».
 
-## Saison (phases d'entraînement)
-
-L'onglet **Entraînement** a deux sous-onglets : **Cette semaine** (planning, bouton « Sports & séances ») et **Saison**.
-La Saison permet de planifier ses phases : préparation générale (foncier), spécifique volume, spécifique intensité, spécifique allure course, spécifique mixte, affûtage, récupération, transition.
-Elle affiche la phase en cours (avec l'orientation des séances), la prochaine course et un calendrier macro sur six mois (phases en couleur, courses cerclées de rouge ; un appui ouvre la semaine correspondante).
-Le planning hebdomadaire montre la phase de chaque jour et les courses du calendrier.
-
-Les phases sont enregistrées dans `objectives.seasonPhases` : ce nœud accepte déjà un contenu libre dans `database.rules.json`, aucune republication des règles n'est nécessaire.
+## Lien avec Allure
+Allure écrit `races`, `objectives.seasonPhases` et `bodyMetrics` dans la même base ; Carnet les lit pour l'agenda, la séance du jour, les tâches Sport et le planning (phase de chaque jour, courses). Un appui sur une course ou une tâche Sport ouvre Allure.
 
 ## Tâches → app Rappels (iPhone)
 
 Sur iPhone, chaque tâche datée et non terminée a un bouton cloche : il copie le titre et l’échéance (« Appeler le garage — samedi 3 octobre à 10:30 ») puis ouvre l’app Rappels, où il suffit de coller. Une page web ne peut pas créer elle-même un rappel.
-
-## Mensurations sur mannequin
-
-« Nouvelle prise de mensurations » ouvre une fenêtre avec une silhouette : chaque zone (poitrine, bras, taille, hanche, cuisse, mollet) est tracée sur le corps, la case de saisie est à côté et la consigne de mesure s’affiche quand on touche une zone ou une case. La valeur de la prise précédente est rappelée sous chaque case. Modifier une prise depuis l’historique rouvre le même mannequin.
 
 ## Mises à jour
 
@@ -103,18 +99,18 @@ Sur iPhone, chaque tâche datée et non terminée a un bouton cloche : il copie 
 
 ## Météo
 
-Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Entraînement) permet de changer de ville (recherche via l’API de géocodage gratuite d’Open-Meteo) ; le choix est mémorisé sur l’appareil.
+Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Planning) permet de changer de ville (recherche via l’API de géocodage gratuite d’Open-Meteo) ; le choix est mémorisé sur l’appareil.
 
 ## Lien avec Garage
 
-- **Tâches envoyées depuis Garage** : un rappel d'entretien (vidange, contrôle technique…) envoyé depuis l'app **Garage** arrive directement comme tâche datée dans l'onglet Accueil, au même titre qu'une tâche créée ici. Rien à faire côté Carnet.
-- **Widget « Garage »** : une carte dédiée sur l'accueil (entre Tâches et Notes) affiche, en lecture seule et en direct, les 3 échéances les plus urgentes de chaque véhicule (retard en rouge, bientôt en orange), publiées par Garage via `app/garage_alerts`. Carnet ne fait que lire ce chemin — aucune écriture, aucune donnée renvoyée vers Garage. La carte reste masquée tant qu'aucune donnée n'a été publiée (app Garage non utilisée, ou pas encore synchronisée). Détail dans `js/features/garage-widget.js`.
+- **Tâches envoyées depuis Garage** : un rappel d'entretien (vidange, contrôle technique…) envoyé depuis l'app **Garage** arrive directement comme tâche datée dans l'onglet Tâches, au même titre qu'une tâche créée ici. Rien à faire côté Carnet.
+- **Widget « Garage »** : une carte dédiée dans l'onglet Tâches affiche, en lecture seule et en direct, les 3 échéances les plus urgentes de chaque véhicule (retard en rouge, bientôt en orange), publiées par Garage via `app/garage_alerts`. Carnet ne fait que lire ce chemin — aucune écriture, aucune donnée renvoyée vers Garage. La carte reste masquée tant qu'aucune donnée n'a été publiée (app Garage non utilisée, ou pas encore synchronisée). Détail dans `js/features/garage-widget.js`.
 
 ⚠️ **Étape unique à faire manuellement** : le chemin `garage_alerts` doit être autorisé dans les règles de cette base Firebase. Le fichier `database.rules.json` de ce dépôt a été mis à jour en conséquence, mais Claude ne peut pas déployer des règles Firebase depuis cet environnement — il faut copier son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier) une seule fois. Tant que ce n'est pas fait, le widget reste vide (Garage retentera automatiquement l'envoi dès que les règles seront en place, sans rien à refaire).
 
 ## Lien avec Ma Maison
 
-**Widget « Maison »** : une carte sur l'accueil (sous la carte Garage) affiche, en lecture seule et en direct, ce qu'a publié l'app **Ma Maison** dans `app/maison_alerts` : entretiens en retard (rouge) ou proches (orange), garanties qui expirent, et le nombre de tâches de saison du mois. Carnet ne fait que lire ce chemin. La carte reste masquée tant que Ma Maison n'a rien publié. Détail dans `js/features/maison-widget.js`.
+**Widget « Maison »** : une carte dans l'onglet Tâches (sous la carte Garage) affiche, en lecture seule et en direct, ce qu'a publié l'app **Ma Maison** dans `app/maison_alerts` : entretiens en retard (rouge) ou proches (orange), garanties qui expirent, et le nombre de tâches de saison du mois. Carnet ne fait que lire ce chemin. La carte reste masquée tant que Ma Maison n'a rien publié. Détail dans `js/features/maison-widget.js`.
 
 ⚠️ **Étape unique à faire manuellement** : comme pour Garage, le chemin `maison_alerts` doit être autorisé dans les règles Firebase de Carnet. `database.rules.json` est à jour : copiez son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier).
 

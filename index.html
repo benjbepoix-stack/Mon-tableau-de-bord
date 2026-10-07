@@ -29,15 +29,13 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/views/dashboard.css">
   <link rel="stylesheet" href="css/views/training.css">
-  <link rel="stylesheet" href="css/views/races.css">
-  <link rel="stylesheet" href="css/views/metrics.css">
-
+  <link rel="stylesheet" href="css/minimal.css">
+  
   <script type="module" src="js/main.js"></script>
 </head>
 
 <body>
-  <div class="ambient" aria-hidden="true"><span></span><span></span><span></span></div>
-  <a class="skip-link" href="#main">Aller au contenu</a>
+    <a class="skip-link" href="#main">Aller au contenu</a>
 
   <header class="topbar">
     <div class="topbar__inner">
@@ -54,49 +52,58 @@
 
   <nav class="tabbar" aria-label="Navigation principale">
     <button type="button" class="tabbar__item is-active" data-view="dashboardView" aria-current="page"><span data-icon="home"></span><span>Accueil</span></button>
-    <button type="button" class="tabbar__item" data-view="trainingView"><span data-icon="training"></span><span>Entraînement</span></button>
-    <button type="button" class="tabbar__item" data-view="raceView"><span data-icon="flag"></span><span>Courses</span></button>
-    <button type="button" class="tabbar__item" data-view="metricsView"><span data-icon="chart"></span><span>Mesures</span></button>
+    <button type="button" class="tabbar__item" data-view="tasksView"><span data-icon="check"></span><span>Tâches</span></button>
+    <button type="button" class="tabbar__item" data-view="trainingView"><span data-icon="training"></span><span>Planning</span></button>
   </nav>
 
   <main class="app" id="main" tabindex="-1">
 
     <!-- ================= DASHBOARD ================= -->
     <section id="dashboardView" class="view" aria-labelledby="headerTitle">
-      <div class="hero card card--gradient" id="greeting"></div>
 
-      <div class="dash-grid">
-        <section class="section">
-          <header class="section__head">
-            <h2 class="section__title"><span class="section__icon section__icon--blue" data-icon="calendar" data-size="18"></span>Prochain rendez-vous</h2>
-            <button type="button" class="btn btn--primary btn--icon btn--blue" data-open="appointments" aria-label="Ajouter un rendez-vous"><span data-icon="plus" data-size="20"></span></button>
-          </header>
-          <div id="nextAppointment"></div>
-          <button type="button" class="link-btn" data-view-all="appointments">Historique</button>
-        </section>
-
-        <section class="section">
-          <header class="section__head">
-            <h2 class="section__title"><span class="section__icon section__icon--amber" data-icon="sparkle" data-size="18"></span>Prochain événement</h2>
-            <button type="button" class="btn btn--primary btn--icon btn--amber" data-open="events" aria-label="Ajouter un événement"><span data-icon="plus" data-size="20"></span></button>
-          </header>
-          <div id="nextEvent"></div>
-          <button type="button" class="link-btn" data-view-all="events">Historique</button>
-        </section>
-      </div>
+      <section class="card today-card" id="todaySession"></section>
 
       <section class="section">
         <header class="section__head">
-          <h2 class="section__title"><span class="section__icon section__icon--mint" data-icon="check" data-size="18"></span>Tâches</h2>
+          <h2 class="section__title">À venir</h2>
+          <div class="section__tools">
+            <button type="button" class="btn btn--soft btn--sm" data-open="appointments"><span data-icon="plus" data-size="16"></span><span>RDV</span></button>
+            <button type="button" class="btn btn--soft btn--sm" data-open="events"><span data-icon="plus" data-size="16"></span><span>Événement</span></button>
+          </div>
+        </header>
+        <div class="stack" id="agenda"></div>
+        <button type="button" class="link-btn link-btn--center" id="agendaMore" hidden></button>
+        <div class="agenda-links"><button type="button" class="link-btn" data-view-all="appointments">Historique des RDV</button><button type="button" class="link-btn" data-view-all="events">Historique des événements</button></div>
+      </section>
+
+      <section class="section">
+        <header class="section__head">
+          <h2 class="section__title"><label for="notes">Notes</label></h2>
+          <span class="save-state" id="notesStatus" aria-live="polite">Enregistrement automatique</span>
+        </header>
+        <div class="card notes"><textarea id="notes" class="notes__area" placeholder="Écrivez ce que vous voulez ici…" maxlength="20000"></textarea></div>
+      </section>
+    </section>
+
+    <!-- ================= TÂCHES ================= -->
+    <section id="tasksView" class="view" hidden aria-labelledby="headerTitle">
+      <section class="section section--first">
+        <header class="section__head">
+          <h2 class="section__title">Mes tâches</h2>
           <div class="section__tools"><div class="task-progress" id="taskProgress"></div>
             <button type="button" class="btn btn--primary btn--icon" data-open="tasks" aria-label="Ajouter une tâche"><span data-icon="plus" data-size="20"></span></button></div>
         </header>
         <div class="card card--list" id="tasks"></div>
       </section>
 
+      <section class="section" id="sportSection" hidden>
+        <header class="section__head"><h2 class="section__title">Sport</h2><a class="link-btn" id="allureLink" href="https://benjbepoix-stack.github.io/Allure/">Ouvrir Allure</a></header>
+        <div class="card card--list" id="sportTasks"></div>
+      </section>
+
       <section class="section" id="garageSection" hidden>
         <header class="section__head">
-          <h2 class="section__title"><span class="section__icon section__icon--amber" data-icon="wrench" data-size="18"></span>Garage</h2>
+          <h2 class="section__title">Garage</h2>
           <span class="garage-widget__live" id="garageLive" hidden><i></i>en direct</span>
         </header>
         <div class="card card--list" id="garageWidget"></div>
@@ -104,29 +111,16 @@
 
       <section class="section" id="maisonSection" hidden>
         <header class="section__head">
-          <h2 class="section__title"><span class="section__icon section__icon--mint" data-icon="home" data-size="18"></span>Maison</h2>
+          <h2 class="section__title">Maison</h2>
           <span class="garage-widget__live" id="maisonLive" hidden><i></i>en direct</span>
         </header>
         <div class="card card--list" id="maisonWidget"></div>
-      </section>
-
-      <section class="section">
-        <header class="section__head">
-          <h2 class="section__title"><span class="section__icon section__icon--violet" data-icon="note" data-size="18"></span><label for="notes">Notes</label></h2>
-          <span class="save-state" id="notesStatus" aria-live="polite">Enregistrement automatique</span>
-        </header>
-        <div class="card notes"><textarea id="notes" class="notes__area" placeholder="Écrivez ce que vous voulez ici…" maxlength="20000"></textarea></div>
       </section>
     </section>
 
     <!-- ================= ENTRAÎNEMENT ================= -->
     <section id="trainingView" class="view" hidden aria-labelledby="headerTitle">
-      <div class="segmented training-tabs" role="tablist" aria-label="Planning">
-        <button type="button" role="tab" id="tab-week" data-training-tab="week" aria-controls="trainingWeekPanel" aria-selected="true"><span data-icon="calendar" data-size="16"></span><span>Cette semaine</span></button>
-        <button type="button" role="tab" id="tab-season" data-training-tab="season" aria-controls="trainingSeasonPanel" aria-selected="false"><span data-icon="flag" data-size="16"></span><span>Saison</span></button>
-      </div>
-
-      <div id="trainingWeekPanel" role="tabpanel" aria-labelledby="tab-week">
+      <div id="trainingWeekPanel">
         <div class="toolbar toolbar--week">
           <button type="button" class="btn btn--primary" data-action="week-today"><span data-icon="calendar" data-size="18"></span><span>Aujourd’hui</span></button>
           <button type="button" class="btn btn--soft" data-action="open-manager"><span data-icon="settings" data-size="18"></span><span>Sports &amp; séances</span></button>
@@ -160,114 +154,11 @@
           <button type="button" class="icon-btn icon-btn--glass" data-action="week-next" aria-label="Semaine suivante"><span data-icon="chevronRight"></span></button>
         </div>
         <section id="days" class="days" aria-label="Détail des jours de la semaine"></section>
-        <p class="footnote">Données synchronisées entre vos appareils. Météo : <span id="weatherPlaceLabel">Besançon</span> (Open-Meteo).</p>
+        <p class="footnote"><a class="link-btn" href="https://benjbepoix-stack.github.io/Allure/">Saison, courses et mesures dans Allure</a><br>Météo : <span id="weatherPlaceLabel">Besançon</span> (Open-Meteo).</p>
       </div>
 
-      <div id="trainingSeasonPanel" role="tabpanel" aria-labelledby="tab-season" hidden>
-        <section class="card season-card" id="seasonCard">
-          <header class="card__head">
-            <div><h2 class="card__title">Saison</h2><p class="card__sub">Phases d’entraînement et courses</p></div>
-            <button type="button" class="btn btn--primary btn--icon" data-season="add" aria-label="Ajouter une phase"><span data-icon="plus" data-size="20"></span></button>
-          </header>
-          <div id="seasonCurrent"></div>
-          <div class="season-nav">
-            <button type="button" class="icon-btn icon-btn--sm" data-season="prev" aria-label="Mois précédents"><span data-icon="chevronLeft" data-size="18"></span></button>
-            <strong id="seasonRange" aria-live="polite"></strong>
-            <button type="button" class="icon-btn icon-btn--sm" data-season="next" aria-label="Mois suivants"><span data-icon="chevronRight" data-size="18"></span></button>
-          </div>
-          <button type="button" class="link-btn link-btn--center season-reset" id="seasonReset" data-season="reset" hidden>Revenir à aujourd’hui</button>
-          <div id="seasonCalendar"></div>
-          <div id="seasonList"></div>
-        </section>
-      </div>
     </section>
 
-    <!-- ================= COURSES ================= -->
-    <section id="raceView" class="view" hidden aria-labelledby="headerTitle">
-      <section class="race-hero card card--hero" id="nextRace" aria-live="polite"></section>
-
-      <section class="section">
-        <header class="section__head">
-          <h2 class="section__title">Courses suivantes</h2>
-          <button type="button" class="btn btn--primary btn--icon" data-action="add" aria-label="Ajouter une course"><span data-icon="plus" data-size="20"></span></button>
-        </header>
-        <div id="raceUpcomingList" class="stack"></div>
-        <button type="button" class="btn btn--soft race-more" id="raceMore" data-action="toggle-upcoming" aria-controls="raceUpcomingList" hidden></button>
-      </section>
-
-      <section class="section card">
-        <header class="card__head">
-          <div><h2 class="card__title">Bilan annuel</h2><p class="card__sub">Vue d’ensemble de votre saison</p></div>
-          <div class="year-nav">
-            <button type="button" class="icon-btn icon-btn--sm" id="raceYearPrev" data-action="year-prev" aria-label="Année précédente"><span data-icon="chevronLeft" data-size="18"></span></button>
-            <strong id="raceYear" aria-live="polite"></strong>
-            <button type="button" class="icon-btn icon-btn--sm" id="raceYearNext" data-action="year-next" aria-label="Année suivante"><span data-icon="chevronRight" data-size="18"></span></button>
-          </div>
-        </header>
-        <button type="button" class="link-btn link-btn--center" id="raceYearReset" data-action="year-reset" hidden>Revenir à l’année en cours</button>
-        <div class="stats-grid" id="raceStatsGrid"></div>
-        <div class="donut-chart donut-chart--divided">
-          <div class="donut" id="raceDonut"><div class="donut__center"><strong id="raceDonutTotal">0</strong><span>courses</span></div></div>
-          <div class="legend" id="raceLegend"></div>
-        </div>
-      </section>
-
-      <section class="section">
-        <header class="section__head"><h2 class="section__title">Courses passées · <span id="raceHistoryYear"></span></h2></header>
-        <div id="raceHistoryList" class="stack"></div>
-      </section>
-    </section>
-
-    <!-- ================= MESURES ================= -->
-    <section id="metricsView" class="view" hidden aria-labelledby="headerTitle">
-      <div class="metrics-grid">
-        <section class="card metric-card">
-          <header class="metric-card__head">
-            <div><h2 class="card__title">Poids</h2><p class="card__sub">Évolution de votre poids</p></div>
-            <div class="metric-card__latest"><div class="metric-card__value" id="weightLatest">—</div><div class="delta" id="weightDelta"></div></div>
-          </header>
-          <form class="metric-form" id="weightForm" data-kind="weight" novalidate>
-            <div class="field"><label class="field__label" for="w-date">Date</label><input class="input" id="w-date" type="date" name="date" required></div>
-            <div class="field"><label class="field__label" for="w-value">Poids · kg</label><input class="input" id="w-value" name="value" inputmode="decimal" placeholder="72,5" autocomplete="off"></div>
-            <button type="submit" class="btn btn--add btn--icon" aria-label="Ajouter la mesure de poids" title="Ajouter"><span data-icon="plus" data-size="20"></span></button>
-          </form>
-          <div class="chart-nav" id="weightNav" hidden>
-            <button type="button" class="chip-btn chip-btn--icon" data-action="window" data-kind="weight" data-dir="1" aria-label="Mesures plus anciennes"><span data-icon="chevronLeft" data-size="16"></span></button>
-            <span class="chart-nav__range"></span>
-            <button type="button" class="chip-btn chip-btn--icon" data-action="window" data-kind="weight" data-dir="-1" aria-label="Mesures plus récentes"><span data-icon="chevronRight" data-size="16"></span></button>
-          </div>
-          <div class="chart-host" id="weightChart"></div>
-          <button type="button" class="link-btn link-btn--center" data-action="history" data-kind="weight">Voir tout l’historique</button>
-        </section>
-
-        <section class="card metric-card">
-          <header class="metric-card__head">
-            <div><h2 class="card__title">FTP vélo</h2><p class="card__sub">Puissance fonctionnelle seuil</p></div>
-            <div class="metric-card__latest"><div class="metric-card__value" id="ftpLatest">—</div><div class="delta" id="ftpDelta"></div></div>
-          </header>
-          <form class="metric-form" id="ftpForm" data-kind="ftp" novalidate>
-            <div class="field"><label class="field__label" for="f-date">Date du test</label><input class="input" id="f-date" type="date" name="date" required></div>
-            <div class="field"><label class="field__label" for="f-value">FTP · W</label><input class="input" id="f-value" name="value" inputmode="numeric" placeholder="250" autocomplete="off"></div>
-            <button type="submit" class="btn btn--add btn--icon" aria-label="Ajouter le test FTP" title="Ajouter"><span data-icon="plus" data-size="20"></span></button>
-          </form>
-          <div class="chart-nav" id="ftpNav" hidden>
-            <button type="button" class="chip-btn chip-btn--icon" data-action="window" data-kind="ftp" data-dir="1" aria-label="Mesures plus anciennes"><span data-icon="chevronLeft" data-size="16"></span></button>
-            <span class="chart-nav__range"></span>
-            <button type="button" class="chip-btn chip-btn--icon" data-action="window" data-kind="ftp" data-dir="-1" aria-label="Mesures plus récentes"><span data-icon="chevronRight" data-size="16"></span></button>
-          </div>
-          <div class="chart-host" id="ftpChart"></div>
-          <button type="button" class="link-btn link-btn--center" data-action="history" data-kind="ftp">Voir tout l’historique</button>
-        </section>
-      </div>
-
-      <section class="card metric-card">
-        <header class="metric-card__head"><div><h2 class="card__title">Mensurations</h2><p class="card__sub">Comparaison avec une prise de référence</p></div></header>
-        <button type="button" class="btn btn--add btn--block" data-action="measure"><span data-icon="body" data-size="18"></span><span>Nouvelle prise de mensurations</span></button>
-        <div class="divider"></div>
-        <div id="measureCompare"></div>
-        <button type="button" class="link-btn link-btn--center" data-action="history" data-kind="measurements">Voir tout l’historique</button>
-      </section>
-    </section>
   </main>
 
   <!-- ================= FEUILLES / MODALES ================= -->
@@ -288,25 +179,6 @@
         <div class="field only-timed"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select></div>
         <div class="field only-timed"><label class="field__label" for="i-location">Lieu <span class="field__opt">(facultatif)</span></label><input class="input" id="i-location" name="location" maxlength="120" placeholder="Ex. 12 rue de la Paix, Besançon" autocomplete="off"></div>
         <div class="field"><label class="field__label" for="i-note">Note <span class="field__opt">(facultatif)</span></label><textarea class="input textarea" id="i-note" name="note" maxlength="500" rows="3" placeholder="Détails…"></textarea></div>
-        <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Éditeur de phase d'entraînement -->
-  <div class="sheet-backdrop" id="phaseSheet" hidden>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="phaseSheetTitle" tabindex="-1">
-      <div class="sheet__grabber" aria-hidden="true"></div>
-      <header class="sheet__head"><h2 class="sheet__title" id="phaseSheetTitle">Nouvelle phase</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
-      <form class="form" id="phaseForm" novalidate>
-        <input type="hidden" name="editId">
-        <div class="field"><label class="field__label" for="ph-type">Phase</label><select class="input select" id="ph-type" name="type" required></select></div>
-        <p class="phase-advice" id="phaseAdvice"></p>
-        <div class="form-grid">
-          <div class="field"><label class="field__label" for="ph-start">Début</label><input class="input" id="ph-start" type="date" name="start" required></div>
-          <div class="field"><label class="field__label" for="ph-end">Fin</label><input class="input" id="ph-end" type="date" name="end" required></div>
-        </div>
-        <div class="field"><label class="field__label" for="ph-note">Note <span class="field__opt">(facultatif)</span></label><input class="input" id="ph-note" name="note" maxlength="200" placeholder="Ex. Objectif : Trail des Forts" autocomplete="off"></div>
         <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
       </form>
     </div>
@@ -337,53 +209,6 @@
           <button type="submit" class="btn btn--primary">Ajouter</button>
         </form>
       </div>
-    </div>
-  </div>
-
-  <!-- Éditeur de course -->
-  <div class="sheet-backdrop" id="raceSheet" hidden>
-    <div class="sheet sheet--tall" role="dialog" aria-modal="true" aria-labelledby="raceSheetTitle" tabindex="-1">
-      <div class="sheet__grabber" aria-hidden="true"></div>
-      <header class="sheet__head"><h2 class="sheet__title" id="raceSheetTitle">Nouvelle course</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
-      <form class="form sheet__scroll" id="raceForm" novalidate>
-        <input type="hidden" name="editId">
-        <div class="form-grid">
-          <div class="field field--full"><label class="field__label" for="r-name">Nom de la course</label><input class="input" id="r-name" name="name" maxlength="100" required placeholder="Ex. Étape du Tour" autocomplete="off"></div>
-          <div class="field"><label class="field__label" for="raceSport">Sport</label><select class="input select" id="raceSport" name="sport" required></select></div>
-          <div class="field"><label class="field__label" for="r-date">Date</label><input class="input" id="r-date" type="date" name="date" required></div>
-          <div class="field"><label class="field__label" for="r-time">Heure de départ</label><input class="input" id="r-time" type="time" name="time"></div>
-          <div class="field"><label class="field__label" for="r-location">Lieu</label><input class="input" id="r-location" name="location" maxlength="100" placeholder="Ex. Besançon" autocomplete="off"></div>
-          <div class="field"><label class="field__label" for="r-distance">Distance · km</label><input class="input" id="r-distance" name="distance" inputmode="decimal" placeholder="160" autocomplete="off"></div>
-          <div class="field"><label class="field__label" for="r-elevation">Dénivelé · m</label><input class="input" id="r-elevation" name="elevation" inputmode="numeric" placeholder="5300" autocomplete="off"></div>
-          <div class="field"><label class="field__label" for="r-price">Prix · €</label><input class="input" id="r-price" name="price" inputmode="decimal" placeholder="45" autocomplete="off"></div>
-          <div class="field"><label class="field__label" for="r-target">Objectif de temps</label><input class="input" id="r-target" name="target" maxlength="40" placeholder="7h30" autocomplete="off"></div>
-          <div class="field field--full"><label class="field__label" for="r-notes">Notes</label><textarea class="input textarea" id="r-notes" name="notes" maxlength="2000" rows="3" placeholder="Stratégie, matériel, ravitaillement…"></textarea></div>
-        </div>
-        <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Historique des mesures -->
-  <div class="sheet-backdrop" id="historySheet" hidden>
-    <div class="sheet sheet--tall" role="dialog" aria-modal="true" aria-labelledby="historyTitle" tabindex="-1">
-      <div class="sheet__grabber" aria-hidden="true"></div>
-      <header class="sheet__head"><h2 class="sheet__title" id="historyTitle">Historique</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
-      <div class="sheet__scroll" id="historyContent"></div>
-    </div>
-  </div>
-
-  <!-- Prise de mensurations sur mannequin -->
-  <div class="sheet-backdrop" id="measureSheet" hidden>
-    <div class="sheet sheet--tall sheet--measure" role="dialog" aria-modal="true" aria-labelledby="measureTitle" tabindex="-1">
-      <div class="sheet__grabber" aria-hidden="true"></div>
-      <header class="sheet__head"><div><h2 class="sheet__title" id="measureTitle">Nouvelle prise</h2><p class="sheet__sub">Mètre ruban à plat, sans serrer, de préférence le matin.</p></div><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
-      <form class="form" id="measureForm" data-kind="measurements" novalidate>
-        <input type="hidden" name="editId">
-        <div class="field"><label class="field__label" for="m-date">Date de la prise</label><input class="input" id="m-date" type="date" name="date" required></div>
-        <div id="bodyMapHost"></div>
-        <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
-      </form>
     </div>
   </div>
 
