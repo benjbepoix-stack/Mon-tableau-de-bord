@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Tableau de bord personnel : agenda, tâches, entraînements, courses et mesures.">
-  <meta name="theme-color" content="#0b0f1a">
+  <meta name="theme-color" content="#16171c">
   <meta name="color-scheme" content="dark light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -30,12 +30,12 @@
   <link rel="stylesheet" href="css/views/dashboard.css">
   <link rel="stylesheet" href="css/views/training.css">
   <link rel="stylesheet" href="css/minimal.css">
-  
+
   <script type="module" src="js/main.js"></script>
 </head>
 
 <body>
-    <a class="skip-link" href="#main">Aller au contenu</a>
+  <a class="skip-link" href="#main">Aller au contenu</a>
 
   <header class="topbar">
     <div class="topbar__inner">
@@ -101,9 +101,12 @@
       <section class="section section--first">
         <header class="section__head">
           <h2 class="section__title">Mes tâches</h2>
-          <div class="section__tools"><div class="task-progress" id="taskProgress"></div>
-            <button type="button" class="btn btn--primary btn--icon" data-open="tasks" aria-label="Ajouter une tâche"><span data-icon="plus" data-size="20"></span></button></div>
+          <div class="section__tools"><div class="task-progress" id="taskProgress"></div></div>
         </header>
+        <form class="quick-add" id="taskQuick" novalidate>
+          <input class="input" name="title" maxlength="100" placeholder="Nouvelle tâche…" aria-label="Nouvelle tâche" autocomplete="off" enterkeyhint="done">
+          <button type="submit" class="btn btn--primary btn--icon" aria-label="Ajouter la tâche (vide : formulaire complet)"><span data-icon="plus" data-size="20"></span></button>
+        </form>
         <div class="card card--list" id="tasks"></div>
       </section>
 
@@ -190,13 +193,10 @@
         <div class="form-grid">
           <div class="field field--full"><label class="field__label" for="i-date" id="itemDateLabel">Date</label><input class="input" id="i-date" type="date" name="date"></div>
           <div class="field"><label class="field__label" for="i-time" id="itemTimeLabel">Début</label><input class="input" id="i-time" type="time" name="time"></div>
-          
         </div>
-        
-        
-        
         <details class="more-fields" id="itemMore"><summary>Plus de détails</summary><div class="more-fields__body"><div class="field only-timed"><label class="field__label" for="i-end">Fin <span class="field__opt">(facultatif)</span></label><input class="input" id="i-end" type="time" name="endTime"></div><div class="field"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select><p class="field__help" id="itemRepeatHelp" hidden>Une fois cochée, la tâche revient le lendemain, décochée, à sa prochaine échéance.</p></div><div class="field only-timed"><label class="field__label" for="i-location">Lieu <span class="field__opt">(facultatif)</span></label><input class="input" id="i-location" name="location" maxlength="120" placeholder="Ex. 12 rue de la Paix, Besançon" autocomplete="off"></div><div class="field"><label class="field__label" for="i-note">Note <span class="field__opt">(facultatif)</span></label><textarea class="input textarea" id="i-note" name="note" maxlength="500" rows="3" placeholder="Détails…"></textarea></div></div></details>
         <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
+        <button type="button" class="btn btn--ghost btn--danger-text" id="itemDelete" hidden><span data-icon="trash" data-size="18"></span><span>Supprimer</span></button>
       </form>
     </div>
   </div>

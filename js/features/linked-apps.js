@@ -50,7 +50,15 @@ const byUrgency = (a, b) => (LEVEL_RANK[a.level] ?? 3) - (LEVEL_RANK[b.level] ??
 
 /** Échéances datées (pour le calendrier). */
 export const datedAlerts = () => [...garage, ...maison].filter(a => a.due);
+/** Échéances en retard publiées par Garage et Maison (pop-up de démarrage). */
+export const lateAlerts = () => [...garage, ...maison].filter(a => a.level === 'late').sort(byUrgency);
 export const onLinkedChange = fn => listeners.add(fn);
+
+/* Prêt : Garage et Maison ont répondu (ou sont injoignables). */
+let pendingSources = 2;
+let readyResolve;
+export const linkedReady = new Promise(resolve => (readyResolve = resolve));
+const sourceDone = () => --pendingSources <= 0 && readyResolve();
 
 function alertRow(a, url) {
   // Le texte publié dit déjà « dans 12 j », « en retard de 5 j »… : on y ajoute seulement la date.
@@ -85,16 +93,14 @@ function changed() {
   listeners.forEach(fn => fn());
 }
 
-/**
- * Démarre l'écoute en direct ; n'affiche jamais d'erreur (fonctionnalité annexe).
- * `onGarage`, si fourni, reçoit les données brutes de Garage à chaque mise à jour (et une
- * seule fois `null` si Garage est injoignable) — utilisé par le pop-up de démarrage.
- */
-export async function initLinkedApps({ onGarage } = {}) {
+/** Démarre l'écoute en direct ; n'affiche jamais d'erreur (fonctionnalité annexe). */
+export async function initLinkedApps() {
   try {
     const [appMod, dbMod] = await Promise.all([import(`${SDK}/firebase-app.js`), import(`${SDK}/firebase-database.js`)]);
     const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
     const db = dbMod.getDatabase(app);
+    let garageFirst = true;
+    let maisonFirst = true;
     dbMod.onValue(
       dbMod.ref(db, `${DB_ROOT}/garage_alerts`),
       snap => {
@@ -103,11 +109,17 @@ export async function initLinkedApps({ onGarage } = {}) {
         garageSeen = Boolean(data);
         $('#garageLive').hidden = false;
         changed();
-        onGarage?.(data);
+        if (garageFirst) {
+          garageFirst = false;
+          sourceDone();
+        }
       },
       () => {
         $('#garageLive').hidden = true;
-        onGarage?.(null);
+        if (garageFirst) {
+          garageFirst = false;
+          sourceDone();
+        }
       }
     );
     dbMod.onValue(
@@ -119,11 +131,21 @@ export async function initLinkedApps({ onGarage } = {}) {
         maisonSeen = Boolean(snap.val());
         $('#maisonLive').hidden = false;
         changed();
+        if (maisonFirst) {
+          maisonFirst = false;
+          sourceDone();
+        }
       },
-      () => ($('#maisonLive').hidden = true)
+      () => {
+        $('#maisonLive').hidden = true;
+        if (maisonFirst) {
+          maisonFirst = false;
+          sourceDone();
+        }
+      }
     );
   } catch {
     // Hors ligne ou SDK indisponible : les sections restent simplement masquées.
-    onGarage?.(null);
+    readyResolve();
   }
 }

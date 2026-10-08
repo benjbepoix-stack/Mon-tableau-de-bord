@@ -8,7 +8,7 @@ import { renderStatus } from './ui/status.js';
 import { toastError } from './ui/toast.js';
 import { icon } from './ui/icons.js';
 import { initCalendarPrompt } from './features/calendar-prompt.js';
-import { initLinkedApps, onLinkedChange } from './features/linked-apps.js';
+import { initLinkedApps, onLinkedChange, linkedReady } from './features/linked-apps.js';
 import { tidyTasks } from './features/task-tidy.js';
 import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
@@ -32,6 +32,9 @@ let settled = false;
 function settle() {
   settled = true;
   tidyTasks();
+  // Pop-up « en retard » : sur des données à jour (une tâche faite ailleurs n'y figure pas),
+  // une fois les résumés Garage / Maison lus — sans les attendre plus de 2,5 s.
+  Promise.race([linkedReady, new Promise(r => setTimeout(r, 2500))]).then(checkOverdue);
 }
 
 function switchView(id, { scroll = true } = {}) {
@@ -145,12 +148,10 @@ function init() {
     onError: message => toastError(`Synchronisation : ${message}`),
     getSnapshot: snapshot
   });
-  // Pop-up de démarrage (tâches + entretiens en retard) : on laisse une
-  // chance au résumé Garage d'arriver, sans bloquer indéfiniment si l'app
-  // Garage est hors ligne ou n'a encore rien publié.
-  initLinkedApps({ onGarage: checkOverdue });
+  initLinkedApps();
+  // Hors ligne au lancement (cloud jamais reçu) : le pop-up s'appuie sur les données de l'appareil.
+  setTimeout(() => !settled && checkOverdue(), 6000);
   onLinkedChange(() => currentView === 'dashboardView' && renderDashboard());
-  setTimeout(() => checkOverdue(null), 2500);
 
   document.documentElement.classList.add('is-ready');
 

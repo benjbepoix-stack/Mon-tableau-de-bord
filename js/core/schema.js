@@ -129,6 +129,20 @@ export function normalizePlans(raw, families) {
   return out;
 }
 
+/**
+ * Planning sans les jours vides : l'affichage d'une semaine crée en mémoire une
+ * séance vierge par jour (identifiants stables pour la saisie), qu'il est inutile
+ * d'enregistrer — sinon chaque semaine consultée gonflait la base.
+ */
+const isPlanned = s => Boolean(s.family || s.training || s.distance || s.time || s.elevation);
+export function prunePlans(plans) {
+  const out = {};
+  for (const [key, day] of Object.entries(plans || {})) {
+    if (Array.isArray(day) && day.some(isPlanned)) out[key] = day;
+  }
+  return out;
+}
+
 export const normalizeObjectives = raw => (isObj(raw) ? raw : {});
 
 /* ---------- Courses ---------- */

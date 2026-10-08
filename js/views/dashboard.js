@@ -81,18 +81,15 @@ function itemCard(x, type) {
   const meta = [x.date ? `<span class="tag tag--${type} ${urgency ? `is-${urgency}` : ''}">${urgency ? icon('alert', 12) : ''}${relativeDay(x.date)}</span>` : '', timeLabel(x) ? `<span>${icon('clock', 13)}${timeLabel(x)}</span>` : '', isRepeat(x.repeat) ? `<span>${icon('repeat', 13)}${REPEATS[x.repeat].label}</span>` : '', x.location ? `<span>${icon('pin', 13)}${esc(x.location)}</span>` : '']
     .filter(Boolean)
     .join('');
-  return `<article class="item-card ${urgency ? `item-card--${urgency}` : ''}" data-id="${esc(x.id)}" data-type="${type}">
+  // Un appui sur la carte ouvre la modification (suppression dans la feuille) : moins d'icônes à l'écran.
+  return `<article class="item-card is-tappable ${urgency ? `item-card--${urgency}` : ''}" data-id="${esc(x.id)}" data-type="${type}" tabindex="0" aria-label="Modifier « ${esc(x.title)} »">
     ${chip}
     <div class="item-card__body">
       <h3 class="item-card__title">${esc(x.title)}</h3>
       ${meta ? `<div class="item-card__meta">${meta}</div>` : ''}
       ${x.note ? `<p class="item-card__note">${esc(x.note)}</p>` : ''}
     </div>
-    <div class="item-card__actions">
-      ${x.date ? `<button type="button" class="icon-btn" data-action="calendar" aria-label="Ajouter « ${esc(x.title)} » au calendrier">${icon('calendarPlus', 18)}</button>` : ''}
-      <button type="button" class="icon-btn" data-action="edit" aria-label="Modifier">${icon('edit', 18)}</button>
-      <button type="button" class="icon-btn icon-btn--danger" data-action="delete" aria-label="Supprimer">${icon('trash', 18)}</button>
-    </div>
+    ${x.date && !isPast(x) ? `<div class="item-card__actions"><button type="button" class="icon-btn" data-action="calendar" aria-label="Ajouter « ${esc(x.title)} » au calendrier">${icon('calendarPlus', 18)}</button></div>` : ''}
   </article>`;
 }
 
@@ -184,7 +181,7 @@ function dayItemHtml(x) {
   if (x.kind === 'appointments' || x.kind === 'events') return itemCard(x, x.kind);
   if (x.kind === 'races') return raceItem(x);
   if (x.kind === 'tasks') {
-    return `<div class="cal-row" data-id="${esc(x.id)}" data-type="tasks"><span class="cal-dot cal-dot--tasks"></span><div class="task__body"><div class="task__title">${esc(x.title)}</div><div class="task__sub"><span>Tâche${x.time ? ` · ${x.time}` : ''}${isRepeat(x.repeat) ? ` · ${REPEATS[x.repeat].label.toLowerCase()}` : ''}</span></div></div><button type="button" class="icon-btn" data-action="edit" aria-label="Modifier">${icon('edit', 17)}</button></div>`;
+    return `<div class="cal-row is-tappable" data-id="${esc(x.id)}" data-type="tasks" tabindex="0" aria-label="Modifier « ${esc(x.title)} »"><span class="cal-dot cal-dot--tasks"></span><div class="task__body"><div class="task__title">${esc(x.title)}</div><div class="task__sub"><span>Tâche${x.time ? ` · ${x.time}` : ''}${isRepeat(x.repeat) ? ` · ${REPEATS[x.repeat].label.toLowerCase()}` : ''}</span></div></div>${icon('chevronRight', 16)}</div>`;
   }
   const url = x.kind === 'garage' ? GARAGE_URL : `${MAISON_URL}#/entretien`;
   return `<a class="cal-row" href="${url}"><span class="cal-dot cal-dot--${x.kind}"></span><div class="task__body"><div class="task__title">${x.owner ? `${esc(x.owner)} · ` : ''}${esc(x.title)}</div><div class="task__sub"><span>${x.kind === 'garage' ? 'Garage' : 'Maison'} · ${esc(x.text)}</span></div></div></a>`;
@@ -253,21 +250,18 @@ function renderTasks() {
     : '';
   const el = $('#tasks');
   if (!tasks.length) {
-    el.innerHTML = `<div class="empty-state"><p>Aucune tâche.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><p>Aucune tâche. Écrivez-en une ci-dessus.</p></div>`;
     return;
   }
   const sorted = [...tasks].sort((a, b) => Number(a.done) - Number(b.done) || (a.date || '9999').localeCompare(b.date || '9999'));
   el.innerHTML = sorted
     .map(t => {
       const sub = taskSub(t);
-      return `<div class="task ${t.done ? 'is-done' : ''}" data-id="${esc(t.id)}" data-type="tasks">
+      // Cocher : le rond ; modifier ou supprimer : un appui sur la ligne.
+      return `<div class="task is-tappable ${t.done ? 'is-done' : ''}" data-id="${esc(t.id)}" data-type="tasks" tabindex="0" aria-label="Modifier « ${esc(t.title)} »">
         <button type="button" class="task__check" data-action="toggle" role="checkbox" aria-checked="${t.done}" aria-label="${t.done ? 'Marquer comme à faire' : 'Marquer comme terminée'}">${icon('check', 15)}</button>
         <div class="task__body"><div class="task__title">${esc(t.title)}</div>${sub ? `<div class="task__sub">${sub}</div>` : ''}</div>
-        <div class="item-card__actions">
-          ${canOpenReminders(t) ? `<button type="button" class="icon-btn" data-action="reminder" aria-label="Ouvrir Rappels pour « ${esc(t.title)} »" title="Ouvrir Rappels">${icon('bell', 17)}</button>` : ''}
-          <button type="button" class="icon-btn" data-action="edit" aria-label="Modifier">${icon('edit', 17)}</button>
-          <button type="button" class="icon-btn icon-btn--danger" data-action="delete" aria-label="Supprimer">${icon('trash', 17)}</button>
-        </div>
+        ${canOpenReminders(t) ? `<div class="item-card__actions"><button type="button" class="icon-btn" data-action="reminder" aria-label="Ouvrir Rappels pour « ${esc(t.title)} »" title="Ouvrir Rappels">${icon('bell', 17)}</button></div>` : ''}
       </div>`;
     })
     .join('');
@@ -328,6 +322,7 @@ function openEditor(type, id = null) {
   else if (!isTask) form.elements.date.value = todayKey();
   // Une répétition déjà choisie reste visible : le volet « Plus de détails » s'ouvre.
   $('#itemMore').open = Boolean(item && (item.repeat || item.note || item.endTime || item.location));
+  $('#itemDelete').hidden = !item;
   openSheet('itemSheet');
 }
 
@@ -396,6 +391,28 @@ async function onSubmit(e) {
 }
 
 /* ---------- Actions ---------- */
+async function removeItem(type, id) {
+  const list = state.dashboard[type];
+  const item = list?.find(x => x.id === id);
+  if (!item) return false;
+  if (!(await confirmDialog({ title: `Supprimer « ${item.title} » ?`, message: 'Cette action est définitive.', confirmLabel: 'Supprimer', danger: true }))) return false;
+  state.dashboard[type] = list.filter(x => x.id !== id);
+  commit('dashboard');
+  toast('Élément supprimé');
+  return true;
+}
+
+/** Saisie express : titre + Entrée. Champ vide : formulaire complet (date, répétition…). */
+function onQuickTask(e) {
+  e.preventDefault();
+  const input = e.currentTarget.elements.title;
+  const title = input.value.trim().slice(0, 100);
+  if (!title) return openEditor('tasks');
+  state.dashboard.tasks.push({ id: uid(), title, date: '', time: '', note: '', done: false });
+  commit('dashboard');
+  input.value = '';
+}
+
 async function onClick(e) {
   if (e.target.closest('#agendaMore')) {
     laterOpen = !laterOpen;
@@ -432,14 +449,15 @@ async function onClick(e) {
     return renderArchive();
   }
   const btn = e.target.closest('[data-action]');
-  const host = btn?.closest('[data-id]');
-  if (!btn || !host) return;
+  // Sans bouton : un appui sur une carte ou une ligne ouvre sa modification.
+  const host = btn ? btn.closest('[data-id]') : e.target.closest('.is-tappable[data-id]');
+  if (!host) return;
   const { id, type } = host.dataset;
   const list = state.dashboard[type];
   const item = list?.find(x => x.id === id);
   if (!item) return;
 
-  switch (btn.dataset.action) {
+  switch (btn ? btn.dataset.action : 'edit') {
     case 'toggle':
       item.done = !item.done;
       // Cochée : reste visible (barrée) aujourd'hui, puis disparaît — ou repart si elle est répétée (features/task-tidy.js).
@@ -457,21 +475,27 @@ async function onClick(e) {
     case 'calendar':
       offerCalendar(toCalendarEvent(item, type), { heading: 'Ajouter au calendrier ?' });
       break;
-    case 'delete':
-      if (await confirmDialog({ title: `Supprimer « ${item.title} » ?`, message: 'Cette action est définitive.', confirmLabel: 'Supprimer', danger: true })) {
-        state.dashboard[type] = list.filter(x => x.id !== id);
-        commit('dashboard');
-        toast('Élément supprimé');
-      }
-      break;
   }
 }
 
+/** Clavier : Entrée sur une carte ou une ligne = modifier. */
+function onKey(e) {
+  if (e.key !== 'Enter' || !e.target.matches?.('.is-tappable[data-id]')) return;
+  e.preventDefault();
+  e.target.click();
+}
+
 export function initDashboard() {
-  $('#dashboardView').addEventListener('click', onClick);
-  $('#tasksView').addEventListener('click', onClick);
-  $('#archiveSheet').addEventListener('click', onClick);
+  ['#dashboardView', '#tasksView', '#archiveSheet'].forEach(sel => {
+    $(sel).addEventListener('click', onClick);
+    $(sel).addEventListener('keydown', onKey);
+  });
   $('#itemForm').addEventListener('submit', onSubmit);
+  $('#taskQuick').addEventListener('submit', onQuickTask);
+  $('#itemDelete').addEventListener('click', async () => {
+    const form = $('#itemForm');
+    if (await removeItem(form.elements.type.value, form.elements.editId.value)) closeSheet('itemSheet');
+  });
 
   const notes = $('#notes');
   const status = $('#notesStatus');

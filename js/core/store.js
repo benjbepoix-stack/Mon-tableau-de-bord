@@ -14,7 +14,8 @@ import {
   normalizeRaces,
   normalizeBodyMetrics,
   normalizeTheme,
-  normalizeNotes
+  normalizeNotes,
+  prunePlans
 } from './schema.js';
 
 const LOCAL_KEYS = {
@@ -47,8 +48,11 @@ function normalizeSlice(slice, value) {
   }
 }
 
+/** Valeur enregistrée d'une tranche (planning : jours vides retirés). */
+const stored = slice => (slice === 'plans' ? prunePlans(state.plans) : state[slice]);
+
 function persist(slice) {
-  const value = state[slice];
+  const value = stored(slice);
   write(LOCAL_KEYS[slice], typeof value === 'string' ? value : JSON.stringify(value));
 }
 
@@ -88,7 +92,7 @@ export function commit(slices, patch = {}) {
   list.forEach(slice => {
     if (slice in patch) state[slice] = patch[slice];
     persist(slice);
-    payload[slice] = state[slice];
+    payload[slice] = stored(slice);
   });
   cloudSink?.(payload);
   notify(list, 'local');
@@ -106,7 +110,7 @@ export function applyRemote(cloud, skip = new Set()) {
     // initialisée signifie « vidée ailleurs » (sauf le thème).
     if (!(slice in cloud) && slice === 'theme') continue;
     const next = normalizeSlice(slice, slice in cloud ? cloud[slice] : null);
-    if (sameJSON(next, state[slice])) continue;
+    if (sameJSON(next, stored(slice))) continue;
     state[slice] = next;
     persist(slice);
     changed.push(slice);
@@ -119,4 +123,4 @@ export function applyRemote(cloud, skip = new Set()) {
   return changed;
 }
 
-export const snapshot = () => Object.fromEntries(SLICES.map(s => [s, state[s]]));
+export const snapshot = () => Object.fromEntries(SLICES.map(s => [s, stored(s)]));

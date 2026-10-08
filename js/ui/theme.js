@@ -2,7 +2,8 @@
 import { $ } from '../core/utils.js';
 import { icon } from './icons.js';
 
-const THEME_COLORS = { dark: '#0b0f1a', light: '#f5f6fa' };
+/* Couleur de la barre d'état iOS : celle du fond de l'app (css/minimal.css). */
+const THEME_COLORS = { dark: '#16171c', light: '#f4f4f7' };
 
 export function applyTheme(theme, { animate = false } = {}) {
   const root = document.documentElement;

@@ -120,3 +120,26 @@
 
 /* Éditeur : champs d'horaire masqués pour les tâches */
 #itemForm[data-kind="tasks"] .only-timed { display: none; }
+
+/* Saisie express d'une tâche */
+.quick-add { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.quick-add .input { flex: 1; min-width: 0; }
+
+/* Cartes et lignes : un appui ouvre la modification */
+.is-tappable { cursor: pointer; -webkit-user-select: none; user-select: none; }
+.task.is-tappable:active, .cal-row.is-tappable:active { background: var(--surface-2); }
+.item-card.is-tappable:active { transform: scale(.99); }
+.cal-row > svg { color: var(--text-3); flex: none; }
+.btn--danger-text { --btn-fg: var(--danger); width: 100%; margin-top: var(--sp-2); }
+.btn--danger-text:hover { --btn-bg: var(--danger-soft); --btn-fg: var(--danger); }
+
+/* Pop-up « en retard » : une seule liste */
+.ov-list { display: flex; flex-direction: column; text-align: left; max-height: min(48dvh, 420px); overflow-y: auto; border-radius: var(--r-lg); background: var(--surface-2); border: 1px solid var(--border); }
+.ov-row { display: flex; align-items: center; gap: var(--sp-3); padding: 10px 12px; border-bottom: 1px solid var(--border); color: inherit; text-decoration: none; }
+.ov-row:last-child { border-bottom: 0; }
+.ov-row > svg { color: var(--text-3); flex: none; }
+.ov-row__icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--danger-soft); color: var(--danger); flex: none; }
+.ov-row__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.ov-row__body strong { font-weight: 700; overflow-wrap: anywhere; }
+.ov-row__body span { font-size: var(--fs-xs); color: var(--text-3); }
+.ov-row__body .is-overdue { color: var(--danger); font-weight: 700; }

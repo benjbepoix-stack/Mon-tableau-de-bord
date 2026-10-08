@@ -2,7 +2,7 @@
 
 Tableau de bord personnel (PWA installable sur iPhone), point d'entrée quotidien. Trois onglets :
 - **Accueil** : séance du jour, puis rendez-vous, événements et courses (d'Allure) des 30 prochains jours (le reste se déplie sous « Plus tard »), ou vue calendrier du mois ; notes.
-- **Tâches** : tâches saisies ici (répétables), et en lecture seule celles venant d'Allure (course à préparer, résultat à noter), de Garage, de Ma Maison et de son calendrier de saison.
+- **Tâches** : tâches saisies ici (répétables), et en lecture seule celles venant d'Allure (course à préparer, résultat à noter), de Garage, de Ma Maison et de son calendrier de saison. Saisie express : écrire le titre puis Entrée (champ vide + bouton : formulaire complet avec échéance et répétition).
 - **Planning** : planning sportif de la semaine (séances, météo), avec les phases de saison et les courses d'Allure.
 
 La saison, les courses et les mesures se gèrent dans l'app **Allure** (même base Firebase, mêmes données : rien n'est copié).
@@ -37,7 +37,7 @@ js/
   features/
     ics.js                  Génération iCalendar (RFC 5545) + ouverture Calendrier iOS
     calendar-prompt.js      Modale « Ajouter au calendrier »
-    overdue-prompt.js       Pop-up de démarrage : tâches et entretiens Garage en retard
+    overdue-prompt.js       Pop-up de démarrage : tâches, entretiens Garage et Maison en retard (une seule liste)
     persist.js              Attente de l'accusé de réception Firebase
   ui/                       Icônes SVG, modales, toasts, thème, pastille de synchro, graphiques
   views/                    dashboard (accueil + tâches), training (planning)
@@ -103,7 +103,7 @@ Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Planni
 
 ## Lien avec Garage
 
-- **Tâches envoyées depuis Garage** : un rappel d'entretien (vidange, contrôle technique…) envoyé depuis l'app **Garage** arrive directement comme tâche datée dans l'onglet Tâches, au même titre qu'une tâche créée ici. Rien à faire côté Carnet.
+- Garage n'envoie plus de tâches une à une (ancien bouton « Carnet », source de doublons) : ses échéances arrivent uniquement par la section « Garage » ci-dessous. Les tâches déjà reçues restent des tâches normales.
 - **Section « Garage »** : dans l'onglet Tâches, en lecture seule et en direct, tout ce qui est en retard ou dû dans les 30 jours sur chaque véhicule (retard en rouge, bientôt en orange, avec la date d'échéance quand elle existe), publié par Garage via `app/garage_alerts`. Les échéances datées apparaissent aussi dans le calendrier du mois. Carnet ne fait que lire ce chemin. La section reste masquée tant que Garage n'a rien publié. Détail dans `js/features/linked-apps.js`.
 
 ⚠️ **Étape unique à faire manuellement** : le chemin `garage_alerts` doit être autorisé dans les règles de cette base Firebase. Le fichier `database.rules.json` de ce dépôt a été mis à jour en conséquence, mais Claude ne peut pas déployer des règles Firebase depuis cet environnement — il faut copier son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier) une seule fois. Tant que ce n'est pas fait, le widget reste vide (Garage retentera automatiquement l'envoi dès que les règles seront en place, sans rien à refaire).
@@ -114,9 +114,13 @@ Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Planni
 
 ⚠️ **Étape unique à faire manuellement** : comme pour Garage, le chemin `maison_alerts` doit être autorisé dans les règles Firebase de Carnet. `database.rules.json` est à jour : copiez son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier).
 
-## Pop-up de démarrage (tâches et entretiens en retard)
+## Pop-up de démarrage (tout ce qui est en retard)
 
-Au lancement de l'app, s'il existe des tâches en retard (échéance passée, non cochées) et/ou des entretiens en retard remontés par Garage (`garage_alerts`, niveau « en retard »), une fenêtre s'ouvre automatiquement pour les passer en revue une par une (« Suivant » puis « Terminé » ; « Voir cette tâche » pour les tâches, qui ouvre l'accueil directement dessus). Un seul passage par session. Si Garage ne répond pas sous 2,5 s (hors ligne, jamais utilisé), le pop-up s'affiche tout de même avec les seules tâches en retard. Détail dans `js/features/overdue-prompt.js`.
+Au lancement de l'app, une fenêtre liste **en une seule fois** les tâches en retard (échéance passée, non cochées) et les entretiens en retard publiés par Garage et Ma Maison. Une tâche se coche directement dans la liste (ou s'ouvre d'un appui) ; un entretien ouvre l'app concernée ; un seul bouton « Fermer ». Un seul passage par session, une fois les données du cloud reçues (une tâche faite sur un autre appareil n'y figure pas) et les résumés Garage / Maison lus — sans les attendre plus de 2,5 s. Détail dans `js/features/overdue-prompt.js`.
+
+## Modifier et supprimer
+
+Un appui sur une carte (rendez-vous, événement) ou une ligne (tâche) ouvre sa modification ; « Supprimer » est en bas de la feuille. Les listes n'affichent plus d'icônes crayon / corbeille. Le rond d'une tâche la coche sans ouvrir la feuille ; l'icône calendrier des rendez-vous à venir reste disponible.
 
 ## Accueil : 30 prochains jours et calendrier du mois
 
@@ -133,4 +137,6 @@ Au lancement de l'app, s'il existe des tâches en retard (échéance passée, no
 
 ## Planning de la semaine
 
-À l'ouverture de l'app, le planning hebdomadaire (onglet Entraînement → Cette semaine) défile automatiquement jusqu'à la carte du jour, plutôt que de rester sur le lundi de la semaine affichée.
+À l'ouverture de l'app, le planning hebdomadaire (onglet Planning) défile automatiquement jusqu'à la carte du jour, plutôt que de rester sur le lundi de la semaine affichée. Seuls les jours réellement planifiés sont enregistrés (consulter une semaine ne crée plus de jours vides dans la base). Un appui sur une course du planning ouvre Allure.
+
+Carnet n'écrit jamais `objectives` (les phases de saison appartiennent à Allure) : la gestion des sports ne peut donc plus écraser une phase créée dans Allure.
