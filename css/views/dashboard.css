@@ -143,3 +143,12 @@
 .ov-row__body strong { font-weight: 700; overflow-wrap: anywhere; }
 .ov-row__body span { font-size: var(--fs-xs); color: var(--text-3); }
 .ov-row__body .is-overdue { color: var(--danger); font-weight: 700; }
+
+/* Accueil : rangée d'accès aux autres apps (pastille rouge : entretien en retard) */
+.app-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); margin-bottom: var(--sp-4); }
+.app-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: 12px 4px 10px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); color: var(--text); text-decoration: none; font-size: 11.5px; font-weight: 700; text-align: center; transition: transform var(--dur-fast) var(--ease), background var(--dur) var(--ease); }
+.app-tile:active { transform: scale(.95); }
+@media (hover: hover) { .app-tile:hover { background: var(--surface-2); } }
+.app-tile img { width: 44px; height: 44px; border-radius: 12px; }
+.app-tile span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-tile__badge { position: absolute; top: 6px; left: calc(50% + 12px); min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-pill); background: var(--danger); color: #fff; font-size: 11px; font-weight: 800; line-height: 20px; text-align: center; box-shadow: 0 0 0 2px var(--surface-solid); }

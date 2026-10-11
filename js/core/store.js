@@ -29,6 +29,8 @@ const LOCAL_KEYS = {
   bodyMetrics: 'sport_body_metrics'
 };
 export const SLICES = Object.keys(LOCAL_KEYS);
+/** Passage au thème Auto (une seule fois) : l'ancien défaut « sombre » devient « auto ». */
+const THEME_AUTO_FLAG = 'dashboard_theme_auto_v1';
 
 export const state = {};
 const listeners = new Set();
@@ -70,7 +72,11 @@ function notify(slices, source) {
 export function loadLocal() {
   state.dashboard = normalizeDashboard(readJSON(LOCAL_KEYS.dashboard, null));
   state.notes = normalizeNotes(readText(LOCAL_KEYS.notes, ''));
-  state.theme = normalizeTheme(readText(LOCAL_KEYS.theme, 'dark'));
+  state.theme = normalizeTheme(readText(LOCAL_KEYS.theme, 'auto'));
+  if (!readText(THEME_AUTO_FLAG, '')) {
+    if (state.theme === 'dark') state.theme = 'auto';
+    write(THEME_AUTO_FLAG, '1');
+  }
   state.families = normalizeFamilies(readJSON(LOCAL_KEYS.families, null));
   state.plans = normalizePlans(readJSON(LOCAL_KEYS.plans, {}), state.families);
   state.objectives = normalizeObjectives(readJSON(LOCAL_KEYS.objectives, {}));
@@ -121,6 +127,19 @@ export function applyRemote(cloud, skip = new Set()) {
   }
   if (changed.length) notify(changed, 'remote');
   return changed;
+}
+
+/**
+ * Changement de compte sur l'appareil : données remises à zéro avant la synchro
+ * (le thème, réglage de l'appareil, est conservé). Rien n'est envoyé au cloud.
+ */
+export function resetLocal() {
+  const list = SLICES.filter(s => s !== 'theme');
+  list.forEach(slice => {
+    state[slice] = normalizeSlice(slice, null);
+    persist(slice);
+  });
+  notify(list, 'remote');
 }
 
 export const snapshot = () => Object.fromEntries(SLICES.map(s => [s, stored(s)]));

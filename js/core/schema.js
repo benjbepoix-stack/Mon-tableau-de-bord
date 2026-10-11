@@ -201,5 +201,7 @@ export function normalizeBodyMetrics(raw) {
   return { weight: simple(m.weight), ftp: simple(m.ftp), measurements };
 }
 
-export const normalizeTheme = v => (v === 'light' ? 'light' : 'dark');
+/** Thème choisi : 'auto' (suit le réglage clair / sombre de l'appareil, par défaut), 'dark' ou 'light'. */
+export const THEMES = ['auto', 'dark', 'light'];
+export const normalizeTheme = v => (THEMES.includes(v) ? v : 'auto');
 export const normalizeNotes = v => str(v, 20000);

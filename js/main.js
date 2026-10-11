@@ -1,14 +1,17 @@
-/* Point d'entrée : initialise l'état, les vues, la navigation et la synchronisation. */
+/* Point d'entrée : initialise l'état, les vues, la navigation, le compte et la synchronisation. */
 import { $, $$ } from './core/utils.js';
-import { state, loadLocal, subscribe, commit, applyRemote, setCloudSink, snapshot } from './core/store.js';
-import { initCloud, pushCloud, flushNow } from './services/firebase.js';
-import { initDialogs } from './ui/dialog.js';
+import { state, loadLocal, subscribe, applyRemote, setCloudSink, snapshot, resetLocal, SLICES } from './core/store.js';
+import { initCloud, pushCloud, flushNow, clearPending, isStarting } from './services/firebase.js';
+import { readText, write } from './services/storage.js';
+import { initDialogs, isOpen } from './ui/dialog.js';
 import { applyTheme } from './ui/theme.js';
 import { renderStatus } from './ui/status.js';
 import { toastError } from './ui/toast.js';
 import { icon } from './ui/icons.js';
 import { initCalendarPrompt } from './features/calendar-prompt.js';
-import { initLinkedApps, onLinkedChange, linkedReady } from './features/linked-apps.js';
+import { setLinked, linkedLocal, onLinkedChange, linkedReady } from './features/linked-apps.js';
+import { initAuth, openAuth, closeAuth, noAccountChosen, forgetNoAccount } from './features/auth.js';
+import { initSettings, renderAccount } from './features/settings.js';
 import { tidyTasks } from './features/task-tidy.js';
 import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
@@ -25,11 +28,14 @@ const VIEWS = {
   trainingView: { kicker: 'Carnet', title: 'Planning', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
 };
 const VIEW_KEY = 'dashboard_last_view';
+/** Dernier compte connecté sur cet appareil (un autre compte vide d'abord les données locales). */
+const LAST_UID = 'dashboard_last_uid';
 let currentView = 'dashboardView';
 /** Données du cloud reçues (ou mode local) : le ménage des tâches cochées peut se faire sans risque. */
 let settled = false;
 
 function settle() {
+  if (settled) return;
   settled = true;
   tidyTasks();
   // Pop-up « en retard » : sur des données à jour (une tâche faite ailleurs n'y figure pas),
@@ -66,6 +72,34 @@ function onStateChange(slices) {
   if (slices.includes('dashboard')) renderDashboard();
   const view = VIEWS[currentView];
   if (view.render && view.slices.some(s => slices.includes(s))) view.render();
+}
+
+/** Sans compte ou sans Firebase : les données de l'appareil font foi. */
+function goLocal() {
+  linkedLocal();
+  renderAccount();
+  settle();
+}
+
+/** Réponse de Firebase sur le compte : au lancement, puis à chaque connexion / déconnexion. */
+function onUser(user) {
+  if (user) {
+    // Autre compte que le précédent sur cet appareil : on repart de données vides avant la synchro.
+    const last = readText(LAST_UID, '');
+    if (last && last !== user.uid) {
+      clearPending();
+      resetLocal();
+    }
+    write(LAST_UID, user.uid);
+    forgetNoAccount();
+    closeAuth();
+  } else {
+    setLinked(null); // échéances de l'éventuel compte précédent retirées
+    // Feuille de connexion par-dessus l'app déjà affichée, sauf si « Continuer sans compte » a été choisi.
+    if (noAccountChosen()) goLocal();
+    else openAuth();
+  }
+  renderAccount();
 }
 
 /** Depuis le pop-up de démarrage : ouvre le tableau de bord et met la tâche en évidence. */
@@ -113,9 +147,8 @@ function init() {
     const go = e.target.closest('[data-goto]');
     if (go) switchView(go.dataset.goto);
   });
-  $('#themeToggle').addEventListener('click', () => {
-    commit('theme', { theme: state.theme === 'light' ? 'dark' : 'light' });
-  });
+  initSettings();
+  initAuth({ onLocal: goLocal });
 
   let initial = 'dashboardView';
   try {
@@ -134,23 +167,34 @@ function init() {
   });
   window.addEventListener('pagehide', flushNow);
 
-  // Synchronisation cloud
+  // Compte et synchronisation cloud (users/<uid>/carnet) : l'app est déjà affichée avec les données de l'appareil.
   setCloudSink(pushCloud);
   initCloud({
+    slices: SLICES,
+    onUser,
     onRemote: (cloud, skip) => {
       applyRemote(cloud, skip);
       if (settled) tidyTasks();
     },
-    onStatus: (status, detail) => {
-      renderStatus(status, detail);
-      if (!settled && (status === 'online' || status === 'local')) settle();
-    },
+    // Échéances de Garage / Maison : dans chaque instantané du même nœud.
+    onLinked: setLinked,
+    // Premier instantané appliqué (après l'éventuel transfert depuis l'ancienne base).
+    onReady: settle,
+    onStatus: renderStatus,
     onError: message => toastError(`Synchronisation : ${message}`),
-    getSnapshot: snapshot
-  });
-  initLinkedApps();
+    getSnapshot: snapshot,
+    // Ancienne base : le thème sombre (ancien défaut) devient Auto.
+    adaptLegacy: data => (data.theme === 'dark' ? { ...data, theme: 'auto' } : data)
+  }).then(ok => !ok && goLocal());
   // Hors ligne au lancement (cloud jamais reçu) : le pop-up s'appuie sur les données de l'appareil.
-  setTimeout(() => !settled && checkOverdue(), 6000);
+  // Pas tant que la feuille de connexion est ouverte, ni pendant le premier chargement du compte
+  // (transfert depuis l'ancienne base compris, 8 s max) : settle() s'en chargera.
+  const overdueFallback = () => {
+    if (settled || isOpen('authSheet')) return;
+    if (isStarting()) return setTimeout(overdueFallback, 1000);
+    checkOverdue();
+  };
+  setTimeout(overdueFallback, 6000);
   onLinkedChange(() => currentView === 'dashboardView' && renderDashboard());
 
   document.documentElement.classList.add('is-ready');
