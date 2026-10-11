@@ -1,23 +1,20 @@
 /*
- * Échéances publiées par les apps Mon Garage (`app/garage_alerts`) et Ma Maison
- * (`app/maison_alerts`) dans la base partagée : lecture seule, en direct.
- * Carnet n'écrit jamais ici — les apps poussent, Carnet lit.
+ * Échéances publiées par les apps Mon Garage (`garage_alerts`) et Ma Maison
+ * (`maison_alerts`) dans le nœud de Carnet (users/<uid>/carnet) : lues dans
+ * l'instantané de ce nœud (js/services/firebase.js appelle `setLinked`), sans
+ * écouteur séparé. Carnet n'écrit jamais ces chemins — les apps poussent, Carnet lit.
  *
  * Affiché dans l'onglet Tâches :
  *  - « Garage » et « Maison » : tout ce qui est en retard ou dû dans les 30 jours
  *    (date d'échéance quand elle existe), pour anticiper les rendez-vous ;
  *  - « Saison » : les tâches du calendrier de saison de Ma Maison restant à faire ce mois-ci.
- * Les échéances datées apparaissent aussi dans le calendrier mensuel de l'accueil.
- *
- * Écouteurs indépendants de la synchronisation propre à Carnet
- * (js/services/firebase.js) : une panne de l'un n'affecte pas l'autre.
+ * Les échéances datées apparaissent aussi dans le calendrier mensuel de l'accueil ;
+ * les retards, en pastille rouge sur les tuiles Ma Maison / Mon Garage de l'accueil.
  */
 import { $, esc } from '../core/utils.js';
 import { formatKey } from '../core/dates.js';
 import { icon } from '../ui/icons.js';
-import { FIREBASE_CONFIG, FIREBASE_SDK_VERSION, DB_ROOT } from '../config/firebase-config.js';
 
-const SDK = `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}`;
 export const GARAGE_URL = 'https://benjbepoix-stack.github.io/Mon-garage/';
 export const MAISON_URL = 'https://benjbepoix-stack.github.io/Ma-maison/';
 const LEVEL_RANK = { late: 0, soon: 1, info: 2 };
@@ -50,7 +47,14 @@ const byUrgency = (a, b) => (LEVEL_RANK[a.level] ?? 3) - (LEVEL_RANK[b.level] ??
 
 /** Échéances datées (pour le calendrier). */
 export const datedAlerts = () => [...garage, ...maison].filter(a => a.due);
+/** Échéances en retard publiées par Garage et Maison (pop-up de démarrage). */
+export const lateAlerts = () => [...garage, ...maison].filter(a => a.level === 'late').sort(byUrgency);
 export const onLinkedChange = fn => listeners.add(fn);
+
+/* Prêt : premier instantané du nœud reçu (ou mode local, sans échéances). */
+let readyResolve;
+export const linkedReady = new Promise(resolve => (readyResolve = resolve));
+export const linkedLocal = () => readyResolve();
 
 function alertRow(a, url) {
   // Le texte publié dit déjà « dans 12 j », « en retard de 5 j »… : on y ajoute seulement la date.
@@ -80,50 +84,44 @@ export function renderLinked() {
     .join('');
 }
 
+/** Pastille rouge sur une tuile de l'accueil : nombre d'entretiens en retard. */
+function renderBadge(tile, badge, items, name) {
+  const late = items.filter(a => a.level === 'late').length;
+  const el = $(badge);
+  if (!el) return;
+  el.hidden = !late;
+  el.textContent = late > 9 ? '9+' : String(late);
+  if (late) $(tile).setAttribute('aria-label', `${name} · ${late} en retard`);
+  else $(tile).removeAttribute('aria-label');
+}
+
 function changed() {
   renderLinked();
+  renderBadge('#garageTile', '#garageBadge', garage, 'Mon Garage');
+  renderBadge('#maisonTile', '#maisonBadge', maison, 'Ma Maison');
   listeners.forEach(fn => fn());
 }
 
+let last = null;
+
 /**
- * Démarre l'écoute en direct ; n'affiche jamais d'erreur (fonctionnalité annexe).
- * `onGarage`, si fourni, reçoit les données brutes de Garage à chaque mise à jour (et une
- * seule fois `null` si Garage est injoignable) — utilisé par le pop-up de démarrage.
+ * Lit les échéances dans un instantané du nœud de Carnet (null : aucune, ex. après
+ * une déconnexion). Ne redessine que si elles ont changé.
  */
-export async function initLinkedApps({ onGarage } = {}) {
-  try {
-    const [appMod, dbMod] = await Promise.all([import(`${SDK}/firebase-app.js`), import(`${SDK}/firebase-database.js`)]);
-    const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
-    const db = dbMod.getDatabase(app);
-    dbMod.onValue(
-      dbMod.ref(db, `${DB_ROOT}/garage_alerts`),
-      snap => {
-        const data = snap.val();
-        garage = readGarage(data);
-        garageSeen = Boolean(data);
-        $('#garageLive').hidden = false;
-        changed();
-        onGarage?.(data);
-      },
-      () => {
-        $('#garageLive').hidden = true;
-        onGarage?.(null);
-      }
-    );
-    dbMod.onValue(
-      dbMod.ref(db, `${DB_ROOT}/maison_alerts`),
-      snap => {
-        const data = readMaison(snap.val());
-        maison = data.alerts;
-        season = data.season;
-        maisonSeen = Boolean(snap.val());
-        $('#maisonLive').hidden = false;
-        changed();
-      },
-      () => ($('#maisonLive').hidden = true)
-    );
-  } catch {
-    // Hors ligne ou SDK indisponible : les sections restent simplement masquées.
-    onGarage?.(null);
-  }
+export function setLinked(node) {
+  readyResolve();
+  const g = node?.garage_alerts ?? null;
+  const m = node?.maison_alerts ?? null;
+  const json = JSON.stringify([g, m]);
+  if (json === last) return;
+  last = json;
+  garage = readGarage(g);
+  garageSeen = Boolean(g);
+  const data = readMaison(m);
+  maison = data.alerts;
+  season = data.season;
+  maisonSeen = Boolean(m);
+  $('#garageLive').hidden = !garageSeen;
+  $('#maisonLive').hidden = !maisonSeen;
+  changed();
 }

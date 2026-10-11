@@ -14,7 +14,8 @@ import {
   normalizeRaces,
   normalizeBodyMetrics,
   normalizeTheme,
-  normalizeNotes
+  normalizeNotes,
+  prunePlans
 } from './schema.js';
 
 const LOCAL_KEYS = {
@@ -28,6 +29,8 @@ const LOCAL_KEYS = {
   bodyMetrics: 'sport_body_metrics'
 };
 export const SLICES = Object.keys(LOCAL_KEYS);
+/** Passage au thème Auto (une seule fois) : l'ancien défaut « sombre » devient « auto ». */
+const THEME_AUTO_FLAG = 'dashboard_theme_auto_v1';
 
 export const state = {};
 const listeners = new Set();
@@ -47,8 +50,11 @@ function normalizeSlice(slice, value) {
   }
 }
 
+/** Valeur enregistrée d'une tranche (planning : jours vides retirés). */
+const stored = slice => (slice === 'plans' ? prunePlans(state.plans) : state[slice]);
+
 function persist(slice) {
-  const value = state[slice];
+  const value = stored(slice);
   write(LOCAL_KEYS[slice], typeof value === 'string' ? value : JSON.stringify(value));
 }
 
@@ -66,7 +72,11 @@ function notify(slices, source) {
 export function loadLocal() {
   state.dashboard = normalizeDashboard(readJSON(LOCAL_KEYS.dashboard, null));
   state.notes = normalizeNotes(readText(LOCAL_KEYS.notes, ''));
-  state.theme = normalizeTheme(readText(LOCAL_KEYS.theme, 'dark'));
+  state.theme = normalizeTheme(readText(LOCAL_KEYS.theme, 'auto'));
+  if (!readText(THEME_AUTO_FLAG, '')) {
+    if (state.theme === 'dark') state.theme = 'auto';
+    write(THEME_AUTO_FLAG, '1');
+  }
   state.families = normalizeFamilies(readJSON(LOCAL_KEYS.families, null));
   state.plans = normalizePlans(readJSON(LOCAL_KEYS.plans, {}), state.families);
   state.objectives = normalizeObjectives(readJSON(LOCAL_KEYS.objectives, {}));
@@ -88,7 +98,7 @@ export function commit(slices, patch = {}) {
   list.forEach(slice => {
     if (slice in patch) state[slice] = patch[slice];
     persist(slice);
-    payload[slice] = state[slice];
+    payload[slice] = stored(slice);
   });
   cloudSink?.(payload);
   notify(list, 'local');
@@ -106,7 +116,7 @@ export function applyRemote(cloud, skip = new Set()) {
     // initialisée signifie « vidée ailleurs » (sauf le thème).
     if (!(slice in cloud) && slice === 'theme') continue;
     const next = normalizeSlice(slice, slice in cloud ? cloud[slice] : null);
-    if (sameJSON(next, state[slice])) continue;
+    if (sameJSON(next, stored(slice))) continue;
     state[slice] = next;
     persist(slice);
     changed.push(slice);
@@ -119,4 +129,17 @@ export function applyRemote(cloud, skip = new Set()) {
   return changed;
 }
 
-export const snapshot = () => Object.fromEntries(SLICES.map(s => [s, state[s]]));
+/**
+ * Changement de compte sur l'appareil : données remises à zéro avant la synchro
+ * (le thème, réglage de l'appareil, est conservé). Rien n'est envoyé au cloud.
+ */
+export function resetLocal() {
+  const list = SLICES.filter(s => s !== 'theme');
+  list.forEach(slice => {
+    state[slice] = normalizeSlice(slice, null);
+    persist(slice);
+  });
+  notify(list, 'remote');
+}
+
+export const snapshot = () => Object.fromEntries(SLICES.map(s => [s, stored(s)]));

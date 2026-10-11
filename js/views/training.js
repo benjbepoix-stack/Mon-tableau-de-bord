@@ -1,5 +1,5 @@
 /* Vue Entraînement : planning hebdomadaire, météo, familles de sport. */
-import { $, $$, esc, uid, slugify, parseNumber, round, plural } from '../core/utils.js';
+import { $, esc, uid, slugify, parseNumber, round, plural } from '../core/utils.js';
 import { addDays, dateKey, fromKey, mondayOf, formatDate, parseDuration, minutesLabel, todayKey } from '../core/dates.js';
 import { state, commit } from '../core/store.js';
 import { defaultSession, normalizeDay, isRestTraining, REST_TRAINING } from '../core/schema.js';
@@ -9,6 +9,7 @@ import { icon } from '../ui/icons.js';
 import { renderDonut } from '../ui/charts.js';
 import { fetchWeek, getPlace, setPlace, searchPlaces } from '../services/weather.js';
 import { PHASE_TYPES, getPhases, phaseOn, racesOn } from '../core/season.js';
+import { ALLURE_URL } from './dashboard.js';
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const DAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -236,7 +237,8 @@ async function onClick(e) {
       $(`#day-${btn.dataset.day}`)?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
       break;
     case 'open-races':
-      document.querySelector('[data-view="raceView"]')?.click();
+      // Les courses se gèrent dans Allure (l'ancien onglet Courses de Carnet n'existe plus).
+      location.href = ALLURE_URL;
       break;
     case 'refresh-weather':
       if (!weatherLoading) loadWeather(true);
@@ -330,8 +332,12 @@ function renderManager() {
 const eachSession = fn => Object.values(state.plans).forEach(day => day.forEach(fn));
 const swap = (arr, i, j) => ([arr[i], arr[j]] = [arr[j], arr[i]]);
 
+/*
+ * `objectives` n'est plus écrit d'ici : il porte les phases de saison d'Allure, et
+ * l'envoyer en bloc depuis un appareil pas à jour les écraserait.
+ */
 function saveFamilies(message) {
-  commit(['families', 'plans', 'objectives']);
+  commit(['families', 'plans']);
   renderManager();
   if (message) toast(message);
 }
@@ -367,7 +373,6 @@ async function onManagerClick(e) {
         if (s.family === f.id) Object.assign(s, { family: '', training: '', distance: '', time: '', elevation: '' });
       });
       state.families = state.families.filter(x => x !== f);
-      delete state.objectives[f.id];
       return saveFamilies('Sport supprimé');
     }
     case 'type-up':
@@ -417,7 +422,6 @@ function onManagerSubmit(e) {
     let id = slugify(name) || uid();
     if (familyById(id)) id = `${id}-${uid().slice(-4)}`;
     state.families.push({ id, name, types: [] });
-    state.objectives[id] = { sessions: 0, time: 0, distance: 0 };
     saveFamilies('Sport ajouté');
     requestAnimationFrame(() => $(`[data-family="${CSS.escape(id)}"] input`)?.focus());
   } else {

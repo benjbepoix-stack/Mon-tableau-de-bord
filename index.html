@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Tableau de bord personnel : agenda, tâches, entraînements, courses et mesures.">
-  <meta name="theme-color" content="#0b0f1a">
+  <meta name="theme-color" content="#16171c">
   <meta name="color-scheme" content="dark light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -18,9 +18,15 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
 
-  <!-- Thème appliqué avant le premier rendu (évite le flash clair/sombre). -->
+  <!-- Thème appliqué avant le premier rendu (évite le flash clair/sombre). Auto : réglage de l'appareil ;
+       « sombre » enregistré avant le passage au thème Auto (ancien défaut) = Auto. -->
   <script>
-    try { if (localStorage.getItem('dashboard_theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch (e) {}
+    try {
+      var t = localStorage.getItem('dashboard_theme');
+      if ((t !== 'light' && t !== 'dark') || (t === 'dark' && !localStorage.getItem('dashboard_theme_auto_v1'))) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = t;
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#f4f4f7' : '#16171c');
+    } catch (e) {}
   </script>
 
   <link rel="stylesheet" href="css/tokens.css">
@@ -30,12 +36,12 @@
   <link rel="stylesheet" href="css/views/dashboard.css">
   <link rel="stylesheet" href="css/views/training.css">
   <link rel="stylesheet" href="css/minimal.css">
-  
+
   <script type="module" src="js/main.js"></script>
 </head>
 
 <body>
-    <a class="skip-link" href="#main">Aller au contenu</a>
+  <a class="skip-link" href="#main">Aller au contenu</a>
 
   <header class="topbar">
     <div class="topbar__inner">
@@ -45,7 +51,7 @@
       </div>
       <div class="topbar__actions">
         <span class="sync-pill" id="syncStatus" data-status="connecting" role="status"><span class="spinner spinner--xs"></span><span>Connexion…</span></span>
-        <button type="button" class="icon-btn icon-btn--glass" id="themeToggle" aria-label="Changer de thème"></button>
+        <button type="button" class="icon-btn icon-btn--glass" id="settingsBtn" aria-label="Réglages" aria-haspopup="dialog"><span data-icon="settings" data-size="19"></span></button>
       </div>
     </div>
   </header>
@@ -60,6 +66,14 @@
 
     <!-- ================= DASHBOARD ================= -->
     <section id="dashboardView" class="view" aria-labelledby="headerTitle">
+
+      <!-- Accès aux autres apps (même compte) ; pastille rouge : entretien en retard -->
+      <nav class="app-tiles" aria-label="Mes autres apps">
+        <a class="app-tile" href="https://benjbepoix-stack.github.io/Allure/"><img src="apps/allure.svg" alt="" width="44" height="44"><span>Allure</span></a>
+        <a class="app-tile" href="https://benjbepoix-stack.github.io/Mon-budget/"><img src="apps/budget.svg" alt="" width="44" height="44"><span>Mon budget</span></a>
+        <a class="app-tile" id="maisonTile" href="https://benjbepoix-stack.github.io/Ma-maison/"><img src="apps/maison.svg" alt="" width="44" height="44"><span>Ma Maison</span><b class="app-tile__badge" id="maisonBadge" aria-hidden="true" hidden></b></a>
+        <a class="app-tile" id="garageTile" href="https://benjbepoix-stack.github.io/Mon-garage/"><img src="apps/garage.svg" alt="" width="44" height="44"><span>Mon Garage</span><b class="app-tile__badge" id="garageBadge" aria-hidden="true" hidden></b></a>
+      </nav>
 
       <section class="card today-card" id="todaySession"></section>
 
@@ -101,9 +115,12 @@
       <section class="section section--first">
         <header class="section__head">
           <h2 class="section__title">Mes tâches</h2>
-          <div class="section__tools"><div class="task-progress" id="taskProgress"></div>
-            <button type="button" class="btn btn--primary btn--icon" data-open="tasks" aria-label="Ajouter une tâche"><span data-icon="plus" data-size="20"></span></button></div>
+          <div class="section__tools"><div class="task-progress" id="taskProgress"></div></div>
         </header>
+        <form class="quick-add" id="taskQuick" novalidate>
+          <input class="input" name="title" maxlength="100" placeholder="Nouvelle tâche…" aria-label="Nouvelle tâche" autocomplete="off" enterkeyhint="done">
+          <button type="submit" class="btn btn--primary btn--icon" aria-label="Ajouter la tâche (vide : formulaire complet)"><span data-icon="plus" data-size="20"></span></button>
+        </form>
         <div class="card card--list" id="tasks"></div>
       </section>
 
@@ -179,6 +196,55 @@
 
   <!-- ================= FEUILLES / MODALES ================= -->
 
+  <!-- Réglages : thème et compte -->
+  <div class="sheet-backdrop" id="settingsSheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <header class="sheet__head"><h2 class="sheet__title" id="settingsTitle">Réglages</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <div class="form sheet__scroll">
+        <div class="field">
+          <span class="field__label" id="themeLabel">Thème</span>
+          <div class="segmented segmented--flush" role="radiogroup" aria-labelledby="themeLabel" id="themeSwitch">
+            <button type="button" role="radio" data-theme-pick="auto" aria-checked="false">Auto</button>
+            <button type="button" role="radio" data-theme-pick="dark" aria-checked="false">Sombre</button>
+            <button type="button" role="radio" data-theme-pick="light" aria-checked="false">Clair</button>
+          </div>
+          <p class="field__help">Auto suit le réglage clair / sombre de l’appareil.</p>
+        </div>
+        <div class="field">
+          <span class="field__label">Compte</span>
+          <div class="account">
+            <p class="account__line" id="accountLine"></p>
+            <button type="button" class="btn btn--primary btn--block" id="loginBtn" hidden>Se connecter</button>
+            <button type="button" class="btn btn--soft btn--block" id="logoutBtn" hidden>Se déconnecter</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connexion : affichée seulement si Firebase répond « pas de compte » (jamais bloquante au démarrage) -->
+  <div class="sheet-backdrop" id="authSheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <form class="form auth" id="authForm" novalidate>
+        <div class="auth__brand"><img class="auth__logo" src="icon.svg" alt="" width="44" height="44"><span class="auth__kicker">Carnet</span></div>
+        <h2 class="auth__title" id="authTitle">Connexion</h2>
+        <p class="auth__sub" id="authSub">Même compte que Mon Garage et Ma Maison.</p>
+        <div class="field"><label class="field__label" for="authEmail">E-mail</label><input class="input" id="authEmail" name="email" type="email" autocomplete="email" inputmode="email" placeholder="vous@email.fr" required></div>
+        <div class="field" id="authPasswordField"><label class="field__label" for="authPassword">Mot de passe</label><input class="input" id="authPassword" name="password" type="password" autocomplete="current-password" placeholder="6 caractères minimum" required></div>
+        <p class="auth__error" id="authError" role="alert"></p>
+        <button type="submit" class="btn btn--primary btn--lg btn--block" id="authSubmit">Se connecter</button>
+        <button type="button" class="link-btn link-btn--center" id="authForgot">Mot de passe oublié ?</button>
+        <button type="button" class="btn btn--ghost btn--block" id="authSwitch">Créer un compte</button>
+        <div class="auth__local">
+          <button type="button" class="btn btn--soft btn--block" id="authLocal">Continuer sans compte</button>
+          <p class="auth__hint">Données sur cet appareil uniquement, sans synchronisation. Connexion possible plus tard depuis les Réglages.</p>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Éditeur tâche / rendez-vous / événement -->
   <div class="sheet-backdrop" id="itemSheet" hidden>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="itemTitle" tabindex="-1">
@@ -190,13 +256,10 @@
         <div class="form-grid">
           <div class="field field--full"><label class="field__label" for="i-date" id="itemDateLabel">Date</label><input class="input" id="i-date" type="date" name="date"></div>
           <div class="field"><label class="field__label" for="i-time" id="itemTimeLabel">Début</label><input class="input" id="i-time" type="time" name="time"></div>
-          
         </div>
-        
-        
-        
         <details class="more-fields" id="itemMore"><summary>Plus de détails</summary><div class="more-fields__body"><div class="field only-timed"><label class="field__label" for="i-end">Fin <span class="field__opt">(facultatif)</span></label><input class="input" id="i-end" type="time" name="endTime"></div><div class="field"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select><p class="field__help" id="itemRepeatHelp" hidden>Une fois cochée, la tâche revient le lendemain, décochée, à sa prochaine échéance.</p></div><div class="field only-timed"><label class="field__label" for="i-location">Lieu <span class="field__opt">(facultatif)</span></label><input class="input" id="i-location" name="location" maxlength="120" placeholder="Ex. 12 rue de la Paix, Besançon" autocomplete="off"></div><div class="field"><label class="field__label" for="i-note">Note <span class="field__opt">(facultatif)</span></label><textarea class="input textarea" id="i-note" name="note" maxlength="500" rows="3" placeholder="Détails…"></textarea></div></div></details>
         <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
+        <button type="button" class="btn btn--ghost btn--danger-text" id="itemDelete" hidden><span data-icon="trash" data-size="18"></span><span>Supprimer</span></button>
       </form>
     </div>
   </div>

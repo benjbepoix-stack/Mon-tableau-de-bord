@@ -129,6 +129,20 @@ export function normalizePlans(raw, families) {
   return out;
 }
 
+/**
+ * Planning sans les jours vides : l'affichage d'une semaine crée en mémoire une
+ * séance vierge par jour (identifiants stables pour la saisie), qu'il est inutile
+ * d'enregistrer — sinon chaque semaine consultée gonflait la base.
+ */
+const isPlanned = s => Boolean(s.family || s.training || s.distance || s.time || s.elevation);
+export function prunePlans(plans) {
+  const out = {};
+  for (const [key, day] of Object.entries(plans || {})) {
+    if (Array.isArray(day) && day.some(isPlanned)) out[key] = day;
+  }
+  return out;
+}
+
 export const normalizeObjectives = raw => (isObj(raw) ? raw : {});
 
 /* ---------- Courses ---------- */
@@ -187,5 +201,7 @@ export function normalizeBodyMetrics(raw) {
   return { weight: simple(m.weight), ftp: simple(m.ftp), measurements };
 }
 
-export const normalizeTheme = v => (v === 'light' ? 'light' : 'dark');
+/** Thème choisi : 'auto' (suit le réglage clair / sombre de l'appareil, par défaut), 'dark' ou 'light'. */
+export const THEMES = ['auto', 'dark', 'light'];
+export const normalizeTheme = v => (THEMES.includes(v) ? v : 'auto');
 export const normalizeNotes = v => str(v, 20000);

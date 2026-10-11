@@ -7,15 +7,16 @@ const LABELS = {
   online: { text: 'Synchronisé', icon: 'cloud', title: 'Données synchronisées sur tous vos appareils' },
   syncing: { text: 'Envoi…', icon: null, title: 'Enregistrement dans le cloud' },
   offline: { text: 'Hors ligne', icon: 'cloudOff', title: 'Hors ligne : vos modifications seront envoyées à la reconnexion' },
-  local: { text: 'Local', icon: 'cloudOff', title: 'Synchronisation indisponible : données enregistrées sur cet appareil' }
+  local: { text: 'Local', icon: 'cloudOff', title: 'Pas de synchronisation : données enregistrées sur cet appareil' }
 };
 
 let current = null;
 
 export function renderStatus(status, detail) {
   const el = $('#syncStatus');
-  if (!el || status === current) return;
-  current = status;
+  const key = `${status}|${detail || ''}`;
+  if (!el || key === current) return;
+  current = key;
   const cfg = LABELS[status] || LABELS.local;
   el.dataset.status = status;
   el.title = detail ? `${cfg.title} — ${detail}` : cfg.title;

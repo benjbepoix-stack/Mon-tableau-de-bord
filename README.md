@@ -1,20 +1,21 @@
 # Carnet
 
 Tableau de bord personnel (PWA installable sur iPhone), point d'entrée quotidien. Trois onglets :
-- **Accueil** : séance du jour, puis rendez-vous, événements et courses (d'Allure) des 30 prochains jours (le reste se déplie sous « Plus tard »), ou vue calendrier du mois ; notes.
-- **Tâches** : tâches saisies ici (répétables), et en lecture seule celles venant d'Allure (course à préparer, résultat à noter), de Garage, de Ma Maison et de son calendrier de saison.
+- **Accueil** : accès aux autres apps (Allure, Mon budget, Ma Maison, Mon Garage), séance du jour, puis rendez-vous, événements et courses (d'Allure) des 30 prochains jours (le reste se déplie sous « Plus tard »), ou vue calendrier du mois ; notes.
+- **Tâches** : tâches saisies ici (répétables), et en lecture seule celles venant d'Allure (course à préparer, résultat à noter), de Garage, de Ma Maison et de son calendrier de saison. Saisie express : écrire le titre puis Entrée (champ vide + bouton : formulaire complet avec échéance et répétition).
 - **Planning** : planning sportif de la semaine (séances, météo), avec les phases de saison et les courses d'Allure.
 
-La saison, les courses et les mesures se gèrent dans l'app **Allure** (même base Firebase, mêmes données : rien n'est copié).
+La saison, les courses et les mesures se gèrent dans l'app **Allure** (même compte, même nœud Firebase, mêmes données : rien n'est copié).
 Style minimaliste commun aux apps (anthracite, cartes pleines), couleur Menthe ; les courses gardent la couleur Aurore d'Allure.
-HTML / CSS / JavaScript purs (modules ES), sans étape de build ni dépendance payante. Synchronisation multi-appareils via **Firebase Realtime Database** (offre gratuite).
+HTML / CSS / JavaScript purs (modules ES), sans étape de build ni dépendance payante. Synchronisation multi-appareils via **Firebase Realtime Database** (offre gratuite), avec le **même compte** (e-mail / mot de passe) que Mon Garage, Ma Maison, Allure et Mon budget.
 
 ## Structure
 
 ```
 index.html                  Squelette HTML (aucun script inline hormis l'anti-flash du thème)
 manifest.webmanifest        Manifeste PWA
-database.rules.json         Règles de sécurité recommandées pour la Realtime Database
+database.rules.json         Règles fermées à publier sur l'ANCIENNE base publique (voir « Sécurité »)
+apps/                       Icônes des autres apps (copies de leur icon.svg), pour les tuiles de l'accueil
 css/
   tokens.css                Design tokens (couleurs clair/sombre, rayons, ombres, mouvement)
   base.css                  Reset, typographie, fond d'ambiance, accessibilité
@@ -23,7 +24,7 @@ css/
   views/*.css               Styles propres à chaque vue
 js/
   main.js                   Point d'entrée : navigation, abonnements, erreurs globales
-  config/firebase-config.js Configuration Firebase (publique par conception)
+  config/firebase-config.js Configuration Firebase (projet commun aux apps, publique par conception)
   core/
     store.js                État central + persistance locale + diffusion des changements
     schema.js               Normalisation / validation de forme des données
@@ -31,13 +32,16 @@ js/
     season.js               Phases d'entraînement (types, conseils, phase d'un jour, courses d'un jour)
     dates.js, utils.js      Utilitaires
   services/
-    firebase.js             Synchronisation (chargement dynamique, file d'écriture, état réseau)
+    firebase.js             Compte + synchronisation (chargement dynamique, file d'écriture, état réseau, transfert depuis l'ancienne base)
     storage.js              localStorage sécurisé
     weather.js              Météo Open-Meteo avec cache
   features/
     ics.js                  Génération iCalendar (RFC 5545) + ouverture Calendrier iOS
     calendar-prompt.js      Modale « Ajouter au calendrier »
-    overdue-prompt.js       Pop-up de démarrage : tâches et entretiens Garage en retard
+    overdue-prompt.js       Pop-up de démarrage : tâches, entretiens Garage et Maison en retard (une seule liste)
+    linked-apps.js          Échéances de Garage / Maison lues dans le nœud de Carnet (sections, calendrier, pastilles)
+    auth.js                 Feuille de connexion (« Continuer sans compte » possible)
+    settings.js             Feuille Réglages : thème Auto / Sombre / Clair, compte connecté, déconnexion
     persist.js              Attente de l'accusé de réception Firebase
   ui/                       Icônes SVG, modales, toasts, thème, pastille de synchro, graphiques
   views/                    dashboard (accueil + tâches), training (planning)
@@ -56,19 +60,35 @@ python3 -m http.server 8080
 
 GitHub Pages (ou tout hébergement statique) : publier la racine du dépôt. Aucune compilation nécessaire.
 
+## Compte et synchronisation
+
+* **Un seul compte pour les 5 apps** : Carnet utilise le projet Firebase de Mon Garage et Ma Maison (`test-e27e9`, même `firebase-config.js`). Les données sont sous `users/<uid>/carnet` (tranches `dashboard`, `notes`, `theme`, `families`, `plans`, `objectives`, `races`, `bodyMetrics`, partagées avec Allure). Le même nœud reçoit `garage_alerts` (écrit par Mon Garage), `maison_alerts` (Ma Maison) et `migrated` (marque du transfert) : Carnet les lit et ne les réécrit jamais.
+* **Pas d'écran bloquant au démarrage** : l'app s'affiche tout de suite avec les données de l'appareil. Si Firebase répond « pas de compte », une feuille de connexion s'ouvre par-dessus (e-mail, mot de passe, « Mot de passe oublié ? », « Créer un compte »), avec **« Continuer sans compte »** : données sur l'appareil seulement, pas de synchronisation, pastille « Local » (choix gardé jusqu'à la fermeture de l'app, la feuille revient au lancement suivant ; on peut aussi se connecter depuis les Réglages). Firebase injoignable : pas de feuille, mode local.
+* **Session partagée** : les apps sont sur la même origine (`benjbepoix-stack.github.io`) ; dans un même navigateur, être connecté dans Mon Garage suffit. Sur iPhone, chaque app installée sur l'écran d'accueil a son propre stockage : une connexion par app, une seule fois.
+* **Changement de compte** sur l'appareil (autre compte que le dernier mémorisé, clé `dashboard_last_uid`) : les données locales sont vidées avant la synchro. À la première connexion après la mise à jour, rien n'est vidé.
+* **Réglages** (roue dentée de l'en-tête) : « Connecté : e-mail » et « Se déconnecter » (les données restent dans le compte et sur l'appareil).
+* Sans compte, rien n'est mis en attente d'envoi : à la connexion, les données du compte priment (compte vide : celles de l'appareil y sont envoyées).
+
+## Transfert depuis l'ancienne base (automatique, une seule fois)
+
+Au premier instantané de `users/<uid>/carnet` après connexion, si `migrated` est absent, Carnet lit l'ancienne base publique en REST (`dashboard---projet…/app.json`, 8 s max) :
+* données trouvées → toutes les tranches de Carnet sont écrites dans le nouveau nœud (sans écraser une tranche qu'Allure y aurait déjà mise ; jamais les anciens `garage_alerts` / `maison_alerts`), avec `migrated: { from: '<hôte>', at, by: 'carnet' }`, puis affichées ;
+* ancienne base vide ou injoignable → les données de l'appareil deviennent la référence, `migrated: { from: 'local', … }` ;
+* Allure a fait le transfert pendant la lecture (marque `migrated` apparue entre-temps) → Carnet n'écrit rien de plus et garde la marque d'Allure.
+
+Un nœud qui ne contient que `garage_alerts` / `maison_alerts` / `migrated` est considéré comme vide : les données de l'appareil n'en sont jamais effacées. Le ménage des tâches cochées et le pop-up des retards attendent la fin de ce premier chargement.
+
 ## Sécurité Firebase — à lire
 
 * La `apiKey` et le reste de `firebase-config.js` **ne sont pas des secrets** : Firebase les destine au navigateur. Aucune clé privée (compte de service) ne doit jamais être commitée ; le `.gitignore` les exclut.
-* La protection des données repose **uniquement sur les règles** de la base. `database.rules.json` :
-  * limite l'accès au seul nœud `app` ;
-  * refuse toute clé inconnue et valide la forme et la taille des données (empêche d'utiliser la base comme stockage libre).
-* **Déployer les règles** : console Firebase → Realtime Database → *Règles* → coller le contenu de `database.rules.json` → *Publier* (ou `firebase deploy --only database`).
-* ⚠️ Sans authentification, toute personne connaissant l'URL de la base peut lire/écrire le nœud `app`. Pour une protection complète, activez *Firebase Authentication* (e-mail/mot de passe, gratuit) et remplacez `".read": true, ".write": true` par `"auth != null && auth.uid === '<VOTRE_UID>'"`.
+* Les données de Carnet sont protégées par le compte : les règles du projet `test-e27e9` (gérées dans le dépôt Mon Garage) n'autorisent que `users/<uid>` au compte connecté. **Aucune règle à publier** pour les nouveaux chemins.
+* ⚠️ **Verrouiller l'ancienne base** `dashboard---projet` (lisible et modifiable par n'importe qui jusque-là) **une fois les données transférées** : ouvrez Carnet connecté sur un appareil à jour, vérifiez que vos données s'affichent (et, dans la console Firebase du projet `test-e27e9`, que `users/<uid>/carnet/migrated` existe), puis console Firebase du projet **dashboard---projet** → Realtime Database → *Règles* → coller le contenu de `database.rules.json` (`".read": false, ".write": false`) → *Publier*. Après cela, l'ancienne base n'est plus lisible : un appareil qui n'aurait jamais été mis à jour enverra ses propres données à sa première connexion (transfert « local »).
 
 ## Robustesse
 
-* Fonctionne hors ligne / si Firebase est indisponible (mode « Local » affiché dans l'en-tête), puis resynchronise.
+* Fonctionne hors ligne / si Firebase est indisponible ou sans compte (mode « Local » affiché dans l'en-tête), puis resynchronise.
 * Les modifications faites avant la première synchronisation ne sont pas écrasées par le cloud.
+* Accès refusé par Firebase (ex. : mot de passe changé sur un autre appareil) : mode « Local », puis la synchronisation reprend dès la reconnexion, sans recharger l'app ; une écriture refusée pour un compte précédent n'affecte pas le compte connecté.
 * Données lues toujours normalisées (localStorage corrompu, tableaux convertis en objets par Firebase, nœuds vides supprimés).
 * Validation stricte de chaque formulaire avant écriture ; erreurs affichées sous les champs.
 
@@ -85,7 +105,7 @@ Rendez-vous et événements peuvent se répéter (tous les jours, semaines, mois
 > Depuis l'app installée sur l'écran d'accueil, si la fiche ne s'ouvre pas, utilisez le bouton « Partager le fichier .ics ».
 
 ## Lien avec Allure
-Allure écrit `races`, `objectives.seasonPhases` et `bodyMetrics` dans la même base ; Carnet les lit pour l'agenda, la séance du jour, les tâches Sport et le planning (phase de chaque jour, courses). Un appui sur une course ou une tâche Sport ouvre Allure.
+Allure écrit `races`, `objectives.seasonPhases` et `bodyMetrics` dans le même nœud (`users/<uid>/carnet`, même compte) ; Carnet les lit pour l'agenda, la séance du jour, les tâches Sport et le planning (phase de chaque jour, courses). Un appui sur une course ou une tâche Sport ouvre Allure.
 
 ## Tâches → app Rappels (iPhone)
 
@@ -101,22 +121,32 @@ Sur iPhone, chaque tâche datée et non terminée a un bouton cloche : il copie 
 
 Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Planning) permet de changer de ville (recherche via l’API de géocodage gratuite d’Open-Meteo) ; le choix est mémorisé sur l’appareil.
 
+## Accès aux autres apps
+
+En haut de l'accueil, une rangée de 4 tuiles (icône + nom) ouvre Allure, Mon budget, Ma Maison et Mon Garage. Une **pastille rouge** sur Ma Maison / Mon Garage indique le nombre d'entretiens en retard qu'elles ont publiés. Les icônes sont des copies (`apps/`) des `icon.svg` de chaque dépôt : à recopier si une icône change.
+
 ## Lien avec Garage
 
-- **Tâches envoyées depuis Garage** : un rappel d'entretien (vidange, contrôle technique…) envoyé depuis l'app **Garage** arrive directement comme tâche datée dans l'onglet Tâches, au même titre qu'une tâche créée ici. Rien à faire côté Carnet.
-- **Section « Garage »** : dans l'onglet Tâches, en lecture seule et en direct, tout ce qui est en retard ou dû dans les 30 jours sur chaque véhicule (retard en rouge, bientôt en orange, avec la date d'échéance quand elle existe), publié par Garage via `app/garage_alerts`. Les échéances datées apparaissent aussi dans le calendrier du mois. Carnet ne fait que lire ce chemin. La section reste masquée tant que Garage n'a rien publié. Détail dans `js/features/linked-apps.js`.
-
-⚠️ **Étape unique à faire manuellement** : le chemin `garage_alerts` doit être autorisé dans les règles de cette base Firebase. Le fichier `database.rules.json` de ce dépôt a été mis à jour en conséquence, mais Claude ne peut pas déployer des règles Firebase depuis cet environnement — il faut copier son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier) une seule fois. Tant que ce n'est pas fait, le widget reste vide (Garage retentera automatiquement l'envoi dès que les règles seront en place, sans rien à refaire).
+- Garage n'envoie plus de tâches une à une (ancien bouton « Carnet », source de doublons) : ses échéances arrivent uniquement par la section « Garage » ci-dessous. Les tâches déjà reçues restent des tâches normales.
+- **Section « Garage »** : dans l'onglet Tâches, en lecture seule et en direct, tout ce qui est en retard ou dû dans les 30 jours sur chaque véhicule (retard en rouge, bientôt en orange, avec la date d'échéance quand elle existe), publié par Garage dans `users/<uid>/carnet/garage_alerts` (même compte). Les échéances datées apparaissent aussi dans le calendrier du mois. Carnet lit ce chemin dans l'instantané de son propre nœud (pas d'écouteur séparé) et ne l'écrit jamais. La section reste masquée tant que Garage n'a rien publié. Détail dans `js/features/linked-apps.js`.
 
 ## Lien avec Ma Maison
 
-**Sections « Maison » et « Saison »** : dans l'onglet Tâches, en lecture seule et en direct, ce qu'a publié l'app **Ma Maison** dans `app/maison_alerts` : entretiens en retard ou à moins de 30 jours et garanties qui expirent (avec leur date, aussi dans le calendrier du mois), puis les tâches du calendrier de saison du mois restant à faire. Un appui ouvre Ma Maison. Détail dans `js/features/linked-apps.js`.
+**Sections « Maison » et « Saison »** : dans l'onglet Tâches, en lecture seule et en direct, ce qu'a publié l'app **Ma Maison** dans `users/<uid>/carnet/maison_alerts` : entretiens en retard ou à moins de 30 jours et garanties qui expirent (avec leur date, aussi dans le calendrier du mois), puis les tâches du calendrier de saison du mois restant à faire. Un appui ouvre Ma Maison. Détail dans `js/features/linked-apps.js`.
 
-⚠️ **Étape unique à faire manuellement** : comme pour Garage, le chemin `maison_alerts` doit être autorisé dans les règles Firebase de Carnet. `database.rules.json` est à jour : copiez son contenu dans la console Firebase (Realtime Database → Règles → coller → Publier).
+Plus aucune règle Firebase à publier pour ces liens : tout est sous le compte connecté.
 
-## Pop-up de démarrage (tâches et entretiens en retard)
+## Thème
 
-Au lancement de l'app, s'il existe des tâches en retard (échéance passée, non cochées) et/ou des entretiens en retard remontés par Garage (`garage_alerts`, niveau « en retard »), une fenêtre s'ouvre automatiquement pour les passer en revue une par une (« Suivant » puis « Terminé » ; « Voir cette tâche » pour les tâches, qui ouvre l'accueil directement dessus). Un seul passage par session. Si Garage ne répond pas sous 2,5 s (hors ligne, jamais utilisé), le pop-up s'affiche tout de même avec les seules tâches en retard. Détail dans `js/features/overdue-prompt.js`.
+Réglages › Thème : **Auto** (par défaut, suit le réglage clair / sombre de l'iPhone, y compris son passage automatique le soir), Sombre ou Clair. Le choix est synchronisé (tranche `theme`). À la mise à jour, l'ancien thème « sombre » (ancien défaut) devient Auto, une seule fois (drapeau `dashboard_theme_auto_v1`) ; « clair » reste clair.
+
+## Pop-up de démarrage (tout ce qui est en retard)
+
+Au lancement de l'app, une fenêtre liste **en une seule fois** les tâches en retard (échéance passée, non cochées) et les entretiens en retard publiés par Garage et Ma Maison. Une tâche se coche directement dans la liste (ou s'ouvre d'un appui) ; un entretien ouvre l'app concernée ; un seul bouton « Fermer ». Un seul passage par session, une fois les données du compte reçues (une tâche faite sur un autre appareil n'y figure pas ; après le choix « se connecter » ou « continuer sans compte » si la feuille de connexion est ouverte) et les résumés Garage / Maison lus — sans les attendre plus de 2,5 s. Détail dans `js/features/overdue-prompt.js`.
+
+## Modifier et supprimer
+
+Un appui sur une carte (rendez-vous, événement) ou une ligne (tâche) ouvre sa modification ; « Supprimer » est en bas de la feuille. Les listes n'affichent plus d'icônes crayon / corbeille. Le rond d'une tâche la coche sans ouvrir la feuille ; l'icône calendrier des rendez-vous à venir reste disponible.
 
 ## Accueil : 30 prochains jours et calendrier du mois
 
@@ -133,4 +163,6 @@ Au lancement de l'app, s'il existe des tâches en retard (échéance passée, no
 
 ## Planning de la semaine
 
-À l'ouverture de l'app, le planning hebdomadaire (onglet Entraînement → Cette semaine) défile automatiquement jusqu'à la carte du jour, plutôt que de rester sur le lundi de la semaine affichée.
+À l'ouverture de l'app, le planning hebdomadaire (onglet Planning) défile automatiquement jusqu'à la carte du jour, plutôt que de rester sur le lundi de la semaine affichée. Seuls les jours réellement planifiés sont enregistrés (consulter une semaine ne crée plus de jours vides dans la base). Un appui sur une course du planning ouvre Allure.
+
+Carnet n'écrit jamais `objectives` (les phases de saison appartiennent à Allure) : la gestion des sports ne peut donc plus écraser une phase créée dans Allure.
