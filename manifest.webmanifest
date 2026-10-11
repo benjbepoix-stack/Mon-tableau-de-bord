@@ -3,8 +3,8 @@
   "short_name": "Carnet",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#16171c",
-  "theme_color": "#16171c",
+  "background_color": "#0e1114",
+  "theme_color": "#0e1114",
   "icons": [
     {
       "src": "icon-192.png",

@@ -46,6 +46,7 @@ function settle() {
 function switchView(id, { scroll = true } = {}) {
   if (!VIEWS[id]) id = 'dashboardView';
   currentView = id;
+  document.body.dataset.screen = id;
   $$('.view').forEach(v => (v.hidden = v.id !== id));
   $$('[data-view]').forEach(b => {
     const active = b.dataset.view === id;
@@ -131,6 +132,10 @@ function init() {
 
   // Icônes de la navigation (SVG inline)
   $$('[data-icon]').forEach(el => (el.innerHTML = icon(el.dataset.icon, Number(el.dataset.size) || 22)));
+  // En-tête transparent sur le paysage de l'accueil, opaque dès qu'on fait défiler.
+  const onScroll = () => document.body.classList.toggle('is-scrolled', window.scrollY > 24);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
 
   initDialogs();
   initCalendarPrompt();

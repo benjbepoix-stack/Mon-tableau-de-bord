@@ -100,20 +100,33 @@ function renderToday() {
   const sessions = (Array.isArray(state.plans?.[key]) ? state.plans[key] : []).filter(x => x.training);
   const phase = phaseOn(key);
   const races = racesOn(key);
-  const line = x => {
-    if (isRestTraining(x.training)) return { title: REST_TRAINING, facts: '' };
-    const f = families.find(a => a.id === x.family);
-    const facts = [x.distance ? `${String(x.distance).replace('.', ',')} km` : '', x.time ? x.time.replace(/^0(\d)/, '$1').replace(':', 'h') : '', x.elevation ? `${x.elevation} m D+` : ''].filter(Boolean).join(' · ');
-    return { title: f ? `${f.name} · ${x.training}` : x.training, facts };
-  };
-  const rows = [
-    ...races.map(r => `<div class="today-card__row is-race">${icon('flag', 18)}<div><strong>${esc(r.name)}</strong>${r.time ? `<span>Départ ${r.time}</span>` : ''}</div></div>`),
-    ...sessions.map(line).map(l => `<div class="today-card__row">${icon('training', 18)}<div><strong>${esc(l.title)}</strong>${l.facts ? `<span>${esc(l.facts)}</span>` : ''}</div></div>`)
+  const facts = x => [x.distance ? `${String(x.distance).replace('.', ',')} km` : '', x.time ? x.time.replace(/^0(\d)/, '$1').replace(':', ' h ') : '', x.elevation ? `${x.elevation} m D+` : ''].filter(Boolean).join(' · ');
+  // Une ligne par élément du jour : course d'abord, puis séances ; la première fait le titre.
+  const items = [
+    ...races.map(r => ({ kicker: 'Course du jour', title: r.name, facts: r.time ? `Départ ${r.time}` : '', race: true })),
+    ...sessions.map(x => {
+      if (isRestTraining(x.training)) return { kicker: 'Aujourd’hui', title: REST_TRAINING, facts: '' };
+      const f = families.find(a => a.id === x.family);
+      return { kicker: f ? `Séance du jour · ${f.name}` : 'Séance du jour', title: x.training, facts: facts(x) };
+    })
   ];
-  $('#todaySession').innerHTML = `
-    <div class="today-card__head"><span class="today-card__kicker">Séance du jour</span>${phase ? `<span class="today-card__phase phase--${phase.type}">${esc(PHASE_TYPES[phase.type].short)}</span>` : ''}</div>
-    ${rows.length ? rows.join('') : `<p class="today-card__empty">Rien de prévu aujourd’hui.</p>`}
-    <button type="button" class="link-btn" data-goto="trainingView">${rows.length ? 'Voir la semaine' : 'Planifier une séance'}</button>`;
+  const [main, ...more] = items;
+  // Petite vignette de paysage glissée après le premier mot du titre.
+  const titled = t => {
+    const [first, ...rest] = esc(t).split(' ');
+    return `${first}<span class="today-card__pill" aria-hidden="true"></span>${rest.length ? ' ' + rest.join(' ') : ''}`;
+  };
+  const phaseTag = phase ? ` · ${esc(PHASE_TYPES[phase.type].short)}` : '';
+  $('#todaySession').innerHTML = main
+    ? `<div class="today-card__kicker">${esc(main.kicker)}${phaseTag}</div>
+    <h2 class="today-card__title">${titled(main.title)}</h2>
+    ${main.facts ? `<p class="today-card__facts">${esc(main.facts)}</p>` : ''}
+    ${more.length ? `<p class="today-card__more">${more.map(m => `${esc(m.title)}${m.facts ? ` · ${esc(m.facts)}` : ''}`).join('<br>')}</p>` : ''}
+    <div class="today-card__actions"><button type="button" class="btn btn--primary" data-goto="trainingView">Voir la semaine</button><a class="btn btn--glass" href="${ALLURE_URL}">Ouvrir Allure</a></div>`
+    : `<div class="today-card__kicker">Aujourd’hui${phaseTag}</div>
+    <h2 class="today-card__title">Journée <span class="today-card__pill" aria-hidden="true"></span> libre.</h2>
+    <p class="today-card__facts">Rien de prévu aujourd’hui.</p>
+    <div class="today-card__actions"><button type="button" class="btn btn--primary" data-goto="trainingView">Planifier une séance</button></div>`;
 }
 
 /* ---------- Agenda chronologique ---------- */

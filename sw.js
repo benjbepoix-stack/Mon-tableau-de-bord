@@ -6,7 +6,7 @@
    À l'installation, l'app-shell (HTML/CSS/JS/icônes) est aussi pré-mis en cache :
    un tout premier lancement hors ligne (avant toute visite en ligne réussie)
    affiche donc l'app au lieu d'un écran blanc. */
-const CACHE = 'dashboard-v13';
+const CACHE = 'dashboard-v14';
 
 const PRECACHE_URLS = [
   './',
@@ -16,6 +16,11 @@ const PRECACHE_URLS = [
   './css/components.css',
   './css/layout.css',
   './css/minimal.css',
+  './css/horizon.css',
+  './fonts/geist-latin.woff2',
+  './fonts/geist-latin-ext.woff2',
+  './img/horizon-sombre.svg',
+  './img/horizon-clair.svg',
   './css/tokens.css',
   './css/views/dashboard.css',
   './css/views/training.css',
@@ -51,11 +56,7 @@ const PRECACHE_URLS = [
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
-  './apple-touch-icon.png',
-  './apps/allure.svg',
-  './apps/budget.svg',
-  './apps/maison.svg',
-  './apps/garage.svg'
+  './apple-touch-icon.png'
 ];
 
 async function precache() {
