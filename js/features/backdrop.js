@@ -38,7 +38,11 @@ async function idb(mode, fn) {
     d.close();
   }
 }
-const loadPhoto = () => idb('readonly', s => s.get('photo')).catch(() => null);
+/** Photo enregistrée : Blob, undefined si aucune, ou null si IndexedDB a échoué (erreur passagère possible sur iOS). */
+const loadPhoto = () => idb('readonly', s => s.get('photo')).catch(error => {
+  console.warn('[fond]', error);
+  return null;
+});
 const savePhoto = blob => idb('readwrite', s => s.put(blob, 'photo'));
 const deletePhoto = () => idb('readwrite', s => s.delete('photo')).catch(() => {});
 
@@ -57,9 +61,15 @@ export async function applyBackdrop() {
   if (pick === 'photo') {
     if (!photoUrl) {
       const blob = await loadPhoto();
-      if (!(blob instanceof Blob)) {
+      if (blob === undefined) {
+        // Photo vraiment absente (retirée ailleurs, données effacées) : retour au fond par défaut.
         write(KEY, 'auto');
         return applyBackdrop();
+      }
+      if (!(blob instanceof Blob)) {
+        // IndexedDB indisponible pour l'instant : fond par défaut, choix conservé pour la prochaine ouverture.
+        setVar(null);
+        return renderPicker();
       }
       photoUrl = URL.createObjectURL(blob);
     }
@@ -70,7 +80,6 @@ export async function applyBackdrop() {
   renderPicker();
 }
 
-/** Réduit l'image (côté le plus long : 1600 px) et la convertit en JPEG. */
 /** Décode l'image : createImageBitmap si possible, sinon un <img> (anciens Safari). */
 async function decode(file) {
   try {
@@ -148,5 +157,14 @@ export function initBackdrop() {
     photoUrl = null;
     await pick(current() === 'photo' ? 'auto' : current());
   });
+  // La photo enregistrée reste proposée même quand un autre fond est choisi.
   applyBackdrop();
+  if (current() !== 'photo') {
+    loadPhoto().then(blob => {
+      if (blob instanceof Blob && !photoUrl) {
+        photoUrl = URL.createObjectURL(blob);
+        renderPicker();
+      }
+    });
+  }
 }
