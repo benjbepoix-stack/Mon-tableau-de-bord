@@ -105,7 +105,7 @@ function renderToday() {
   const items = [
     ...races.map(r => ({ big: r.name, small: ['Course', r.time ? `départ ${r.time}` : ''].filter(Boolean).join(' · ') })),
     ...sessions.map(x => {
-      if (isRestTraining(x.training)) return { big: REST_TRAINING, small: '' };
+      if (isRestTraining(x.training)) return { big: REST_TRAINING.replace(' - ', '\u00a0– '), small: '', rest: true };
       const f = families.find(a => a.id === x.family);
       return { big: f ? f.name : x.training, small: [f ? x.training : '', facts(x)].filter(Boolean).join(' · ') };
     })
@@ -114,7 +114,7 @@ function renderToday() {
   const phaseTag = phase ? ` · ${esc(PHASE_TYPES[phase.type].short)}` : '';
   const week = label => `<button type="button" class="today-card__link" data-goto="trainingView">${label} ${icon('chevronRight', 14)}</button>`;
   $('#todaySession').innerHTML = main
-    ? `<div class="today-card__kicker">${races.length ? 'Course du jour' : 'Séance du jour'}${phaseTag}</div>
+    ? `<div class="today-card__kicker">${races.length ? 'Course du jour' : items.every(i => i.rest) ? 'Aujourd’hui' : 'Séance du jour'}${phaseTag}</div>
     <h2 class="today-card__title">${esc(main.big)}<span class="today-card__pill" aria-hidden="true"></span></h2>
     ${main.small ? `<p class="today-card__facts">${esc(main.small)}</p>` : ''}
     ${more.map(m => `<p class="today-card__more">${esc(m.big)}${m.small ? ` · ${esc(m.small)}` : ''}</p>`).join('')}
