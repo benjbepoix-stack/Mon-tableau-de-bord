@@ -15,7 +15,8 @@ HTML / CSS / JavaScript purs (modules ES), sans étape de build ni dépendance p
 index.html                  Squelette HTML (aucun script inline hormis l'anti-flash du thème)
 manifest.webmanifest        Manifeste PWA
 database.rules.json         Règles fermées à publier sur l'ANCIENNE base publique (voir « Sécurité »)
-apps/                       Icônes des autres apps (copies de leur icon.svg), pour les tuiles de l'accueil
+css/horizon.css             Style « Horizon » (paysage, accent citron, police Geist), chargé en dernier
+fonts/, img/                Police Geist et paysages de l'accueil, servis par l'app (marchent hors ligne)
 css/
   tokens.css                Design tokens (couleurs clair/sombre, rayons, ombres, mouvement)
   base.css                  Reset, typographie, fond d'ambiance, accessibilité
@@ -123,7 +124,7 @@ Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Planni
 
 ## Accès aux autres apps
 
-En haut de l'accueil, une rangée de 4 tuiles (icône + nom) ouvre Allure, Mon budget, Ma Maison et Mon Garage. Une **pastille rouge** sur Ma Maison / Mon Garage indique le nombre d'entretiens en retard qu'elles ont publiés. Les icônes sont des copies (`apps/`) des `icon.svg` de chaque dépôt : à recopier si une icône change.
+L'accueil s'ouvre sur un paysage (crépuscule en sombre, matin en clair) avec la séance du jour en grand titre, puis une rangée de 4 tuiles (icône au trait + nom) qui ouvre Allure, Mon budget, Ma Maison et Mon Garage. Une **pastille rouge** sur Ma Maison / Mon Garage indique le nombre d'entretiens en retard qu'elles ont publiés.
 
 ## Lien avec Garage
 

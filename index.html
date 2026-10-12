@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Tableau de bord personnel : agenda, tâches, entraînements, courses et mesures.">
-  <meta name="theme-color" content="#16171c">
+  <meta name="theme-color" content="#0e1114">
   <meta name="color-scheme" content="dark light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -25,10 +25,11 @@
       var t = localStorage.getItem('dashboard_theme');
       if ((t !== 'light' && t !== 'dark') || (t === 'dark' && !localStorage.getItem('dashboard_theme_auto_v1'))) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.dataset.theme = t;
-      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#f4f4f7' : '#16171c');
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#f3f4f2' : '#0e1114');
     } catch (e) {}
   </script>
 
+  <link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
@@ -36,6 +37,7 @@
   <link rel="stylesheet" href="css/views/dashboard.css">
   <link rel="stylesheet" href="css/views/training.css">
   <link rel="stylesheet" href="css/minimal.css">
+  <link rel="stylesheet" href="css/horizon.css">
 
   <script type="module" src="js/main.js"></script>
 </head>
@@ -67,15 +69,15 @@
     <!-- ================= DASHBOARD ================= -->
     <section id="dashboardView" class="view" aria-labelledby="headerTitle">
 
+
+      <section class="today-card" id="todaySession"></section>
       <!-- Accès aux autres apps (même compte) ; pastille rouge : entretien en retard -->
       <nav class="app-tiles" aria-label="Mes autres apps">
-        <a class="app-tile" href="https://benjbepoix-stack.github.io/Allure/"><img src="apps/allure.svg" alt="" width="44" height="44"><span>Allure</span></a>
-        <a class="app-tile" href="https://benjbepoix-stack.github.io/Mon-budget/"><img src="apps/budget.svg" alt="" width="44" height="44"><span>Mon budget</span></a>
-        <a class="app-tile" id="maisonTile" href="https://benjbepoix-stack.github.io/Ma-maison/"><img src="apps/maison.svg" alt="" width="44" height="44"><span>Ma Maison</span><b class="app-tile__badge" id="maisonBadge" aria-hidden="true" hidden></b></a>
-        <a class="app-tile" id="garageTile" href="https://benjbepoix-stack.github.io/Mon-garage/"><img src="apps/garage.svg" alt="" width="44" height="44"><span>Mon Garage</span><b class="app-tile__badge" id="garageBadge" aria-hidden="true" hidden></b></a>
+        <a class="app-tile" href="https://benjbepoix-stack.github.io/Allure/"><i class="app-tile__icon" data-icon="mountain" data-size="22"></i><span>Allure</span></a>
+        <a class="app-tile" href="https://benjbepoix-stack.github.io/Mon-budget/"><i class="app-tile__icon" data-icon="wallet" data-size="22"></i><span>Mon budget</span></a>
+        <a class="app-tile" id="maisonTile" href="https://benjbepoix-stack.github.io/Ma-maison/"><i class="app-tile__icon" data-icon="house" data-size="22"></i><span>Ma Maison</span><b class="app-tile__badge" id="maisonBadge" aria-hidden="true" hidden></b></a>
+        <a class="app-tile" id="garageTile" href="https://benjbepoix-stack.github.io/Mon-garage/"><i class="app-tile__icon" data-icon="car" data-size="22"></i><span>Mon Garage</span><b class="app-tile__badge" id="garageBadge" aria-hidden="true" hidden></b></a>
       </nav>
-
-      <section class="card today-card" id="todaySession"></section>
 
       <section class="section">
         <header class="section__head">

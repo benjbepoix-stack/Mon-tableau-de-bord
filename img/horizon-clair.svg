@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 860" preserveAspectRatio="xMidYMid slice">
+<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FA4CC"/><stop offset=".55" stop-color="#B9CDE2"/><stop offset=".78" stop-color="#EBCBAA"/></linearGradient>
+<radialGradient id="g" cx=".72" cy=".6" r=".5"><stop offset="0" stop-color="#FFD9A8" stop-opacity=".85"/><stop offset="1" stop-color="#FFD9A8" stop-opacity="0"/></radialGradient>
+<filter id="b"><feGaussianBlur stdDeviation="9"/></filter><filter id="b2"><feGaussianBlur stdDeviation="1.2"/></filter></defs>
+<rect width="400" height="860" fill="url(#s)"/><rect width="400" height="860" fill="url(#g)"/>
+<g filter="url(#b)" fill="#FFFFFF" opacity=".55"><ellipse cx="90" cy="150" rx="120" ry="26"/><ellipse cx="300" cy="230" rx="110" ry="18"/><ellipse cx="200" cy="330" rx="160" ry="14" opacity=".6"/></g>
+<g filter="url(#b2)"><path d="M0 520 L60 470 L110 495 L170 430 L230 480 L290 440 L350 470 L400 450 V860 H0Z" fill="#7F94A6" opacity=".75"/>
+<path d="M0 600 L50 560 L120 585 L190 520 L260 575 L330 545 L400 570 V860 H0Z" fill="#5E7181"/>
+<path d="M-10 860 L-10 560 C60 540 120 600 200 640 C260 670 320 700 410 690 V860Z" fill="#36423D"/>
+<path d="M220 860 C250 760 300 720 410 700 V730 C330 745 290 780 268 860Z" fill="#8A9290" opacity=".9"/></g></svg>
