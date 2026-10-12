@@ -214,6 +214,21 @@
           <p class="field__help">Auto suit le réglage clair / sombre de l’appareil.</p>
         </div>
         <div class="field">
+          <span class="field__label" id="backdropLabel">Image de fond de l’accueil</span>
+          <div class="backdrop-picker" role="radiogroup" aria-labelledby="backdropLabel" id="backdropPicker">
+            <button type="button" role="radio" data-backdrop="auto" aria-checked="false"><span>Auto</span></button>
+            <button type="button" role="radio" data-backdrop="crepuscule" aria-checked="false"><span>Crépuscule</span></button>
+            <button type="button" role="radio" data-backdrop="matin" aria-checked="false"><span>Matin</span></button>
+            <button type="button" role="radio" data-backdrop="nuit" aria-checked="false"><span>Nuit</span></button>
+            <button type="button" role="radio" data-backdrop="sauge" aria-checked="false"><span>Sauge</span></button>
+            <button type="button" role="radio" data-backdrop="uni" aria-checked="false"><span>Uni</span></button>
+            <button type="button" role="radio" data-backdrop="photo" aria-checked="false"><span>Ma photo</span></button>
+          </div>
+          <div class="backdrop-actions"><button type="button" class="link-btn" id="backdropChoose">Choisir une photo…</button><button type="button" class="link-btn" id="backdropRemove" hidden>Retirer la photo</button></div>
+          <input type="file" id="backdropFile" accept="image/*" hidden>
+          <p class="field__help">Auto : crépuscule en thème sombre, matin en thème clair. Choix propre à cet appareil.</p>
+        </div>
+        <div class="field">
           <span class="field__label">Compte</span>
           <div class="account">
             <p class="account__line" id="accountLine"></p>

@@ -73,11 +73,11 @@ h1, h2, h3 { font-family: var(--font); }
 
 /* ---------- Paysage de l'accueil ---------- */
 body[data-screen="dashboardView"]::before {
-  content: ""; position: absolute; inset: 0 0 auto 0; height: min(100vh, 760px); z-index: 0; pointer-events: none;
-  background: linear-gradient(180deg, rgba(10, 14, 18, .28) 0%, rgba(10, 14, 18, .12) 30%, rgba(10, 14, 18, .55) 62%, var(--bg) 100%), var(--horizon) center 30% / cover no-repeat;
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 470px; z-index: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(10, 14, 18, .30) 0%, rgba(10, 14, 18, .18) 40%, rgba(10, 14, 18, .55) 72%, var(--bg) 100%), var(--horizon) center 35% / cover no-repeat, var(--bg-hero, #1d2a36);
 }
 :root[data-theme="light"] body[data-screen="dashboardView"]::before {
-  background: linear-gradient(180deg, rgba(20, 30, 40, .22) 0%, rgba(20, 30, 40, .08) 34%, rgba(20, 30, 40, .30) 58%, var(--bg) 96%), var(--horizon) center 30% / cover no-repeat;
+  background: linear-gradient(180deg, rgba(20, 30, 40, .30) 0%, rgba(20, 30, 40, .16) 40%, rgba(20, 30, 40, .30) 70%, var(--bg) 100%), var(--horizon) center 35% / cover no-repeat, var(--bg-hero, #6f8aa5);
 }
 body[data-screen="dashboardView"] .topbar, body[data-screen="dashboardView"] .app { position: relative; z-index: 1; }
 body[data-screen="dashboardView"]:not(.is-scrolled) .topbar { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -92,16 +92,17 @@ body[data-screen="dashboardView"] .topbar .icon-btn, body[data-screen="dashboard
 .topbar__kicker { font-weight: 500; letter-spacing: .18em; color: var(--text-3); background: none; -webkit-text-fill-color: currentColor; }
 .topbar__title { font-weight: 600; letter-spacing: -.035em; }
 
-/* ---------- Séance du jour : grand titre centré ---------- */
-.today-card { display: block; text-align: center; color: #fff; padding: clamp(56px, 13vh, 120px) 4px 40px; background: none; border: 0; box-shadow: none; overflow: visible; }
+/* ---------- Séance du jour : sport en gros, séance en dessous (compact : l'agenda reste visible) ---------- */
+.today-card { display: block; text-align: center; color: #fff; padding: 22px 4px 20px; background: none; border: 0; box-shadow: none; overflow: visible; }
 .today-card::before { display: none; }
 .today-card__kicker { font-size: 10.5px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: rgba(255, 255, 255, .85); }
-.today-card__title { margin: 14px auto 12px; max-width: 13ch; font-size: clamp(34px, 10.5vw, 46px); font-weight: 500; line-height: 1.04; letter-spacing: -.035em; text-wrap: balance; }
-.today-card__pill { display: inline-block; width: 1.55em; height: .74em; margin: 0 .12em; border-radius: 999px; vertical-align: .02em; background: url("../img/horizon-clair.svg") center 70% / cover; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .35); }
-.today-card__facts { font-size: 14px; color: rgba(255, 255, 255, .82); font-variant-numeric: tabular-nums; }
-.today-card__more { margin-top: 8px; font-size: 13px; color: rgba(255, 255, 255, .7); }
-.today-card__actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
-.today-card .btn--glass { background: rgba(20, 22, 24, .55); color: #fff; border: 1px solid rgba(255, 255, 255, .14); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); text-decoration: none; }
+.today-card__title { margin: 8px auto 6px; font-size: clamp(36px, 11vw, 46px); font-weight: 500; line-height: 1; letter-spacing: -.04em; text-wrap: balance; }
+.today-card__pill { display: inline-block; width: 1.25em; height: .6em; margin-left: .18em; border-radius: 999px; vertical-align: .08em; background: var(--horizon) center 70% / cover; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .35); }
+:root[data-backdrop="uni"] .today-card__pill { display: none; }
+.today-card__facts { font-size: 14.5px; color: rgba(255, 255, 255, .86); font-variant-numeric: tabular-nums; }
+.today-card__more { margin-top: 4px; font-size: 13px; color: rgba(255, 255, 255, .7); }
+.today-card__link { display: inline-flex; align-items: center; gap: 2px; margin-top: 10px; padding: 5px 10px 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 500; color: rgba(255, 255, 255, .9); background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .16); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.today-card__link:active { transform: scale(.97); }
 
 /* ---------- Boutons ---------- */
 .btn { font-weight: 600; letter-spacing: 0; border-radius: 12px; }
@@ -112,8 +113,8 @@ body[data-screen="dashboardView"] .topbar .icon-btn, body[data-screen="dashboard
 .link-btn { color: var(--accent); font-weight: 600; }
 
 /* ---------- Apps : rangée en verre, icônes au trait ---------- */
-.app-tiles { gap: 0; padding: 4px; border-radius: var(--r-xl); background: var(--glass); border: 1px solid var(--glass-line); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); margin-bottom: var(--sp-6); }
-.app-tile { background: none; border: 0; border-radius: 16px; font-weight: 500; font-size: 11.5px; color: var(--text); gap: 8px; padding: 12px 2px 10px; }
+.app-tiles { gap: 0; padding: 2px; border-radius: var(--r-xl); background: var(--glass); border: 1px solid var(--glass-line); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); margin-bottom: var(--sp-4); }
+.app-tile { background: none; border: 0; border-radius: 16px; font-weight: 500; font-size: 11.5px; color: var(--text); gap: 5px; padding: 9px 2px 8px; }
 .app-tile__icon { font-style: normal; display: grid; place-items: center; height: 24px; color: var(--text); }
 .app-tile__badge { left: calc(50% + 8px); top: 4px; min-width: 18px; height: 18px; line-height: 18px; font-size: 10.5px; font-weight: 600; background: #ff6b5e; box-shadow: none; }
 @media (hover: hover) { .app-tile:hover { background: var(--surface-2); } }
@@ -162,3 +163,27 @@ body[data-screen="dashboardView"] .topbar .icon-btn, body[data-screen="dashboard
 .sheet { border-radius: 26px 26px 0 0; }
 .input, .select, .textarea { border-radius: 12px; }
 .input:focus, .select:focus, .textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+
+/* ---------- Accueil compact : moins d'espace avant l'agenda ---------- */
+body[data-screen="dashboardView"] .topbar__inner { min-height: 54px; }
+#dashboardView > .section:first-of-type { margin-top: 0; }
+#dashboardView .section__head { margin-bottom: 6px; }
+#dashboardView .agenda-mode { margin-bottom: 4px; }
+#dashboardView .item-card { padding: 11px 2px; }
+
+/* ---------- Réglages : choix de l'image de fond ---------- */
+.backdrop-picker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.backdrop-picker button { position: relative; aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; padding: 6px 4px; background: var(--surface-3) center / cover no-repeat; border: 2px solid transparent; color: #fff; font-size: 11px; font-weight: 600; text-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
+.backdrop-picker button::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, .45)); }
+.backdrop-picker button span { position: relative; z-index: 1; }
+.backdrop-picker button[aria-checked="true"] { border-color: var(--lime); box-shadow: 0 0 0 2px var(--bg); }
+.backdrop-picker [data-backdrop="auto"] { background-image: url("../img/horizon-sombre.svg"); }
+.backdrop-picker [data-backdrop="auto"]::before { content: ""; position: absolute; inset: 0 0 0 50%; background: url("../img/horizon-clair.svg") center / cover; }
+.backdrop-picker [data-backdrop="crepuscule"] { background-image: url("../img/horizon-sombre.svg"); }
+.backdrop-picker [data-backdrop="matin"] { background-image: url("../img/horizon-clair.svg"); }
+.backdrop-picker [data-backdrop="nuit"] { background-image: url("../img/horizon-nuit.svg"); }
+.backdrop-picker [data-backdrop="sauge"] { background-image: url("../img/horizon-sauge.svg"); }
+.backdrop-picker [data-backdrop="uni"] { background: var(--bg-hero-uni, #26303a); }
+.backdrop-picker [data-backdrop="photo"]:not([style*="url"]) { background: var(--surface-3); color: var(--text-2); text-shadow: none; }
+.backdrop-picker [data-backdrop="photo"]:not([style*="url"])::after { display: none; }
+.backdrop-actions { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 4px; }

@@ -12,6 +12,7 @@ import { initCalendarPrompt } from './features/calendar-prompt.js';
 import { setLinked, linkedLocal, onLinkedChange, linkedReady } from './features/linked-apps.js';
 import { initAuth, openAuth, closeAuth, noAccountChosen, forgetNoAccount } from './features/auth.js';
 import { initSettings, renderAccount } from './features/settings.js';
+import { initBackdrop } from './features/backdrop.js';
 import { tidyTasks } from './features/task-tidy.js';
 import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
@@ -153,6 +154,7 @@ function init() {
     if (go) switchView(go.dataset.goto);
   });
   initSettings();
+  initBackdrop();
   initAuth({ onLocal: goLocal });
 
   let initial = 'dashboardView';
