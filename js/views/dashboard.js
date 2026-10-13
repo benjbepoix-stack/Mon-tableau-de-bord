@@ -153,7 +153,7 @@ function renderAgendaList() {
   const later = items.filter(x => x.date > limit);
   $('#agenda').innerHTML = soon.length
     ? soon.map(agendaHtml).join('')
-    : `<div class="empty-state"><p>Rien dans les ${AGENDA_DAYS} prochains jours.</p></div>`;
+    : '<div class="empty-state"><p>Rien de prévu.</p></div>';
   const more = $('#agendaMore');
   more.hidden = !later.length;
   more.setAttribute('aria-expanded', String(laterOpen));
@@ -258,7 +258,7 @@ function renderTasks() {
     : '';
   const el = $('#tasks');
   if (!tasks.length) {
-    el.innerHTML = `<div class="empty-state"><p>Aucune tâche. Écrivez-en une ci-dessus.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><p>Aucune tâche.</p></div>`;
     return;
   }
   const sorted = [...tasks].sort((a, b) => Number(a.done) - Number(b.done) || (a.date || '9999').localeCompare(b.date || '9999'));

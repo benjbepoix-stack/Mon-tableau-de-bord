@@ -26,7 +26,6 @@
   padding: var(--sp-2) max(var(--gutter), env(safe-area-inset-right)) var(--sp-2) max(var(--gutter), env(safe-area-inset-left));
 }
 .topbar__titles { min-width: 0; }
-.topbar__kicker { font-size: 11px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
 .topbar__title { font-size: var(--fs-2xl); font-weight: 850; letter-spacing: -.045em; line-height: 1.05; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar__actions { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
 
@@ -130,5 +129,6 @@
   .app { padding-bottom: 64px; }
   .dash-grid { grid-template-columns: 1fr 1fr; }
   .training-grid { grid-template-columns: 1.3fr 1fr; align-items: start; }
+  .training-grid:has(#splitCard[hidden]) { grid-template-columns: 1fr; }
   .metrics-grid { grid-template-columns: 1fr 1fr; }
 }

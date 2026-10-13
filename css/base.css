@@ -82,6 +82,7 @@ img { max-width: 100%; display: block; }
   transition: top var(--dur) var(--ease);
 }
 .skip-link:focus-visible { top: calc(var(--safe-top) + 12px); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 ::selection { background: var(--accent-soft); }
 
