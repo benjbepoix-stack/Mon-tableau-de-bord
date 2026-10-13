@@ -48,7 +48,6 @@
   <header class="topbar">
     <div class="topbar__inner">
       <div class="topbar__titles">
-        <div class="topbar__kicker" id="headerKicker">Tableau de bord</div>
         <h1 class="topbar__title" id="headerTitle">Mon espace</h1>
       </div>
       <div class="topbar__actions">
@@ -88,7 +87,7 @@
           </div>
         </header>
         <div class="segmented agenda-mode" role="tablist" id="agendaMode" aria-label="Affichage de l’agenda">
-          <button type="button" role="tab" data-agenda-mode="list" aria-selected="true">30 prochains jours</button>
+          <button type="button" role="tab" data-agenda-mode="list" aria-selected="true">Liste</button>
           <button type="button" role="tab" data-agenda-mode="month" aria-selected="false">Mois</button>
         </div>
         <div id="agendaListPanel">
@@ -100,15 +99,15 @@
           <div class="card mcal" id="monthCal"></div>
           <div id="monthCalDay"></div>
         </div>
-        <div class="agenda-links"><button type="button" class="link-btn" data-view-all="appointments">Historique des RDV</button><button type="button" class="link-btn" data-view-all="events">Historique des événements</button></div>
+        <div class="agenda-links"><button type="button" class="link-btn" data-view-all="appointments">Tous les RDV</button><button type="button" class="link-btn" data-view-all="events">Tous les événements</button></div>
       </section>
 
       <section class="section">
         <header class="section__head">
           <h2 class="section__title"><label for="notes">Notes</label></h2>
-          <span class="save-state" id="notesStatus" aria-live="polite">Enregistrement automatique</span>
+          <span class="save-state" id="notesStatus" aria-live="polite"></span>
         </header>
-        <div class="card notes"><textarea id="notes" class="notes__area" placeholder="Écrivez ce que vous voulez ici…" maxlength="20000"></textarea></div>
+        <div class="card notes"><textarea id="notes" class="notes__area" placeholder="Écrire…" maxlength="20000"></textarea></div>
       </section>
     </section>
 
@@ -116,7 +115,7 @@
     <section id="tasksView" class="view" hidden aria-labelledby="headerTitle">
       <section class="section section--first">
         <header class="section__head">
-          <h2 class="section__title">Mes tâches</h2>
+          <h2 class="section__title sr-only">Tâches</h2>
           <div class="section__tools"><div class="task-progress" id="taskProgress"></div></div>
         </header>
         <form class="quick-add" id="taskQuick" novalidate>
@@ -127,7 +126,7 @@
       </section>
 
       <section class="section" id="sportSection" hidden>
-        <header class="section__head"><h2 class="section__title">Sport</h2><a class="link-btn" id="allureLink" href="https://benjbepoix-stack.github.io/Allure/">Ouvrir Allure</a></header>
+        <header class="section__head"><h2 class="section__title">Sport</h2></header>
         <div class="card card--list" id="sportTasks"></div>
       </section>
 
@@ -148,7 +147,7 @@
       </section>
 
       <section class="section" id="seasonSection" hidden>
-        <header class="section__head"><h2 class="section__title" id="seasonTitle">Saison</h2><a class="link-btn" href="https://benjbepoix-stack.github.io/Ma-maison/#/entretien/saison">Ouvrir Ma Maison</a></header>
+        <header class="section__head"><h2 class="section__title" id="seasonTitle">Saison</h2></header>
         <div class="card card--list" id="seasonWidget"></div>
       </section>
     </section>
@@ -158,12 +157,12 @@
       <div id="trainingWeekPanel">
         <div class="toolbar toolbar--week">
           <button type="button" class="btn btn--primary" data-action="week-today"><span data-icon="calendar" data-size="18"></span><span>Aujourd’hui</span></button>
-          <button type="button" class="btn btn--soft" data-action="open-manager"><span data-icon="settings" data-size="18"></span><span>Sports &amp; séances</span></button>
+          <button type="button" class="btn btn--soft" data-action="open-manager"><span data-icon="settings" data-size="18"></span><span>Sports</span></button>
         </div>
 
         <div class="training-grid">
           <section class="card week-card">
-            <header class="card__head"><h2 class="card__title">Cette semaine</h2><span class="card__meta" id="overviewWeek"></span></header>
+            <header class="card__head"><h2 class="card__title">Semaine</h2></header>
             <div id="weekPhase"></div>
             <div id="weekMini" class="week-list"></div>
             <div class="summary">
@@ -174,8 +173,8 @@
             </div>
           </section>
 
-          <section class="card">
-            <header class="card__head"><div><h2 class="card__title">Répartition</h2><p class="card__sub">Activités par sport cette semaine</p></div></header>
+          <section class="card" id="splitCard">
+            <header class="card__head"><h2 class="card__title">Répartition</h2></header>
             <div class="donut-chart">
               <div class="donut" id="weekDonut"><div class="donut__center"><strong id="weekDonutTotal">0</strong><span>activités</span></div></div>
               <div class="legend" id="weekLegend"></div>
@@ -189,7 +188,6 @@
           <button type="button" class="icon-btn icon-btn--glass" data-action="week-next" aria-label="Semaine suivante"><span data-icon="chevronRight"></span></button>
         </div>
         <section id="days" class="days" aria-label="Détail des jours de la semaine"></section>
-        <p class="footnote"><a class="link-btn" href="https://benjbepoix-stack.github.io/Allure/">Saison, courses et mesures dans Allure</a><br>Météo : <span id="weatherPlaceLabel">Besançon</span> (Open-Meteo).</p>
       </div>
 
     </section>
@@ -211,10 +209,9 @@
             <button type="button" role="radio" data-theme-pick="dark" aria-checked="false">Sombre</button>
             <button type="button" role="radio" data-theme-pick="light" aria-checked="false">Clair</button>
           </div>
-          <p class="field__help">Auto suit le réglage clair / sombre de l’appareil.</p>
         </div>
         <div class="field">
-          <span class="field__label" id="backdropLabel">Image de fond de l’accueil</span>
+          <span class="field__label" id="backdropLabel">Fond de l’accueil</span>
           <div class="backdrop-picker" role="radiogroup" aria-labelledby="backdropLabel" id="backdropPicker">
             <button type="button" role="radio" data-backdrop="auto" aria-checked="false"><span>Auto</span></button>
             <button type="button" role="radio" data-backdrop="crepuscule" aria-checked="false"><span>Crépuscule</span></button>
@@ -226,7 +223,6 @@
           </div>
           <div class="backdrop-actions"><button type="button" class="link-btn" id="backdropChoose">Choisir une photo…</button><button type="button" class="link-btn" id="backdropRemove" hidden>Retirer la photo</button></div>
           <input type="file" id="backdropFile" accept="image/*" hidden>
-          <p class="field__help">Auto : crépuscule en thème sombre, matin en thème clair. Choix propre à cet appareil.</p>
         </div>
         <div class="field">
           <span class="field__label">Compte</span>
@@ -256,7 +252,7 @@
         <button type="button" class="btn btn--ghost btn--block" id="authSwitch">Créer un compte</button>
         <div class="auth__local">
           <button type="button" class="btn btn--soft btn--block" id="authLocal">Continuer sans compte</button>
-          <p class="auth__hint">Données sur cet appareil uniquement, sans synchronisation. Connexion possible plus tard depuis les Réglages.</p>
+          <p class="auth__hint">Données gardées sur cet appareil, sans synchronisation.</p>
         </div>
       </form>
     </div>
@@ -274,7 +270,7 @@
           <div class="field field--full"><label class="field__label" for="i-date" id="itemDateLabel">Date</label><input class="input" id="i-date" type="date" name="date"></div>
           <div class="field"><label class="field__label" for="i-time" id="itemTimeLabel">Début</label><input class="input" id="i-time" type="time" name="time"></div>
         </div>
-        <details class="more-fields" id="itemMore"><summary>Plus de détails</summary><div class="more-fields__body"><div class="field only-timed"><label class="field__label" for="i-end">Fin <span class="field__opt">(facultatif)</span></label><input class="input" id="i-end" type="time" name="endTime"></div><div class="field"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select><p class="field__help" id="itemRepeatHelp" hidden>Une fois cochée, la tâche revient le lendemain, décochée, à sa prochaine échéance.</p></div><div class="field only-timed"><label class="field__label" for="i-location">Lieu <span class="field__opt">(facultatif)</span></label><input class="input" id="i-location" name="location" maxlength="120" placeholder="Ex. 12 rue de la Paix, Besançon" autocomplete="off"></div><div class="field"><label class="field__label" for="i-note">Note <span class="field__opt">(facultatif)</span></label><textarea class="input textarea" id="i-note" name="note" maxlength="500" rows="3" placeholder="Détails…"></textarea></div></div></details>
+        <details class="more-fields" id="itemMore"><summary>Plus d’options</summary><div class="more-fields__body"><div class="field only-timed"><label class="field__label" for="i-end">Fin <span class="field__opt">(facultatif)</span></label><input class="input" id="i-end" type="time" name="endTime"></div><div class="field"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select><p class="field__help" id="itemRepeatHelp" hidden>Cochée, elle revient à sa prochaine échéance.</p></div><div class="field only-timed"><label class="field__label" for="i-location">Lieu <span class="field__opt">(facultatif)</span></label><input class="input" id="i-location" name="location" maxlength="120" placeholder="Ex. 12 rue de la Paix, Besançon" autocomplete="off"></div><div class="field"><label class="field__label" for="i-note">Note <span class="field__opt">(facultatif)</span></label><textarea class="input textarea" id="i-note" name="note" maxlength="500" rows="3" placeholder="Détails…"></textarea></div></div></details>
         <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
         <button type="button" class="btn btn--ghost btn--danger-text" id="itemDelete" hidden><span data-icon="trash" data-size="18"></span><span>Supprimer</span></button>
       </form>
@@ -298,7 +294,7 @@
   <div class="sheet-backdrop" id="sportSheet" hidden>
     <div class="sheet sheet--tall" role="dialog" aria-modal="true" aria-labelledby="sportTitle" tabindex="-1">
       <div class="sheet__grabber" aria-hidden="true"></div>
-      <header class="sheet__head"><div><h2 class="sheet__title" id="sportTitle">Sports &amp; séances</h2><p class="sheet__sub">Organisez vos sports et leurs séances types.</p></div><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <header class="sheet__head"><h2 class="sheet__title" id="sportTitle">Sports &amp; séances</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
       <div class="sheet__scroll">
         <div id="familyList" class="stack"></div>
         <form class="inline-form inline-form--main" data-mgr-form="family" novalidate>

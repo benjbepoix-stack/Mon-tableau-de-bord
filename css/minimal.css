@@ -49,7 +49,6 @@ body { background: var(--bg); }
 .race-hero { position: relative; overflow: hidden; }
 .race-hero::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--gradient-accent); }
 .topbar { background: var(--bg); }
-.topbar__kicker { background: var(--gradient-accent); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .tabbar { grid-template-columns: repeat(3, 1fr); width: min(360px, calc(100% - 24px)); background: color-mix(in srgb, var(--surface-solid) 94%, transparent); border-color: var(--border); }
 .tabbar__item.is-active { color: var(--text); background: var(--surface-3); }
 .tabbar__item.is-active [data-icon] { color: var(--accent); }

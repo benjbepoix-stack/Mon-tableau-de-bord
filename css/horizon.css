@@ -83,15 +83,13 @@ body[data-screen="dashboardView"]::before {
 }
 body[data-screen="dashboardView"] .topbar, body[data-screen="dashboardView"] .app { position: relative; z-index: 1; }
 body[data-screen="dashboardView"]:not(.is-scrolled) .topbar { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
-body[data-screen="dashboardView"]:not(.is-scrolled) .topbar__kicker { color: rgba(255, 255, 255, .8); -webkit-text-fill-color: currentColor; background: none; }
 body[data-screen="dashboardView"]:not(.is-scrolled) .topbar__title { color: #fff; }
 body[data-screen="dashboardView"] .topbar .icon-btn, body[data-screen="dashboardView"] .sync-pill { background: var(--glass); border: 1px solid var(--glass-line); color: #fff; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
 :root[data-theme="light"] body[data-screen="dashboardView"] .topbar .icon-btn,
 :root[data-theme="light"] body[data-screen="dashboardView"] .sync-pill { background: rgba(20, 24, 28, .32); border-color: rgba(255, 255, 255, .25); }
 
-/* En-tête : kicker discret, titre plus léger */
+/* En-tête : titre plus léger */
 .topbar { background: color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
-.topbar__kicker { font-weight: 500; letter-spacing: .18em; color: var(--text-3); background: none; -webkit-text-fill-color: currentColor; }
 .topbar__title { font-weight: 600; letter-spacing: -.035em; }
 
 /* ---------- Séance du jour : sport en gros, séance en dessous (compact : l'agenda reste visible) ---------- */

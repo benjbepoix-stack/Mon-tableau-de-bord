@@ -52,16 +52,23 @@ function renderWeekPhase(keys, phases) {
     : '';
 }
 
+/** « 12 – 18 octobre », ou « 29 sept. – 5 oct. » quand la semaine change de mois. */
+function weekRange() {
+  const end = addDays(weekStart, 6);
+  const sameMonth = weekStart.getMonth() === end.getMonth();
+  const start = formatDate(weekStart, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' });
+  return `${start} – ${formatDate(end, sameMonth ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'short' })}`;
+}
+
 function renderOverview(keys, phases) {
   const today = todayKey();
   renderWeekPhase(keys, phases);
-  $('#overviewWeek').textContent = `${formatDate(weekStart, { day: '2-digit', month: '2-digit' })} — ${formatDate(addDays(weekStart, 6), { day: '2-digit', month: '2-digit' })}`;
   $('#weekMini').innerHTML = keys
     .map((k, i) => {
       const labels = sessionsOf(k).map(sessionLabel).filter(Boolean);
       const races = racesOn(k).map(r => `<span class="week-row__race">${esc(raceLabel(r))}</span>`).join('');
       const phase = phaseOn(k, phases);
-      const body = labels.length ? labels.map(esc).join('<br>') : races ? '' : 'Repos libre';
+      const body = labels.length ? labels.map(esc).join('<br>') : races ? '' : '—';
       return `<button type="button" class="week-row ${k === today ? 'is-today' : ''} ${phase ? `has-phase phase--${phase.type}` : ''}" data-action="goto-day" data-day="${k}">
         <span class="week-row__day">${DAY_SHORT[i]}</span>
         <span class="week-row__label ${labels.length || races ? '' : 'is-empty'}">${races}${body}</span>
@@ -89,7 +96,8 @@ function renderOverview(keys, phases) {
   $('#sumSessions').textContent = String(count);
 
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr'));
-  renderDonut({ donut: $('#weekDonut'), legend: $('#weekLegend'), total: $('#weekDonutTotal') }, entries, 'Aucune activité planifiée cette semaine.');
+  $('#splitCard').hidden = !entries.length;
+  renderDonut({ donut: $('#weekDonut'), legend: $('#weekLegend'), total: $('#weekDonutTotal') }, entries, '');
 }
 
 function sessionHTML(k, s, idx) {
@@ -117,12 +125,12 @@ function weatherHTML(k) {
   const changePlace = `<button type="button" class="icon-btn icon-btn--sm weather__place" data-action="change-weather-place" aria-label="Changer de ville">${icon('pin', 16)}</button>`;
   let body;
   if (weatherLoading && !weather?.data) body = `<span class="skeleton skeleton--icon"></span><div class="weather__text"><span class="skeleton skeleton--line"></span><span class="skeleton skeleton--line skeleton--short"></span></div>`;
-  else if (weather?.error) body = `<span class="weather__icon">⚠️</span><div class="weather__text"><strong>Météo indisponible</strong><span>Vérifiez la connexion puis actualisez.</span></div>`;
+  else if (weather?.error) body = `<span class="weather__icon">⚠️</span><div class="weather__text"><strong>Météo indisponible</strong></div>`;
   else {
     const w = weather?.data?.[k];
     body = w
       ? `<span class="weather__icon">${w.icon}</span><div class="weather__text"><strong>${esc(w.label)}</strong><span>${w.min}° / ${w.max}° · vent ${w.wind} km/h · ${esc(getPlace().name)}</span></div>`
-      : `<span class="weather__icon">—</span><div class="weather__text"><strong>Prévision non disponible</strong><span>Date hors de la fenêtre météo.</span></div>`;
+      : `<span class="weather__icon">—</span><div class="weather__text"><strong>Pas encore de prévision</strong></div>`;
   }
   return `<div class="weather">${body}${changePlace}${refresh}</div>`;
 }
@@ -153,8 +161,7 @@ function renderDays(keys, phases = getPhases()) {
 
 export function renderTraining() {
   const keys = weekKeys();
-  $('#weekLabel').innerHTML = `<strong>Semaine du ${formatDate(weekStart, { day: 'numeric', month: 'long' })}</strong><span>au ${formatDate(addDays(weekStart, 6), { day: 'numeric', month: 'long', year: 'numeric' })}</span>`;
-  $('#weatherPlaceLabel').textContent = getPlace().name;
+  $('#weekLabel').innerHTML = `<strong>${weekRange()}</strong>`;
   const phases = getPhases();
   renderOverview(keys, phases);
   renderDays(keys, phases);

@@ -24,9 +24,9 @@ const showTasks = () => {
   renderSportTasks();
 };
 const VIEWS = {
-  dashboardView: { kicker: 'Carnet', title: 'Accueil', show: renderDashboard, render: renderDashboard, slices: ['races', 'plans', 'families', 'objectives'] },
-  tasksView: { kicker: 'Carnet', title: 'Tâches', show: showTasks, render: renderSportTasks, slices: ['races'] },
-  trainingView: { kicker: 'Carnet', title: 'Planning', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
+  dashboardView: { title: 'Accueil', show: renderDashboard, render: renderDashboard, slices: ['races', 'plans', 'families', 'objectives'] },
+  tasksView: { title: 'Tâches', show: showTasks, render: renderSportTasks, slices: ['races'] },
+  trainingView: { title: 'Planning', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
 };
 const VIEW_KEY = 'dashboard_last_view';
 /** Dernier compte connecté sur cet appareil (un autre compte vide d'abord les données locales). */
@@ -55,7 +55,6 @@ function switchView(id, { scroll = true } = {}) {
     if (active) b.setAttribute('aria-current', 'page');
     else b.removeAttribute('aria-current');
   });
-  $('#headerKicker').textContent = VIEWS[id].kicker;
   $('#headerTitle').textContent = VIEWS[id].title;
   document.title = `${VIEWS[id].title} · Carnet`;
   VIEWS[id].show();
