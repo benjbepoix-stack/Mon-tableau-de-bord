@@ -169,6 +169,7 @@ body[data-screen="dashboardView"] .topbar__inner { min-height: 54px; }
 #dashboardView > .section:first-of-type { margin-top: 0; }
 #dashboardView .section__head { margin-bottom: 6px; }
 #dashboardView .agenda-mode { margin-bottom: 4px; }
+#dashboardView .agenda-mode button:not([aria-selected="true"]) { color: var(--text-2); }
 #dashboardView .item-card { padding: 11px 2px; }
 
 /* ---------- Réglages : choix de l'image de fond ---------- */
