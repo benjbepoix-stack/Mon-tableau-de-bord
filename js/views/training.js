@@ -6,12 +6,10 @@ import { defaultSession, normalizeDay, isRestTraining, REST_TRAINING } from '../
 import { openSheet, confirmDialog, promptDialog } from '../ui/dialog.js';
 import { toast, toastError } from '../ui/toast.js';
 import { icon } from '../ui/icons.js';
-import { renderDonut } from '../ui/charts.js';
 import { fetchWeek, getPlace, setPlace, searchPlaces } from '../services/weather.js';
 import { PHASE_TYPES, getPhases, phaseOn, racesOn } from '../core/season.js';
 import { ALLURE_URL } from './dashboard.js';
 
-const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const DAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 let weekStart = mondayOf(new Date());
@@ -38,18 +36,19 @@ const raceLabel = r => `🏁 ${r.name}${r.time ? ` · ${r.time}` : ''}`;
 const raceFacts = r => [r.sport, r.distance ? `${String(r.distance).replace('.', ',')} km` : '', r.elevation ? `${r.elevation} m D+` : '', r.target ? `objectif ${r.target}` : ''].filter(Boolean).join(' · ');
 
 /* ---------- Rendu ---------- */
+/** Jour déplié dans la liste (un seul à la fois) ; par défaut aujourd'hui s'il est dans la semaine affichée. */
+let openDay = todayKey();
+
 /** Phase(s) de la semaine affichée, avec l'orientation des séances. */
 function renderWeekPhase(keys, phases) {
   const inWeek = [...new Map(keys.map(k => phaseOn(k, phases)).filter(Boolean).map(p => [p.id, p])).values()];
-  $('#weekPhase').innerHTML = inWeek.length
-    ? inWeek
-        .map(p => {
-          const t = PHASE_TYPES[p.type];
-          const span = inWeek.length > 1 ? ` <span>(${formatDate(fromKey(p.start < keys[0] ? keys[0] : p.start), { weekday: 'short' })} → ${formatDate(fromKey(p.end > keys[6] ? keys[6] : p.end), { weekday: 'short' })})</span>` : '';
-          return `<div class="week-phase phase--${p.type}"><strong>${esc(t.name)}${span}</strong><p>${esc(t.advice)}</p></div>`;
-        })
-        .join('')
-    : '';
+  $('#weekPhase').innerHTML = inWeek
+    .map(p => {
+      const t = PHASE_TYPES[p.type];
+      const span = inWeek.length > 1 ? ` <span>(${formatDate(fromKey(p.start < keys[0] ? keys[0] : p.start), { weekday: 'short' })} → ${formatDate(fromKey(p.end > keys[6] ? keys[6] : p.end), { weekday: 'short' })})</span>` : '';
+      return `<div class="week-phase phase--${p.type}"><strong>${esc(t.name)}${span}</strong><p>${esc(t.advice)}</p></div>`;
+    })
+    .join('');
 }
 
 /** « 12 – 18 octobre », ou « 29 sept. – 5 oct. » quand la semaine change de mois. */
@@ -60,64 +59,44 @@ function weekRange() {
   return `${start} – ${formatDate(end, sameMonth ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'short' })}`;
 }
 
-function renderOverview(keys, phases) {
-  const today = todayKey();
-  renderWeekPhase(keys, phases);
-  $('#weekMini').innerHTML = keys
-    .map((k, i) => {
-      const labels = sessionsOf(k).map(sessionLabel).filter(Boolean);
-      const races = racesOn(k).map(r => `<span class="week-row__race">${esc(raceLabel(r))}</span>`).join('');
-      const phase = phaseOn(k, phases);
-      const body = labels.length ? labels.map(esc).join('<br>') : races ? '' : '—';
-      return `<button type="button" class="week-row ${k === today ? 'is-today' : ''} ${phase ? `has-phase phase--${phase.type}` : ''}" data-action="goto-day" data-day="${k}">
-        <span class="week-row__day">${DAY_SHORT[i]}</span>
-        <span class="week-row__label ${labels.length || races ? '' : 'is-empty'}">${races}${body}</span>
-      </button>`;
-    })
-    .join('');
-
+function renderSummary(keys) {
   let distance = 0, elevation = 0, time = 0, count = 0;
-  const counts = {};
   keys.forEach(k =>
     sessionsOf(k).forEach(s => {
       distance += num(s.distance);
       elevation += num(s.elevation);
       time += parseDuration(s.time);
-      if (s.training && !isRestTraining(s.training)) {
-        count++;
-        const name = familyById(s.family)?.name || 'Autre';
-        counts[name] = (counts[name] || 0) + 1;
-      }
+      if (s.training && !isRestTraining(s.training)) count++;
     })
   );
-  $('#sumDistance').textContent = `${round(distance, 1).toLocaleString('fr-FR')} km`;
-  $('#sumTime').textContent = minutesLabel(time);
-  $('#sumElevation').textContent = `${Math.round(elevation)} m`;
-  $('#sumSessions').textContent = String(count);
-
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr'));
-  $('#splitCard').hidden = !entries.length;
-  renderDonut({ donut: $('#weekDonut'), legend: $('#weekLegend'), total: $('#weekDonutTotal') }, entries, '');
+  $('#weekSum').textContent = count || distance || time
+    ? [`${round(distance, 1).toLocaleString('fr-FR')} km`, minutesLabel(time), elevation ? `${Math.round(elevation).toLocaleString('fr-FR')} m D+` : '', count ? `${count} ${plural(count, 'séance', 'séances')}` : ''].filter(Boolean).join(' · ')
+    : 'Aucune séance prévue';
 }
 
 function sessionHTML(k, s, idx) {
   const f = s.family ? familyById(s.family) : null;
-  const familyOptions = `<option value="">— Choisir un sport —</option>${state.families.map(a => `<option value="${esc(a.id)}"${a.id === s.family ? ' selected' : ''}>${esc(a.name)}</option>`).join('')}`;
-  const typeOptions = `<option value="">— Type de séance —</option>${(f?.types || []).map(t => `<option value="${esc(t)}"${t === s.training ? ' selected' : ''}>${esc(t)}</option>`).join('')}`;
+  const familyOptions = `<option value="">Sport</option>${state.families.map(a => `<option value="${esc(a.id)}"${a.id === s.family ? ' selected' : ''}>${esc(a.name)}</option>`).join('')}`;
+  const typeOptions = `<option value="">Séance</option>${(f?.types || []).map(t => `<option value="${esc(t)}"${t === s.training ? ' selected' : ''}>${esc(t)}</option>`).join('')}`;
   const dis = f ? '' : ' disabled';
   return `<div class="session" data-day="${k}" data-session="${esc(s.id)}">
-    <div class="session__head"><span class="session__index">Séance ${idx + 1}</span>
-      <button type="button" class="icon-btn icon-btn--sm icon-btn--danger" data-action="remove-session" aria-label="Supprimer la séance">${icon('close', 16)}</button></div>
     <div class="session__selects">
       <select class="input select" data-field="family" aria-label="Sport">${familyOptions}</select>
       <select class="input select" data-field="training" aria-label="Type de séance"${dis}>${typeOptions}</select>
+      <button type="button" class="icon-btn icon-btn--sm icon-btn--danger" data-action="remove-session" aria-label="Supprimer la séance ${idx + 1}">${icon('close', 16)}</button>
     </div>
     <div class="session__metrics">
-      <label class="mini-field"><span>Distance · km</span><input class="input input--center" type="text" inputmode="decimal" data-field="distance" value="${esc(s.distance)}" placeholder="0"${dis}></label>
-      <label class="mini-field"><span>Durée · h:min</span><input class="input input--center input--wheel${s.time && s.time !== '00:00' ? '' : ' is-zero'}" type="time" step="60" data-field="time" value="${esc(s.time || '00:00')}"${dis}></label>
-      <label class="mini-field"><span>D+ · m</span><input class="input input--center" type="text" inputmode="numeric" data-field="elevation" value="${esc(s.elevation)}" placeholder="0"${dis}></label>
+      <label class="mini-field"><span>km</span><input class="input input--center" type="text" inputmode="decimal" data-field="distance" value="${esc(s.distance)}" placeholder="0"${dis}></label>
+      <label class="mini-field"><span>durée</span><input class="input input--center input--wheel${s.time && s.time !== '00:00' ? '' : ' is-zero'}" type="time" step="60" data-field="time" value="${esc(s.time || '00:00')}"${dis}></label>
+      <label class="mini-field"><span>D+ m</span><input class="input input--center" type="text" inputmode="numeric" data-field="elevation" value="${esc(s.elevation)}" placeholder="0"${dis}></label>
     </div>
   </div>`;
+}
+
+/** Météo résumée d'un jour pour la ligne repliée : icône et température maximale. */
+function weatherShort(k) {
+  const w = weather?.data?.[k];
+  return w ? `<span class="plan-day__wx" title="${esc(w.label)}">${w.icon} ${w.max}°</span>` : '';
 }
 
 function weatherHTML(k) {
@@ -136,34 +115,49 @@ function weatherHTML(k) {
 }
 
 function renderDays(keys, phases = getPhases()) {
-  const container = $('#days');
-  const scroll = container.scrollLeft;
   const today = todayKey();
-  container.innerHTML = keys
+  $('#days').innerHTML = keys
     .map((k, i) => {
       const d = addDays(weekStart, i);
       const phase = phaseOn(k, phases);
       const races = racesOn(k);
-      return `<article class="day-card ${k === today ? 'is-today' : ''} ${races.length ? 'is-race-day' : ''}" id="day-${k}">
-        <header class="day-card__head">
-          <div><h3 class="day-card__name">${DAYS[i]}</h3><div class="day-card__date">${formatDate(d, { day: 'numeric', month: 'long' })}</div></div>
-          <div class="day-card__badges">${phase ? `<span class="phase-chip phase--${phase.type}">${esc(PHASE_TYPES[phase.type].short)}</span>` : ''}${k === today ? '<span class="badge badge--accent">Aujourd’hui</span>' : ''}</div>
-        </header>
-        ${races.map(r => `<button type="button" class="race-banner" data-action="open-races" aria-label="Voir la course ${esc(r.name)}"><strong>${esc(raceLabel(r))}</strong>${raceFacts(r) ? `<span>${esc(raceFacts(r))}</span>` : ''}${r.location ? `<span>${icon('pin', 12)} ${esc(r.location)}</span>` : ''}</button>`).join('')}
-        ${weatherHTML(k)}
-        <div class="day-card__sessions">${sessionsOf(k).map((s, idx) => sessionHTML(k, s, idx)).join('')}</div>
-        <button type="button" class="btn btn--dashed" data-action="add-session" data-day="${k}">${icon('plus', 16)}<span>Ajouter une séance</span></button>
+      const labels = sessionsOf(k).map(sessionLabel).filter(Boolean);
+      const metrics = sessionsOf(k)
+        .map(s => [num(s.distance) ? `${String(s.distance).replace('.', ',')} km` : '', parseDuration(s.time) ? minutesLabel(parseDuration(s.time)) : ''].filter(Boolean).join(' · '))
+        .filter(Boolean)
+        .join(' + ');
+      const open = k === openDay;
+      const main = races.length
+        ? `<span class="plan-day__race">${esc(races.map(r => r.name).join(', '))}</span>`
+        : labels.length
+          ? esc(labels.join(' + '))
+          : '<span class="plan-day__rest">—</span>';
+      return `<article class="plan-day ${k === today ? 'is-today' : ''} ${open ? 'is-open' : ''} ${phase ? `has-phase phase--${phase.type}` : ''}" id="day-${k}">
+        <button type="button" class="plan-day__row" data-action="toggle-day" data-day="${k}" aria-expanded="${open}">
+          <span class="plan-day__date"><span>${DAY_SHORT[i]}</span><strong>${d.getDate()}</strong></span>
+          <span class="plan-day__main"><span class="plan-day__label">${main}</span>${metrics ? `<span class="plan-day__meta">${esc(metrics)}</span>` : ''}</span>
+          ${weatherShort(k)}
+        </button>
+        ${open
+          ? `<div class="plan-day__body">
+          ${races.map(r => `<button type="button" class="race-banner" data-action="open-races" aria-label="Voir la course ${esc(r.name)}"><strong>${esc(raceLabel(r))}</strong>${raceFacts(r) ? `<span>${esc(raceFacts(r))}</span>` : ''}${r.location ? `<span>${icon('pin', 12)} ${esc(r.location)}</span>` : ''}</button>`).join('')}
+          ${weatherHTML(k)}
+          <div class="day-card__sessions">${sessionsOf(k).map((s, idx) => sessionHTML(k, s, idx)).join('')}</div>
+          <button type="button" class="btn btn--dashed" data-action="add-session" data-day="${k}">${icon('plus', 16)}<span>Ajouter une séance</span></button>
+        </div>`
+          : ''}
       </article>`;
     })
     .join('');
-  container.scrollLeft = scroll;
 }
 
 export function renderTraining() {
   const keys = weekKeys();
-  $('#weekLabel').innerHTML = `<strong>${weekRange()}</strong>`;
+  $('#weekLabel').textContent = weekRange();
+  $('#weekTodayBtn').hidden = keys.includes(todayKey());
   const phases = getPhases();
-  renderOverview(keys, phases);
+  renderWeekPhase(keys, phases);
+  renderSummary(keys);
   renderDays(keys, phases);
   if ($('#sportSheet') && !$('#sportSheet').hidden) renderManager();
 }
@@ -186,21 +180,9 @@ async function loadWeather(force = false) {
   }
 }
 
-let scrolledToTodayOnOpen = false;
-
 export function showTraining() {
   renderTraining();
   loadWeather();
-  // Au tout premier affichage de l'app (pas à chaque re-rendu), le planning
-  // s'ouvre sur la journée d'aujourd'hui plutôt que sur le lundi de la semaine.
-  if (!scrolledToTodayOnOpen) {
-    scrolledToTodayOnOpen = true;
-    requestAnimationFrame(() => {
-      const days = $('#days');
-      const card = $(`#day-${todayKey()}`);
-      if (days?.firstElementChild && card) days.scrollLeft = card.offsetLeft - days.firstElementChild.offsetLeft;
-    });
-  }
 }
 
 /* ---------- Mutations ---------- */
@@ -233,15 +215,17 @@ async function onClick(e) {
     case 'week-prev':
     case 'week-next':
       weekStart = addDays(weekStart, btn.dataset.action === 'week-prev' ? -7 : 7);
+      openDay = '';
       showTraining();
       break;
     case 'week-today':
       weekStart = mondayOf(new Date());
+      openDay = todayKey();
       showTraining();
-      requestAnimationFrame(() => $(`#day-${todayKey()}`)?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' }));
       break;
-    case 'goto-day':
-      $(`#day-${btn.dataset.day}`)?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+    case 'toggle-day':
+      openDay = openDay === btn.dataset.day ? '' : btn.dataset.day;
+      renderDays(weekKeys());
       break;
     case 'open-races':
       // Les courses se gèrent dans Allure (l'ancien onglet Courses de Carnet n'existe plus).
