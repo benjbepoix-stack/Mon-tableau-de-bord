@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Tableau de bord personnel : agenda, tâches, entraînements, courses et mesures.">
+  <meta name="theme-color" content="#0b100e">
+  <meta name="color-scheme" content="dark light">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Carnet">
+  <meta name="format-detection" content="telephone=no">
+  <title>Carnet (test)</title>
+
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+
+  <!-- Thème appliqué avant le premier rendu (évite le flash clair/sombre). Auto : réglage de l'appareil ;
+       « sombre » enregistré avant le passage au thème Auto (ancien défaut) = Auto. -->
+  <script>
+    try {
+      var t = localStorage.getItem('dashboard_theme');
+      if ((t !== 'light' && t !== 'dark') || (t === 'dark' && !localStorage.getItem('dashboard_theme_auto_v1'))) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = t;
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#eef1ec' : '#0b100e');
+    } catch (e) {}
+  </script>
+
+  <link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/views/dashboard.css">
+  <link rel="stylesheet" href="css/views/training.css">
+  <link rel="stylesheet" href="css/minimal.css">
+  <link rel="stylesheet" href="css/horizon.css">
+  <link rel="stylesheet" href="css/foret.css">
+
+  <script type="module" src="js/main.js"></script>
+</head>
+
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <div class="topbar__titles">
+        <h1 class="topbar__title" id="headerTitle">Mon espace</h1>
+      </div>
+      <div class="topbar__actions">
+        <span class="sync-pill" id="syncStatus" data-status="connecting" role="status"><span class="spinner spinner--xs"></span><span>Connexion…</span></span>
+        <button type="button" class="icon-btn icon-btn--glass" id="settingsBtn" aria-label="Réglages" aria-haspopup="dialog"><span data-icon="settings" data-size="19"></span></button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabbar" aria-label="Navigation principale">
+    <button type="button" class="tabbar__item is-active" data-view="dashboardView" aria-current="page"><span data-icon="horizon"></span><span>Accueil</span></button>
+    <button type="button" class="tabbar__item" data-view="tasksView"><span data-icon="calendar"></span><span>Agenda</span></button>
+    <button type="button" class="tabbar__item" data-view="trainingView"><span data-icon="training"></span><span>Planning</span></button>
+  </nav>
+  <button type="button" class="fab" id="fabAdd" aria-label="Ajouter" aria-haspopup="dialog"><span data-icon="plus" data-size="26"></span></button>
+
+  <main class="app" id="main" tabindex="-1">
+
+    <!-- ================= ACCUEIL ================= -->
+    <section id="dashboardView" class="view" aria-labelledby="headerTitle">
+      <section class="today-card" id="todaySession"></section>
+      <section class="hz-late" id="homeLate" aria-label="En retard" hidden></section>
+      <section class="hz-block" aria-labelledby="radarTitle">
+        <div class="hz-head"><h2 class="hz-cap" id="radarTitle">14 jours</h2><span class="hz-when" id="radarMonth"></span></div>
+        <div class="hz-radar" id="homeRadar"></div>
+      </section>
+      <section class="hz-block" aria-labelledby="todayTitle">
+        <div class="hz-head"><h2 class="hz-cap" id="todayTitle">Aujourd’hui</h2></div>
+        <div class="hz-list" id="homeToday"></div>
+      </section>
+      <section class="hz-block" id="homeSoonBlock" aria-labelledby="soonTitle">
+        <div class="hz-head"><h2 class="hz-cap" id="soonTitle">Bientôt</h2><button type="button" class="hz-link" data-goto="tasksView">Agenda</button></div>
+        <div class="hz-list" id="homeSoon"></div>
+      </section>
+
+      <!-- Accès aux autres apps (même compte) ; pastille rouge : entretien en retard -->
+      <nav class="app-tiles" aria-label="Mes autres apps">
+        <a class="app-tile" href="https://benjbepoix-stack.github.io/Allure/"><i class="app-tile__icon" data-icon="mountain" data-size="22"></i><span>Allure</span></a>
+        <a class="app-tile" href="https://benjbepoix-stack.github.io/Mon-budget/"><i class="app-tile__icon" data-icon="wallet" data-size="22"></i><span>Mon budget</span></a>
+        <a class="app-tile" id="maisonTile" href="https://benjbepoix-stack.github.io/Ma-maison/"><i class="app-tile__icon" data-icon="house" data-size="22"></i><span>Ma Maison</span><b class="app-tile__badge" id="maisonBadge" aria-hidden="true" hidden></b></a>
+        <a class="app-tile" id="garageTile" href="https://benjbepoix-stack.github.io/Mon-garage/"><i class="app-tile__icon" data-icon="car" data-size="22"></i><span>Mon Garage</span><b class="app-tile__badge" id="garageBadge" aria-hidden="true" hidden></b></a>
+      </nav>
+
+      <section class="section">
+        <header class="section__head">
+          <h2 class="section__title"><label for="notes">Notes</label></h2>
+          <span class="save-state" id="notesStatus" aria-live="polite"></span>
+        </header>
+        <div class="card notes"><textarea id="notes" class="notes__area" placeholder="Écrire…" maxlength="20000"></textarea></div>
+      </section>
+    </section>
+
+    <!-- ================= AGENDA ================= -->
+    <section id="tasksView" class="view" hidden aria-labelledby="headerTitle">
+      <div class="card mcal" id="monthCal"></div>
+      <div id="monthCalDay"></div>
+
+      <section class="section">
+        <header class="section__head">
+          <h2 class="section__title">Tâches</h2>
+          <div class="section__tools"><div class="task-progress" id="taskProgress"></div></div>
+        </header>
+        <div class="card card--list" id="tasks"></div>
+      </section>
+
+      <section class="section" id="sportSection" hidden>
+        <header class="section__head"><h2 class="section__title">Sport</h2></header>
+        <div class="card card--list" id="sportTasks"></div>
+      </section>
+
+      <section class="section" id="garageSection" hidden>
+        <header class="section__head">
+          <h2 class="section__title">Garage</h2>
+          <span class="garage-widget__live" id="garageLive" hidden><i></i>en direct</span>
+        </header>
+        <div class="card card--list" id="garageWidget"></div>
+      </section>
+
+      <section class="section" id="maisonSection" hidden>
+        <header class="section__head">
+          <h2 class="section__title">Maison</h2>
+          <span class="garage-widget__live" id="maisonLive" hidden><i></i>en direct</span>
+        </header>
+        <div class="card card--list" id="maisonWidget"></div>
+      </section>
+
+      <section class="section" id="seasonSection" hidden>
+        <header class="section__head"><h2 class="section__title" id="seasonTitle">Saison</h2></header>
+        <div class="card card--list" id="seasonWidget"></div>
+      </section>
+      <div class="agenda-links"><button type="button" class="link-btn" data-view-all="appointments">Tous les RDV</button><button type="button" class="link-btn" data-view-all="events">Tous les événements</button></div>
+    </section>
+
+    <!-- ================= ENTRAÎNEMENT ================= -->
+    <section id="trainingView" class="view" hidden aria-labelledby="headerTitle">
+      <div id="trainingWeekPanel">
+        <div class="toolbar toolbar--week">
+          <button type="button" class="btn btn--primary" data-action="week-today"><span data-icon="calendar" data-size="18"></span><span>Aujourd’hui</span></button>
+          <button type="button" class="btn btn--soft" data-action="open-manager"><span data-icon="settings" data-size="18"></span><span>Sports</span></button>
+        </div>
+
+        <div class="training-grid">
+          <section class="card week-card">
+            <header class="card__head"><h2 class="card__title">Semaine</h2></header>
+            <div id="weekPhase"></div>
+            <div id="weekMini" class="week-list"></div>
+            <div class="summary">
+              <div><strong id="sumDistance">0 km</strong><span>Distance</span></div>
+              <div><strong id="sumTime">0h00</strong><span>Durée</span></div>
+              <div><strong id="sumElevation">0 m</strong><span>D+</span></div>
+              <div><strong id="sumSessions">0</strong><span>Séances</span></div>
+            </div>
+          </section>
+
+          <section class="card" id="splitCard">
+            <header class="card__head"><h2 class="card__title">Répartition</h2></header>
+            <div class="donut-chart">
+              <div class="donut" id="weekDonut"><div class="donut__center"><strong id="weekDonutTotal">0</strong><span>activités</span></div></div>
+              <div class="legend" id="weekLegend"></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="week-nav">
+          <button type="button" class="icon-btn icon-btn--glass" data-action="week-prev" aria-label="Semaine précédente"><span data-icon="chevronLeft"></span></button>
+          <div class="week-nav__label" id="weekLabel" aria-live="polite"></div>
+          <button type="button" class="icon-btn icon-btn--glass" data-action="week-next" aria-label="Semaine suivante"><span data-icon="chevronRight"></span></button>
+        </div>
+        <section id="days" class="days" aria-label="Détail des jours de la semaine"></section>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================= FEUILLES / MODALES ================= -->
+
+  <!-- Réglages : thème et compte -->
+  <div class="sheet-backdrop" id="settingsSheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <header class="sheet__head"><h2 class="sheet__title" id="settingsTitle">Réglages</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <div class="form sheet__scroll">
+        <div class="field">
+          <span class="field__label" id="themeLabel">Thème</span>
+          <div class="segmented segmented--flush" role="radiogroup" aria-labelledby="themeLabel" id="themeSwitch">
+            <button type="button" role="radio" data-theme-pick="auto" aria-checked="false">Auto</button>
+            <button type="button" role="radio" data-theme-pick="dark" aria-checked="false">Sombre</button>
+            <button type="button" role="radio" data-theme-pick="light" aria-checked="false">Clair</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field__label" id="backdropLabel">Fond de l’accueil</span>
+          <div class="backdrop-picker" role="radiogroup" aria-labelledby="backdropLabel" id="backdropPicker">
+            <button type="button" role="radio" data-backdrop="auto" aria-checked="false"><span>Auto</span></button>
+            <button type="button" role="radio" data-backdrop="crepuscule" aria-checked="false"><span>Crépuscule</span></button>
+            <button type="button" role="radio" data-backdrop="matin" aria-checked="false"><span>Matin</span></button>
+            <button type="button" role="radio" data-backdrop="nuit" aria-checked="false"><span>Nuit</span></button>
+            <button type="button" role="radio" data-backdrop="sauge" aria-checked="false"><span>Sauge</span></button>
+            <button type="button" role="radio" data-backdrop="uni" aria-checked="false"><span>Uni</span></button>
+            <button type="button" role="radio" data-backdrop="photo" aria-checked="false"><span>Ma photo</span></button>
+          </div>
+          <div class="backdrop-actions"><button type="button" class="link-btn" id="backdropChoose">Choisir une photo…</button><button type="button" class="link-btn" id="backdropRemove" hidden>Retirer la photo</button></div>
+          <input type="file" id="backdropFile" accept="image/*" hidden>
+        </div>
+        <div class="field">
+          <span class="field__label">Compte</span>
+          <div class="account">
+            <p class="account__line" id="accountLine"></p>
+            <button type="button" class="btn btn--primary btn--block" id="loginBtn" hidden>Se connecter</button>
+            <button type="button" class="btn btn--soft btn--block" id="logoutBtn" hidden>Se déconnecter</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connexion : affichée seulement si Firebase répond « pas de compte » (jamais bloquante au démarrage) -->
+  <div class="sheet-backdrop" id="authSheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <form class="form auth" id="authForm" novalidate>
+        <div class="auth__brand"><img class="auth__logo" src="icon.svg" alt="" width="44" height="44"><span class="auth__kicker">Carnet</span></div>
+        <h2 class="auth__title" id="authTitle">Connexion</h2>
+        <p class="auth__sub" id="authSub">Même compte que Mon Garage et Ma Maison.</p>
+        <div class="field"><label class="field__label" for="authEmail">E-mail</label><input class="input" id="authEmail" name="email" type="email" autocomplete="email" inputmode="email" placeholder="vous@email.fr" required></div>
+        <div class="field" id="authPasswordField"><label class="field__label" for="authPassword">Mot de passe</label><input class="input" id="authPassword" name="password" type="password" autocomplete="current-password" placeholder="6 caractères minimum" required></div>
+        <p class="auth__error" id="authError" role="alert"></p>
+        <button type="submit" class="btn btn--primary btn--lg btn--block" id="authSubmit">Se connecter</button>
+        <button type="button" class="link-btn link-btn--center" id="authForgot">Mot de passe oublié ?</button>
+        <button type="button" class="btn btn--ghost btn--block" id="authSwitch">Créer un compte</button>
+        <div class="auth__local">
+          <button type="button" class="btn btn--soft btn--block" id="authLocal">Continuer sans compte</button>
+          <p class="auth__hint">Données gardées sur cet appareil, sans synchronisation.</p>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Éditeur tâche / rendez-vous / événement -->
+  <div class="sheet-backdrop" id="itemSheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="itemTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <header class="sheet__head"><h2 class="sheet__title" id="itemTitle">Ajouter</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <form class="form" id="itemForm" novalidate>
+        <input type="hidden" name="type"><input type="hidden" name="editId">
+        <div class="field"><label class="field__label" for="itemTitleInput">Titre</label><input class="input" id="itemTitleInput" name="title" maxlength="100" required autocomplete="off" enterkeyhint="next"></div>
+        <div class="form-grid">
+          <div class="field field--full"><label class="field__label" for="i-date" id="itemDateLabel">Date</label><input class="input" id="i-date" type="date" name="date"></div>
+          <div class="field"><label class="field__label" for="i-time" id="itemTimeLabel">Début</label><input class="input" id="i-time" type="time" name="time"></div>
+        </div>
+        <details class="more-fields" id="itemMore"><summary>Plus d’options</summary><div class="more-fields__body"><div class="field only-timed"><label class="field__label" for="i-end">Fin <span class="field__opt">(facultatif)</span></label><input class="input" id="i-end" type="time" name="endTime"></div><div class="field"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select><p class="field__help" id="itemRepeatHelp" hidden>Cochée, elle revient à sa prochaine échéance.</p></div><div class="field only-timed"><label class="field__label" for="i-location">Lieu <span class="field__opt">(facultatif)</span></label><input class="input" id="i-location" name="location" maxlength="120" placeholder="Ex. 12 rue de la Paix, Besançon" autocomplete="off"></div><div class="field"><label class="field__label" for="i-note">Note <span class="field__opt">(facultatif)</span></label><textarea class="input textarea" id="i-note" name="note" maxlength="500" rows="3" placeholder="Détails…"></textarea></div></div></details>
+        <div class="form-actions"><button type="button" class="btn btn--ghost" data-close>Annuler</button><button type="submit" class="btn btn--primary">Enregistrer</button></div>
+        <button type="button" class="btn btn--ghost btn--danger-text" id="itemDelete" hidden><span data-icon="trash" data-size="18"></span><span>Supprimer</span></button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Historique rendez-vous / événements -->
+  <div class="sheet-backdrop" id="archiveSheet" hidden>
+    <div class="sheet sheet--tall" role="dialog" aria-modal="true" aria-labelledby="archiveTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <header class="sheet__head"><h2 class="sheet__title" id="archiveTitle">Rendez-vous</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <div class="segmented" role="tablist">
+        <button type="button" role="tab" data-archive-tab="upcoming" aria-selected="true">À venir</button>
+        <button type="button" role="tab" data-archive-tab="past" aria-selected="false">Passés</button>
+      </div>
+      <div class="sheet__scroll" id="archiveContent"></div>
+    </div>
+  </div>
+
+  <!-- Gestion des sports -->
+  <div class="sheet-backdrop" id="sportSheet" hidden>
+    <div class="sheet sheet--tall" role="dialog" aria-modal="true" aria-labelledby="sportTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <header class="sheet__head"><h2 class="sheet__title" id="sportTitle">Sports &amp; séances</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <div class="sheet__scroll">
+        <div id="familyList" class="stack"></div>
+        <form class="inline-form inline-form--main" data-mgr-form="family" novalidate>
+          <input class="input" name="name" maxlength="60" placeholder="Nouveau sport (ex. Natation)" aria-label="Nouveau sport">
+          <button type="submit" class="btn btn--primary">Ajouter</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export calendrier iOS -->
+  <div class="sheet-backdrop sheet-backdrop--dialog" id="calendarSheet" hidden>
+    <div class="sheet sheet--dialog" role="dialog" aria-modal="true" aria-labelledby="calendarTitle" tabindex="-1" id="calendarContent"></div>
+  </div>
+
+  <!-- Bouton + : tâche express (avec échéance en un appui), puis les autres saisies -->
+  <div class="sheet-backdrop" id="addSheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="addTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <header class="sheet__head"><h2 class="sheet__title" id="addTitle">Ajouter</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <form class="add-quick" id="addQuick" novalidate>
+        <label class="hz-cap" for="addTask">Tâche</label>
+        <div class="add-quick__field">
+          <input id="addTask" name="title" maxlength="100" placeholder="Écrire la tâche…" autocomplete="off" enterkeyhint="done">
+          <button type="submit" class="add-quick__go" aria-label="Ajouter la tâche"><span data-icon="arrowUp" data-size="20"></span></button>
+        </div>
+        <div class="add-when" id="addWhen" role="radiogroup" aria-label="Échéance"></div>
+      </form>
+      <h3 class="hz-cap add-sub">Autre chose</h3>
+      <div class="add-grid">
+        <button type="button" class="add-tile" data-add="appointments"><span class="add-tile__icon"><span data-icon="clock" data-size="19"></span></span><span><b>Rendez-vous</b><small>Heure, lieu, Calendrier</small></span></button>
+        <button type="button" class="add-tile" data-add="events"><span class="add-tile__icon"><span data-icon="sparkle" data-size="19"></span></span><span><b>Événement</b><small>Anniversaire, sortie</small></span></button>
+        <button type="button" class="add-tile" data-add="session"><span class="add-tile__icon"><span data-icon="training" data-size="19"></span></span><span><b>Séance</b><small>Dans le planning</small></span></button>
+        <button type="button" class="add-tile" data-add="note"><span class="add-tile__icon"><span data-icon="note" data-size="19"></span></span><span><b>Note</b><small>Une idée à garder</small></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Un jour du radar : ce qui est prévu, et ajouter ce jour-là -->
+  <div class="sheet-backdrop" id="daySheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dayTitle" tabindex="-1">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <header class="sheet__head"><div><p class="hz-cap" id="dayKicker"></p><h2 class="sheet__title" id="dayTitle"></h2></div><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <div class="sheet__scroll" id="dayContent"></div>
+      <button type="button" class="btn btn--primary btn--lg btn--block" id="dayAdd"><span data-icon="plus" data-size="18"></span><span>Ajouter ce jour-là</span></button>
+    </div>
+  </div>
+
+  <noscript><div class="noscript">JavaScript est nécessaire pour utiliser cette application.</div></noscript>
+</body>
+</html>

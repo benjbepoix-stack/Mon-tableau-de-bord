@@ -1,0 +1,198 @@
+/* =========================================================
+   CARNET — style « Horizon » (maquette B1)
+   Paysage en haut de l'accueil, grand titre blanc, un seul accent citron,
+   surfaces en verre sombre. Chargé en dernier : surcharge minimal.css.
+   Thème clair : même mise en page, paysage du matin, feuille claire.
+   ========================================================= */
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 300 700; font-display: swap; src: url("../fonts/geist-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 300 700; font-display: swap; src: url("../fonts/geist-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+:root {
+  --font: "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: var(--font);
+  --bg: #0e1114;
+  --bg-2: #0e1114;
+  --surface: #171b1f;
+  --surface-solid: #171b1f;
+  --surface-2: #1d2226;
+  --surface-3: #252b30;
+  --field: #1d2226;
+  --border: rgba(255, 255, 255, .07);
+  --border-strong: rgba(255, 255, 255, .12);
+  --text: #eef0ee;
+  --text-2: #a4aba8;
+  --text-3: #6f7774;
+  --lime: #c6f28a;
+  --lime-ink: #12160f;
+  --accent: #c6f28a;
+  --accent-2: #c6f28a;
+  --accent-ink: #12160f;
+  --accent-soft: rgba(198, 242, 138, .12);
+  --gradient-accent: #c6f28a;
+  --shadow-accent: none;
+  --danger: #ff8478;
+  --danger-soft: rgba(255, 107, 94, .16);
+  --amber: #f0c674;
+  --amber-soft: rgba(240, 198, 116, .13);
+  --glass: rgba(18, 22, 26, .55);
+  --glass-line: rgba(255, 255, 255, .1);
+  --horizon: url("../img/horizon-sombre.svg");
+  --bg-hero: #1d2a36;
+  --r-lg: 18px;
+  --r-xl: 22px;
+}
+/* minimal.css fixe l'accent pour les deux thèmes : même portée ici. */
+:root, :root[data-theme="light"] { --accent-2: var(--accent); --accent-ink: #12160f; --gradient-accent: #c6f28a; --shadow-accent: none; }
+:root[data-theme="light"] {
+  --bg: #f3f4f2;
+  --bg-2: #f3f4f2;
+  --surface: #ffffff;
+  --surface-solid: #ffffff;
+  --surface-2: #eceeea;
+  --surface-3: #e2e5e0;
+  --field: #eceeea;
+  --border: rgba(20, 24, 20, .07);
+  --border-strong: rgba(20, 24, 20, .13);
+  --text: #14171a;
+  --text-2: #5b635e;
+  --text-3: #8c938e;
+  --accent: #4d7a12;            /* texte et icônes : citron trop pâle sur fond clair */
+  --accent-2: #4d7a12;
+  --accent-ink: #12160f;
+  --accent-soft: rgba(110, 160, 40, .14);
+  --danger: #c43a2b;
+  --danger-soft: #fde4e0;
+  --amber: #9a6a00;
+  --amber-soft: #fbefd2;
+  --glass: rgba(255, 255, 255, .72);
+  --glass-line: rgba(20, 24, 20, .08);
+  --horizon: url("../img/horizon-clair.svg");
+  --bg-hero: #6f8aa5;
+}
+
+body { font-family: var(--font); font-feature-settings: "ss01" on; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--font); }
+
+/* ---------- Paysage de l'accueil ---------- */
+body[data-screen="dashboardView"]::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 470px; z-index: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(10, 14, 18, .30) 0%, rgba(10, 14, 18, .18) 40%, rgba(10, 14, 18, .55) 72%, var(--bg) 100%), var(--horizon) center 35% / cover no-repeat, var(--bg-hero, #1d2a36);
+}
+:root[data-theme="light"] body[data-screen="dashboardView"]::before {
+  background: linear-gradient(180deg, rgba(20, 30, 40, .30) 0%, rgba(20, 30, 40, .16) 40%, rgba(20, 30, 40, .30) 70%, var(--bg) 100%), var(--horizon) center 35% / cover no-repeat, var(--bg-hero, #6f8aa5);
+}
+body[data-screen="dashboardView"] .topbar, body[data-screen="dashboardView"] .app { position: relative; z-index: 1; }
+body[data-screen="dashboardView"]:not(.is-scrolled) .topbar { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+body[data-screen="dashboardView"]:not(.is-scrolled) .topbar__title { color: #fff; }
+body[data-screen="dashboardView"] .topbar .icon-btn, body[data-screen="dashboardView"] .sync-pill { background: var(--glass); border: 1px solid var(--glass-line); color: #fff; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+:root[data-theme="light"] body[data-screen="dashboardView"] .topbar .icon-btn,
+:root[data-theme="light"] body[data-screen="dashboardView"] .sync-pill { background: rgba(20, 24, 28, .32); border-color: rgba(255, 255, 255, .25); }
+
+/* En-tête : titre plus léger */
+.topbar { background: color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.topbar__title { font-weight: 600; letter-spacing: -.035em; }
+
+/* ---------- Séance du jour : sport en gros, séance en dessous (compact : l'agenda reste visible) ---------- */
+.today-card { display: block; text-align: center; color: #fff; padding: 22px 4px 20px; background: none; border: 0; box-shadow: none; overflow: visible; }
+.today-card::before { display: none; }
+.today-card__kicker { font-size: 10.5px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: rgba(255, 255, 255, .85); }
+.today-card__title { margin: 8px auto 6px; font-size: clamp(36px, 11vw, 46px); font-weight: 500; line-height: 1; letter-spacing: -.04em; text-wrap: balance; }
+.today-card__pill { display: inline-block; width: 1.25em; height: .6em; margin-left: .18em; border-radius: 999px; vertical-align: .08em; background: var(--horizon) center 70% / cover; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .35); }
+:root[data-backdrop="uni"] .today-card__pill { display: none; }
+.today-card__facts { font-size: 14.5px; color: rgba(255, 255, 255, .86); font-variant-numeric: tabular-nums; }
+.today-card__more { margin-top: 4px; font-size: 13px; color: rgba(255, 255, 255, .7); }
+.today-card__link { display: inline-flex; align-items: center; gap: 2px; margin-top: 10px; padding: 5px 10px 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 500; color: rgba(255, 255, 255, .9); background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .16); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.today-card__link:active { transform: scale(.97); }
+
+/* ---------- Boutons ---------- */
+.btn { font-weight: 600; letter-spacing: 0; border-radius: 12px; }
+.btn--primary, .btn--add, .btn--blue, .btn--amber { background: var(--lime); color: var(--lime-ink); border: 0; box-shadow: none; }
+.btn--primary:hover, .btn--add:hover { filter: brightness(1.04); }
+.btn--soft { background: var(--surface-2); border: 1px solid var(--border); }
+.btn:active { transform: scale(.98); }
+.link-btn { color: var(--accent); font-weight: 600; }
+
+/* ---------- Apps : rangée en verre, icônes au trait ---------- */
+.app-tiles { gap: 0; padding: 2px; border-radius: var(--r-xl); background: var(--glass); border: 1px solid var(--glass-line); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); margin-bottom: var(--sp-4); }
+.app-tile { background: none; border: 0; border-radius: 16px; font-weight: 500; font-size: 11.5px; color: var(--text); gap: 5px; padding: 9px 2px 8px; }
+.app-tile__icon { font-style: normal; display: grid; place-items: center; height: 24px; color: var(--text); }
+.app-tile__badge { left: calc(50% + 8px); top: 4px; min-width: 18px; height: 18px; line-height: 18px; font-size: 10.5px; font-weight: 600; background: #ff6b5e; box-shadow: none; }
+@media (hover: hover) { .app-tile:hover { background: var(--surface-2); } }
+
+/* ---------- Sections ---------- */
+.section__title { font-size: 19px; font-weight: 500; letter-spacing: -.02em; }
+.section__head .btn--sm { background: transparent; border: 1px solid var(--border-strong); }
+.segmented { background: transparent; border: 0; padding: 0; gap: 18px; grid-auto-columns: max-content; }
+.segmented button { min-height: 30px; padding: 0 0 4px; border-radius: 0; font-weight: 500; color: var(--text-3); }
+.segmented button[aria-selected="true"], .segmented button[aria-checked="true"] { background: none; box-shadow: inset 0 -1.5px 0 var(--text); color: var(--text); }
+
+/* ---------- Agenda : lignes au lieu de cartes encadrées ---------- */
+#agenda.stack, #agendaLater.stack { gap: 0; }
+.item-card, .item-card--soon, .item-card--urgent { background: none; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; box-shadow: none; padding: 14px 2px; }
+.date-chip, .date-chip--appointments, .date-chip--events, .date-chip--races, .date-chip.is-soon, .date-chip.is-urgent { width: 42px; height: auto; background: none; border: 0; color: var(--text); align-items: flex-start; }
+.date-chip__day { font-size: 22px; font-weight: 600; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.date-chip__month { font-size: 9.5px; font-weight: 500; letter-spacing: .12em; color: var(--text-3); }
+.date-chip.is-urgent .date-chip__day { color: var(--danger); }
+.item-card__title { font-weight: 500; font-size: 15px; }
+.item-card__meta { font-weight: 400; color: var(--text-2); }
+.tag { font-weight: 600; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; height: 20px; background: var(--surface-2); color: var(--text-2); }
+.tag.is-urgent { background: #ff6b5e; color: #fff; }
+:root[data-theme="light"] .tag.is-urgent { background: var(--danger-soft); color: var(--danger); }
+.tag.is-soon { background: var(--amber-soft); color: var(--amber); }
+.tag--races { background: var(--accent-soft); color: var(--accent); }
+.item-card--race .item-card__title svg { color: var(--accent); }
+
+/* ---------- Tâches ---------- */
+.task__title { font-weight: 500; }
+.task__check { border-radius: 7px; }
+.quick-add .input { border-radius: 12px; }
+
+/* ---------- Cartes génériques ---------- */
+.card, .race-card, .metric-card, .notes { background: var(--surface); border: 1px solid var(--border); box-shadow: none; }
+.mcal__day.is-today .mcal__num { background: var(--lime); color: var(--lime-ink); }
+
+/* ---------- Barre d'onglets flottante ---------- */
+.tabbar { width: auto; min-width: 250px; grid-template-columns: repeat(3, auto); gap: 4px; padding: 6px; border-radius: 999px; background: var(--glass); border: 1px solid var(--glass-line); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 20px 40px -18px rgba(0, 0, 0, .55); }
+:root[data-theme="light"] .tabbar { background: rgba(20, 23, 26, .9); border-color: transparent; }
+.tabbar__item { flex-direction: row; gap: 6px; min-height: 40px; padding: 0 16px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: rgba(255, 255, 255, .62); }
+.tabbar__item.is-active { background: var(--lime); color: var(--lime-ink); }
+.tabbar__item.is-active [data-icon] { color: var(--lime-ink); transform: none; }
+.tabbar__item [data-icon] svg { width: 18px; height: 18px; }
+
+/* ---------- Feuilles et champs ---------- */
+.sheet { border-radius: 26px 26px 0 0; }
+.input, .select, .textarea { border-radius: 12px; }
+.input:focus, .select:focus, .textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+
+/* ---------- Accueil compact : moins d'espace avant l'agenda ---------- */
+body[data-screen="dashboardView"] .topbar__inner { min-height: 54px; }
+#dashboardView > .section:first-of-type { margin-top: 0; }
+#dashboardView .section__head { margin-bottom: 6px; }
+#dashboardView .agenda-mode { margin-bottom: 4px; }
+#dashboardView .agenda-mode button:not([aria-selected="true"]) { color: var(--text-2); }
+#dashboardView .item-card { padding: 11px 2px; }
+
+/* ---------- Réglages : choix de l'image de fond ---------- */
+.backdrop-picker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.backdrop-picker button { position: relative; aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; padding: 6px 4px; background: var(--surface-3) center / cover no-repeat; border: 2px solid transparent; color: #fff; font-size: 11px; font-weight: 600; text-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
+.backdrop-picker button::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, .45)); }
+.backdrop-picker button span { position: relative; z-index: 1; }
+.backdrop-picker button[aria-checked="true"] { border-color: var(--lime); box-shadow: 0 0 0 2px var(--bg); }
+.backdrop-picker [data-backdrop="auto"] { background-image: url("../img/horizon-sombre.svg"); }
+.backdrop-picker [data-backdrop="auto"]::before { content: ""; position: absolute; inset: 0 0 0 50%; background: url("../img/horizon-clair.svg") center / cover; }
+.backdrop-picker [data-backdrop="crepuscule"] { background-image: url("../img/horizon-sombre.svg"); }
+.backdrop-picker [data-backdrop="matin"] { background-image: url("../img/horizon-clair.svg"); }
+.backdrop-picker [data-backdrop="nuit"] { background-image: url("../img/horizon-nuit.svg"); }
+.backdrop-picker [data-backdrop="sauge"] { background-image: url("../img/horizon-sauge.svg"); }
+.backdrop-picker [data-backdrop="uni"] { background: var(--bg-hero); }
+.backdrop-picker [data-backdrop="photo"]:not([style*="url"]) { background: var(--surface-3); color: var(--text-2); text-shadow: none; }
+.backdrop-picker [data-backdrop="photo"]:not([style*="url"])::after { display: none; }
+.backdrop-actions { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
+
+/* Lisibilité du texte blanc sur un fond clair (photo de l'appareil, « Matin ») */
+.today-card, body[data-screen="dashboardView"]:not(.is-scrolled) .topbar__titles { text-shadow: 0 1px 12px rgba(0, 0, 0, .35), 0 1px 2px rgba(0, 0, 0, .25); }
+.today-card__link { text-shadow: none; }
+:root[data-backdrop="photo"] body[data-screen="dashboardView"]::before,
+:root[data-backdrop="matin"] body[data-screen="dashboardView"]::before {
+  background: linear-gradient(180deg, rgba(10, 14, 18, .5) 0%, rgba(10, 14, 18, .42) 45%, rgba(10, 14, 18, .55) 72%, var(--bg) 100%), var(--horizon) center 35% / cover no-repeat, var(--bg-hero);
+}

@@ -1,0 +1,133 @@
+/* =========================================================
+   DESIGN TOKENS — thème sombre (défaut) et clair
+   ========================================================= */
+:root {
+  /* Typographie */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+  --fs-xs: .75rem;
+  --fs-sm: .8125rem;
+  --fs-md: .9375rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: 1.875rem;
+
+  /* Espacements (échelle de 4 px) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* Rayons */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 26px;
+  --r-pill: 999px;
+
+  /* Mouvement */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --dur-fast: 140ms;
+  --dur: 240ms;
+  --dur-slow: 380ms;
+
+  /* Mise en page */
+  --content-max: 1080px;
+  --topbar-h: 64px;
+  --tabbar-h: 64px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --gutter: 16px;
+
+  /* Couleurs — sombre */
+  --bg: #0a0e17;
+  --bg-2: #0e1320;
+  --surface: rgba(24, 30, 47, .66);
+  --surface-solid: #161c2c;
+  --surface-2: rgba(255, 255, 255, .045);
+  --surface-3: rgba(255, 255, 255, .085);
+  --field: rgba(255, 255, 255, .05);
+  --border: rgba(255, 255, 255, .08);
+  --border-strong: rgba(255, 255, 255, .16);
+  --text: #f3f5fb;
+  --text-2: #a8b1c7;
+  --text-3: #6e7892;
+
+  --accent: #2ee6a8;
+  --accent-2: #1fb9d6;
+  --accent-ink: #032018;
+  --accent-soft: rgba(46, 230, 168, .14);
+  --blue: #6c8cff;
+  --blue-soft: rgba(108, 140, 255, .16);
+  --amber: #ffc24b;
+  --amber-soft: rgba(255, 194, 75, .16);
+  --violet: #b48cff;
+  --violet-soft: rgba(180, 140, 255, .16);
+  --danger: #ff6b7a;
+  --danger-soft: rgba(255, 107, 122, .14);
+
+  --gradient-accent: linear-gradient(135deg, #2ee6a8 0%, #1fb9d6 100%);
+  --gradient-hero: linear-gradient(135deg, rgba(46, 230, 168, .16) 0%, rgba(108, 140, 255, .14) 55%, rgba(180, 140, 255, .12) 100%);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3);
+  --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .25);
+  --shadow-lg: 0 30px 80px -20px rgba(0, 0, 0, .7), 0 8px 24px rgba(0, 0, 0, .35);
+  --shadow-accent: 0 8px 22px -8px rgba(46, 230, 168, .55);
+  --inner-highlight: inset 0 1px 0 rgba(255, 255, 255, .06);
+
+  --glass-blur: saturate(160%) blur(20px);
+  --backdrop: rgba(3, 6, 12, .6);
+  --ambient-1: rgba(46, 230, 168, .16);
+  --ambient-2: rgba(108, 140, 255, .16);
+  --ambient-3: rgba(180, 140, 255, .1);
+
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #f3f5fa;
+  --bg-2: #eceff6;
+  --surface: rgba(255, 255, 255, .78);
+  --surface-solid: #ffffff;
+  --surface-2: rgba(15, 23, 42, .035);
+  --surface-3: rgba(15, 23, 42, .07);
+  --field: #ffffff;
+  --border: rgba(15, 23, 42, .08);
+  --border-strong: rgba(15, 23, 42, .16);
+  --text: #0f172a;
+  --text-2: #525d78;
+  --text-3: #8791a8;
+
+  --accent: #10c48b;
+  --accent-2: #0ea5c6;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(16, 196, 139, .12);
+  --blue: #4a6cf7;
+  --blue-soft: rgba(74, 108, 247, .1);
+  --amber: #e5a41a;
+  --amber-soft: rgba(229, 164, 26, .13);
+  --violet: #8b5cf6;
+  --violet-soft: rgba(139, 92, 246, .1);
+  --danger: #e5484d;
+  --danger-soft: rgba(229, 72, 77, .1);
+
+  --gradient-accent: linear-gradient(135deg, #10c48b 0%, #0ea5c6 100%);
+  --gradient-hero: linear-gradient(135deg, rgba(16, 196, 139, .12) 0%, rgba(74, 108, 247, .1) 55%, rgba(139, 92, 246, .08) 100%);
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .06);
+  --shadow-md: 0 10px 30px -12px rgba(15, 23, 42, .18), 0 2px 6px rgba(15, 23, 42, .05);
+  --shadow-lg: 0 30px 80px -24px rgba(15, 23, 42, .35), 0 8px 24px rgba(15, 23, 42, .08);
+  --shadow-accent: 0 8px 20px -8px rgba(16, 196, 139, .6);
+  --inner-highlight: inset 0 1px 0 rgba(255, 255, 255, .7);
+
+  --backdrop: rgba(15, 23, 42, .36);
+  --ambient-1: rgba(16, 196, 139, .14);
+  --ambient-2: rgba(74, 108, 247, .12);
+  --ambient-3: rgba(139, 92, 246, .08);
+
+  color-scheme: light;
+}
