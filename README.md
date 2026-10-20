@@ -1,8 +1,9 @@
 # Carnet
 
 Tableau de bord personnel (PWA installable sur iPhone), point d'entrée quotidien. Trois onglets :
-- **Accueil** : accès aux autres apps (Allure, Mon budget, Ma Maison, Mon Garage), séance du jour, puis rendez-vous, événements et courses (d'Allure) des 30 prochains jours (le reste se déplie sous « Plus tard »), ou vue calendrier du mois ; notes.
-- **Tâches** : tâches saisies ici (répétables), et en lecture seule celles venant d'Allure (course à préparer, résultat à noter), de Garage, de Ma Maison et de son calendrier de saison. Saisie express : écrire le titre puis Entrée (champ vide + bouton : formulaire complet avec échéance et répétition).
+- **Accueil** : date du jour, séance du jour en grand sur un paysage, bloc « En retard » (tâches et entretiens Garage / Maison en retard), radar des 14 prochains jours (un point par chose prévue, un appui ouvre le jour), ce qui est prévu aujourd'hui, « Bientôt » (6 éléments au plus), accès aux autres apps, notes.
+- **Agenda** : calendrier du mois (un appui sur un jour liste son contenu), tâches saisies ici (répétables), et en lecture seule celles venant d'Allure, de Garage, de Ma Maison et de son calendrier de saison.
+- **Bouton +** (à droite de la barre d'onglets, comme dans Cadence) : une feuille « Ajouter » avec un champ tâche toujours prêt (titre puis Entrée), des puces de date (Sans date, Aujourd'hui, Demain, samedi, Autre…) et des tuiles Rendez-vous, Événement, Séance, Note.
 - **Planning** : planning sportif de la semaine (séances, météo), avec les phases de saison et les courses d'Allure.
 
 La saison, les courses et les mesures se gèrent dans l'app **Allure** (même compte, même nœud Firebase, mêmes données : rien n'est copié).
@@ -39,7 +40,6 @@ js/
   features/
     ics.js                  Génération iCalendar (RFC 5545) + ouverture Calendrier iOS
     calendar-prompt.js      Modale « Ajouter au calendrier »
-    overdue-prompt.js       Pop-up de démarrage : tâches, entretiens Garage et Maison en retard (une seule liste)
     linked-apps.js          Échéances de Garage / Maison lues dans le nœud de Carnet (sections, calendrier, pastilles)
     auth.js                 Feuille de connexion (« Continuer sans compte » possible)
     settings.js             Feuille Réglages : thème Auto / Sombre / Clair, compte connecté, déconnexion
@@ -77,7 +77,7 @@ Au premier instantané de `users/<uid>/carnet` après connexion, si `migrated` e
 * ancienne base vide ou injoignable → les données de l'appareil deviennent la référence, `migrated: { from: 'local', … }` ;
 * Allure a fait le transfert pendant la lecture (marque `migrated` apparue entre-temps) → Carnet n'écrit rien de plus et garde la marque d'Allure.
 
-Un nœud qui ne contient que `garage_alerts` / `maison_alerts` / `migrated` est considéré comme vide : les données de l'appareil n'en sont jamais effacées. Le ménage des tâches cochées et le pop-up des retards attendent la fin de ce premier chargement.
+Un nœud qui ne contient que `garage_alerts` / `maison_alerts` / `migrated` est considéré comme vide : les données de l'appareil n'en sont jamais effacées. Le ménage des tâches cochées attend la fin de ce premier chargement.
 
 ## Sécurité Firebase — à lire
 
@@ -141,19 +141,17 @@ Plus aucune règle Firebase à publier pour ces liens : tout est sous le compte 
 
 Réglages › Thème : **Auto** (par défaut, suit le réglage clair / sombre de l'iPhone, y compris son passage automatique le soir), Sombre ou Clair. Le choix est synchronisé (tranche `theme`). À la mise à jour, l'ancien thème « sombre » (ancien défaut) devient Auto, une seule fois (drapeau `dashboard_theme_auto_v1`) ; « clair » reste clair.
 
-## Pop-up de démarrage (tout ce qui est en retard)
+## Retards
 
-Au lancement de l'app, une fenêtre liste **en une seule fois** les tâches en retard (échéance passée, non cochées) et les entretiens en retard publiés par Garage et Ma Maison. Une tâche se coche directement dans la liste (ou s'ouvre d'un appui) ; un entretien ouvre l'app concernée ; un seul bouton « Fermer ». Un seul passage par session, une fois les données du compte reçues (une tâche faite sur un autre appareil n'y figure pas ; après le choix « se connecter » ou « continuer sans compte » si la feuille de connexion est ouverte) et les résumés Garage / Maison lus — sans les attendre plus de 2,5 s. Détail dans `js/features/overdue-prompt.js`.
+Plus de pop-up au démarrage : tout ce qui est en retard (tâches non cochées dont l'échéance est passée, entretiens publiés par Garage et Ma Maison) s'affiche en haut de l'accueil, en corail, avec le nombre de jours de retard. Une tâche se coche d'un appui sur son rond ; un entretien ouvre l'app concernée.
 
 ## Modifier et supprimer
 
 Un appui sur une carte (rendez-vous, événement) ou une ligne (tâche) ouvre sa modification ; « Supprimer » est en bas de la feuille. Les listes n'affichent plus d'icônes crayon / corbeille. Le rond d'une tâche la coche sans ouvrir la feuille ; l'icône calendrier des rendez-vous à venir reste disponible.
 
-## Accueil : 30 prochains jours et calendrier du mois
+## Palette « Forêt et Pollen »
 
-- L'accueil n'affiche que les rendez-vous, événements et courses des **30 prochains jours** ; les suivants se déplient sous « Plus tard (N) ».
-- **Échéance à 10 jours ou moins** : carte encadrée en couleur — ambre, rouge pour aujourd'hui et demain — avec badge de date assorti.
-- **Vue « Mois »** (bascule en haut de « À venir », choix mémorisé sur l'appareil) : calendrier mensuel avec une pastille par type (RDV, événement, course, tâche, garage / maison), occurrences des éléments répétés comprises ; toucher un jour liste ce qu'il contient.
+Fond vert nuit (#0B100E) et texte couleur os ; un seul accent, le pollen (#F3C04F), pour aujourd'hui, le bouton + et ce qui arrive ; le corail (#FF8A78) est réservé aux retards. Chiffres en Geist Mono. Styles dans `css/foret.css`, chargé après `horizon.css`.
 
 ## Tâches répétées et tâches cochées
 

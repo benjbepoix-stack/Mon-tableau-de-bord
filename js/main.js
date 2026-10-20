@@ -1,20 +1,20 @@
 /* Point d'entrée : initialise l'état, les vues, la navigation, le compte et la synchronisation. */
 import { $, $$ } from './core/utils.js';
 import { state, loadLocal, subscribe, applyRemote, setCloudSink, snapshot, resetLocal, SLICES } from './core/store.js';
-import { initCloud, pushCloud, flushNow, clearPending, isStarting } from './services/firebase.js';
+import { initCloud, pushCloud, flushNow, clearPending } from './services/firebase.js';
 import { readText, write } from './services/storage.js';
-import { initDialogs, isOpen } from './ui/dialog.js';
+import { initDialogs } from './ui/dialog.js';
 import { applyTheme } from './ui/theme.js';
 import { renderStatus } from './ui/status.js';
 import { toastError } from './ui/toast.js';
 import { icon } from './ui/icons.js';
 import { initCalendarPrompt } from './features/calendar-prompt.js';
-import { setLinked, linkedLocal, onLinkedChange, linkedReady } from './features/linked-apps.js';
+import { setLinked, linkedLocal, onLinkedChange } from './features/linked-apps.js';
 import { initAuth, openAuth, closeAuth, noAccountChosen, forgetNoAccount } from './features/auth.js';
 import { initSettings, renderAccount } from './features/settings.js';
 import { initBackdrop } from './features/backdrop.js';
 import { tidyTasks } from './features/task-tidy.js';
-import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
+import { formatDate } from './core/dates.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining, renderTraining, showTraining } from './views/training.js';
 import { renderSportTasks } from './features/sport-tasks.js';
@@ -25,7 +25,7 @@ const showTasks = () => {
 };
 const VIEWS = {
   dashboardView: { title: 'Accueil', show: renderDashboard, render: renderDashboard, slices: ['races', 'plans', 'families', 'objectives'] },
-  tasksView: { title: 'Tâches', show: showTasks, render: renderSportTasks, slices: ['races'] },
+  tasksView: { title: 'Agenda', show: showTasks, render: renderSportTasks, slices: ['races'] },
   trainingView: { title: 'Planning', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
 };
 const VIEW_KEY = 'dashboard_last_view';
@@ -39,9 +39,6 @@ function settle() {
   if (settled) return;
   settled = true;
   tidyTasks();
-  // Pop-up « en retard » : sur des données à jour (une tâche faite ailleurs n'y figure pas),
-  // une fois les résumés Garage / Maison lus — sans les attendre plus de 2,5 s.
-  Promise.race([linkedReady, new Promise(r => setTimeout(r, 2500))]).then(checkOverdue);
 }
 
 function switchView(id, { scroll = true } = {}) {
@@ -55,7 +52,8 @@ function switchView(id, { scroll = true } = {}) {
     if (active) b.setAttribute('aria-current', 'page');
     else b.removeAttribute('aria-current');
   });
-  $('#headerTitle').textContent = VIEWS[id].title;
+  // Accueil : la date du jour au-dessus du paysage ; ailleurs, le nom de l'onglet.
+  $('#headerTitle').textContent = id === 'dashboardView' ? formatDate(new Date(), { weekday: 'short', day: 'numeric', month: 'short' }) : VIEWS[id].title;
   document.title = `${VIEWS[id].title} · Carnet`;
   VIEWS[id].show();
   try {
@@ -103,15 +101,6 @@ function onUser(user) {
   renderAccount();
 }
 
-/** Depuis le pop-up de démarrage : ouvre le tableau de bord et met la tâche en évidence. */
-function goToTask(id) {
-  switchView('tasksView');
-  setTimeout(() => {
-    const row = document.querySelector(`#tasks [data-id="${CSS.escape(id)}"]`);
-    row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, 80);
-}
-
 function initGlobalErrors() {
   let last = 0;
   const report = error => {
@@ -141,7 +130,6 @@ function init() {
   initCalendarPrompt();
   initDashboard();
   initTraining();
-  initOverduePrompt({ onView: goToTask });
 
   renderNotes();
   renderDashboard();
@@ -192,16 +180,7 @@ function init() {
     // Ancienne base : le thème sombre (ancien défaut) devient Auto.
     adaptLegacy: data => (data.theme === 'dark' ? { ...data, theme: 'auto' } : data)
   }).then(ok => !ok && goLocal());
-  // Hors ligne au lancement (cloud jamais reçu) : le pop-up s'appuie sur les données de l'appareil.
-  // Pas tant que la feuille de connexion est ouverte, ni pendant le premier chargement du compte
-  // (transfert depuis l'ancienne base compris, 8 s max) : settle() s'en chargera.
-  const overdueFallback = () => {
-    if (settled || isOpen('authSheet')) return;
-    if (isStarting()) return setTimeout(overdueFallback, 1000);
-    checkOverdue();
-  };
-  setTimeout(overdueFallback, 6000);
-  onLinkedChange(() => currentView === 'dashboardView' && renderDashboard());
+  onLinkedChange(() => currentView !== 'trainingView' && renderDashboard());
 
   document.documentElement.classList.add('is-ready');
 
