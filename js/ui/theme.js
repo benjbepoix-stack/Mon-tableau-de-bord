@@ -6,7 +6,7 @@
 import { $$ } from '../core/utils.js';
 
 /* Couleur de la barre d'état iOS : celle du fond de l'app (css/minimal.css). */
-const THEME_COLORS = { dark: '#0e1114', light: '#f3f4f2' };
+const THEME_COLORS = { dark: '#0a0f0d', light: '#f5f4ee' };
 const media = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: light)') : null;
 let choice = 'auto';
 

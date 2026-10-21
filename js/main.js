@@ -18,15 +18,17 @@ import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining, renderTraining, showTraining } from './views/training.js';
 import { renderSportTasks } from './features/sport-tasks.js';
+import { initBriefing, maybeShowBriefing, isBriefingOpen } from './features/briefing.js';
+import { initTaskSwipe } from './features/task-swipe.js';
 
 const showTasks = () => {
   renderDashboard();
   renderSportTasks();
 };
 const VIEWS = {
-  dashboardView: { title: 'Accueil', show: renderDashboard, render: renderDashboard, slices: ['races', 'plans', 'families', 'objectives'] },
-  tasksView: { title: 'Tâches', show: showTasks, render: renderSportTasks, slices: ['races'] },
-  trainingView: { title: 'Planning', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
+  dashboardView: { title: 'Aujourd’hui', show: renderDashboard, render: renderDashboard, slices: ['races', 'plans', 'families', 'objectives'] },
+  tasksView: { title: 'À faire', show: showTasks, render: renderSportTasks, slices: ['races'] },
+  trainingView: { title: 'Semaine', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
 };
 const VIEW_KEY = 'dashboard_last_view';
 /** Dernier compte connecté sur cet appareil (un autre compte vide d'abord les données locales). */
@@ -39,9 +41,9 @@ function settle() {
   if (settled) return;
   settled = true;
   tidyTasks();
-  // Pop-up « en retard » : sur des données à jour (une tâche faite ailleurs n'y figure pas),
-  // une fois les résumés Garage / Maison lus — sans les attendre plus de 2,5 s.
-  Promise.race([linkedReady, new Promise(r => setTimeout(r, 2500))]).then(checkOverdue);
+  // Briefing du matin (première ouverture du jour), sinon pop-up « en retard » : sur des données
+  // à jour, une fois les résumés Garage / Maison lus — sans les attendre plus de 2,5 s.
+  Promise.race([linkedReady, new Promise(r => setTimeout(r, 2500))]).then(() => maybeShowBriefing() || checkOverdue());
 }
 
 function switchView(id, { scroll = true } = {}) {
@@ -142,6 +144,8 @@ function init() {
   initDashboard();
   initTraining();
   initOverduePrompt({ onView: goToTask });
+  initTaskSwipe();
+  initBriefing({ onDone: () => VIEWS[currentView].show() });
 
   renderNotes();
   renderDashboard();
@@ -170,6 +174,7 @@ function init() {
     if (document.visibilityState === 'hidden') return flushNow();
     if (settled) tidyTasks(); // nouveau jour : tâches cochées la veille retirées ou reprogrammées
     VIEWS[currentView].show();
+    if (settled) maybeShowBriefing(); // app laissée ouverte depuis la veille
   });
   window.addEventListener('pagehide', flushNow);
 
@@ -196,9 +201,9 @@ function init() {
   // Pas tant que la feuille de connexion est ouverte, ni pendant le premier chargement du compte
   // (transfert depuis l'ancienne base compris, 8 s max) : settle() s'en chargera.
   const overdueFallback = () => {
-    if (settled || isOpen('authSheet')) return;
+    if (settled || isOpen('authSheet') || isBriefingOpen()) return;
     if (isStarting()) return setTimeout(overdueFallback, 1000);
-    checkOverdue();
+    maybeShowBriefing() || checkOverdue();
   };
   setTimeout(overdueFallback, 6000);
   onLinkedChange(() => currentView === 'dashboardView' && renderDashboard());

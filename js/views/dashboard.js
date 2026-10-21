@@ -13,6 +13,8 @@ import { isRestTraining, REST_TRAINING } from '../core/schema.js';
 import { PHASE_TYPES, phaseOn, racesOn } from '../core/season.js';
 import { readText, write } from '../services/storage.js';
 import { datedAlerts, GARAGE_URL, MAISON_URL } from '../features/linked-apps.js';
+import { parseEntry } from '../core/parse.js';
+import { burst, buzz } from '../ui/feedback.js';
 
 export const ALLURE_URL = 'https://benjbepoix-stack.github.io/Allure/';
 /** Accueil : seuls les rendez-vous, événements et courses des 30 prochains jours sont affichés, le reste se déplie. */
@@ -410,15 +412,43 @@ async function removeItem(type, id) {
   return true;
 }
 
-/** Saisie express : titre + Entrée. Champ vide : formulaire complet (date, répétition…). */
+/**
+ * Saisie express en langage naturel : « payer la cantine demain » devient une tâche datée,
+ * « dentiste jeudi 17h30 » (jour et heure) un rendez-vous. Champ vide : formulaire complet.
+ */
 function onQuickTask(e) {
   e.preventDefault();
   const input = e.currentTarget.elements.title;
-  const title = input.value.trim().slice(0, 100);
-  if (!title) return openEditor('tasks');
-  state.dashboard.tasks.push({ id: uid(), title, date: '', time: '', note: '', done: false });
+  const raw = input.value.trim();
+  if (!raw) return openEditor('tasks');
+  const { title, date, time } = parseEntry(raw);
+  if (!title) return;
+  if (date && time) {
+    state.dashboard.appointments.push({ id: uid(), title, date, time, note: '' });
+    toast(`Rendez-vous · ${formatKey(date, { weekday: 'short', day: 'numeric', month: 'short' })} ${time}`);
+  } else {
+    state.dashboard.tasks.push({ id: uid(), title, date, time: '', note: '', done: false });
+  }
   commit('dashboard');
+  const r = e.currentTarget.querySelector('[type=submit]')?.getBoundingClientRect();
+  if (r) burst(r.left + r.width / 2, r.top + r.height / 2, 10);
+  buzz(10);
   input.value = '';
+  renderQuickChip(input);
+}
+
+/** Pastille sous la saisie express : ce que Carnet a compris (date, heure, rendez-vous). */
+function renderQuickChip(input) {
+  const chip = $('#taskQuickChip');
+  const { date, time } = parseEntry(input.value);
+  if (!input.value.trim() || !date) {
+    chip.hidden = true;
+    return;
+  }
+  const day = daysUntil(date);
+  const label = day === 0 ? 'aujourd’hui' : day === 1 ? 'demain' : formatKey(date, { weekday: 'short', day: 'numeric', month: 'short' });
+  chip.textContent = `${label}${time ? ` · ${time} · rendez-vous` : ''}`;
+  chip.hidden = false;
 }
 
 async function onClick(e) {
@@ -500,6 +530,7 @@ export function initDashboard() {
   });
   $('#itemForm').addEventListener('submit', onSubmit);
   $('#taskQuick').addEventListener('submit', onQuickTask);
+  $('#taskQuick').elements.title.addEventListener('input', e => renderQuickChip(e.target));
   $('#itemDelete').addEventListener('click', async () => {
     const form = $('#itemForm');
     if (await removeItem(form.elements.type.value, form.elements.editId.value)) closeSheet('itemSheet');

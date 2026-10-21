@@ -1,9 +1,13 @@
 # Carnet
 
-Tableau de bord personnel (PWA installable sur iPhone), point d'entrée quotidien. Trois onglets :
-- **Accueil** : accès aux autres apps (Allure, Mon budget, Ma Maison, Mon Garage), séance du jour, puis rendez-vous, événements et courses (d'Allure) des 30 prochains jours (le reste se déplie sous « Plus tard »), ou vue calendrier du mois ; notes.
-- **Tâches** : tâches saisies ici (répétables), et en lecture seule celles venant d'Allure (course à préparer, résultat à noter), de Garage, de Ma Maison et de son calendrier de saison. Saisie express : écrire le titre puis Entrée (champ vide + bouton : formulaire complet avec échéance et répétition).
-- **Planning** : planning sportif de la semaine (séances, météo), avec les phases de saison et les courses d'Allure.
+Tableau de bord personnel (PWA installable sur iPhone), point d'entrée quotidien.
+
+**Briefing du matin** (`js/features/briefing.js`) : à la première ouverture du jour, quatre écrans plein écran — météo et séance du jour (« Je la fais » ou « Demain »), rendez-vous / événements / courses des 7 prochains jours avec compte à rebours, tâches échues en pile (glisser à droite = faite, à gauche = demain), puis une plante qui gagne une feuille par geste et la série de matins. Rejouable avec le soleil de l'en-tête ; il remplace ce jour-là le pop-up des retards. Style « Vivant » (`css/vivant.css`) : palette Forêt et Pollen en sombre et en clair, dates en Geist Mono. Saisie express en langage naturel (`js/core/parse.js`) : « payer la cantine demain » = tâche datée, « dentiste jeudi 17h30 » = rendez-vous. Dans À faire, glisser une tâche à droite la coche, à gauche la reporte à demain (avec « Annuler »).
+
+Trois onglets :
+- **Aujourd'hui** (Accueil) : accès aux autres apps (Allure, Mon budget, Ma Maison, Mon Garage), séance du jour, puis rendez-vous, événements et courses (d'Allure) des 30 prochains jours (le reste se déplie sous « Plus tard »), ou vue calendrier du mois ; notes.
+- **À faire** (Tâches) : tâches saisies ici (répétables), et en lecture seule celles venant d'Allure (course à préparer, résultat à noter), de Garage, de Ma Maison et de son calendrier de saison. Saisie express : écrire le titre puis Entrée (champ vide + bouton : formulaire complet avec échéance et répétition).
+- **Semaine** (Planning) : planning sportif de la semaine (séances, météo), avec les phases de saison et les courses d'Allure.
 
 La saison, les courses et les mesures se gèrent dans l'app **Allure** (même compte, même nœud Firebase, mêmes données : rien n'est copié).
 Style minimaliste commun aux apps (anthracite, cartes pleines), couleur Menthe ; les courses gardent la couleur Aurore d'Allure.
