@@ -251,30 +251,35 @@ function taskSub(t) {
   return parts.filter(Boolean).join('');
 }
 
+function taskRow(t) {
+  const sub = taskSub(t);
+  // Cocher : le rond ; modifier ou supprimer : un appui sur la ligne.
+  return `<div class="task is-tappable ${t.done ? 'is-done' : ''}" data-id="${esc(t.id)}" data-type="tasks" tabindex="0" aria-label="Modifier « ${esc(t.title)} »">
+        <button type="button" class="task__check" data-action="toggle" role="checkbox" aria-checked="${t.done}" aria-label="${t.done ? 'Marquer comme à faire' : 'Marquer comme terminée'}">${icon('check', 15)}</button>
+        <div class="task__body"><div class="task__title">${esc(t.title)}</div>${sub ? `<div class="task__sub">${sub}</div>` : ''}</div>
+        ${canOpenReminders(t) ? `<div class="item-card__actions"><button type="button" class="icon-btn" data-action="reminder" aria-label="Ouvrir Rappels pour « ${esc(t.title)} »" title="Ouvrir Rappels">${icon('bell', 17)}</button></div>` : ''}
+      </div>`;
+}
+
+/** Tâches en groupes : en retard, à faire (par échéance, sans date à la fin), faites. */
 function renderTasks() {
   const tasks = state.dashboard.tasks;
-  const done = tasks.filter(t => t.done).length;
-  const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
-  $('#taskProgress').innerHTML = tasks.length
-    ? `<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progression des tâches"><div class="progress__bar" style="--value:${pct}%"></div></div><span class="progress__label">${done}/${tasks.length}</span>`
+  const today = todayKey();
+  const late = tasks.filter(t => !t.done && t.date && t.date < today);
+  const todo = tasks.filter(t => !t.done && !(t.date && t.date < today));
+  const done = tasks.filter(t => t.done);
+  const left = late.length + todo.length;
+  $('#taskSummary').innerHTML = tasks.length
+    ? `<strong>${left ? `${left} à faire` : 'Tout est fait'}</strong>${late.length ? ` · <span class="is-overdue">${late.length} en retard</span>` : ''}`
     : '';
   const el = $('#tasks');
   if (!tasks.length) {
     el.innerHTML = `<div class="empty-state"><p>Aucune tâche.</p></div>`;
     return;
   }
-  const sorted = [...tasks].sort((a, b) => Number(a.done) - Number(b.done) || (a.date || '9999').localeCompare(b.date || '9999'));
-  el.innerHTML = sorted
-    .map(t => {
-      const sub = taskSub(t);
-      // Cocher : le rond ; modifier ou supprimer : un appui sur la ligne.
-      return `<div class="task is-tappable ${t.done ? 'is-done' : ''}" data-id="${esc(t.id)}" data-type="tasks" tabindex="0" aria-label="Modifier « ${esc(t.title)} »">
-        <button type="button" class="task__check" data-action="toggle" role="checkbox" aria-checked="${t.done}" aria-label="${t.done ? 'Marquer comme à faire' : 'Marquer comme terminée'}">${icon('check', 15)}</button>
-        <div class="task__body"><div class="task__title">${esc(t.title)}</div>${sub ? `<div class="task__sub">${sub}</div>` : ''}</div>
-        ${canOpenReminders(t) ? `<div class="item-card__actions"><button type="button" class="icon-btn" data-action="reminder" aria-label="Ouvrir Rappels pour « ${esc(t.title)} »" title="Ouvrir Rappels">${icon('bell', 17)}</button></div>` : ''}
-      </div>`;
-    })
-    .join('');
+  const byDate = (a, b) => (a.date || '9999').localeCompare(b.date || '9999') || (a.time || '').localeCompare(b.time || '');
+  const group = (title, list, cls = '') => (list.length ? `<h3 class="task-group ${cls}">${title}</h3>${[...list].sort(byDate).map(taskRow).join('')}` : '');
+  el.innerHTML = group('En retard', late, 'is-overdue') + group('À faire', todo) + group('Faites', done);
 }
 
 export function renderNotes() {

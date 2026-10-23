@@ -196,3 +196,50 @@ body[data-screen="dashboardView"] .topbar__inner { min-height: 54px; }
 :root[data-backdrop="matin"] body[data-screen="dashboardView"]::before {
   background: linear-gradient(180deg, rgba(10, 14, 18, .5) 0%, rgba(10, 14, 18, .42) 45%, rgba(10, 14, 18, .55) 72%, var(--bg) 100%), var(--horizon) center 35% / cover no-repeat, var(--bg-hero);
 }
+
+/* ---------- Tâches et Planning, style « B » : titre à gauche, tout en lignes, sans cartes ---------- */
+.task-summary { margin: 2px 0 var(--sp-4); font-size: 15px; color: var(--text-2); }
+.task-summary strong { font-size: 28px; font-weight: 600; letter-spacing: -.035em; color: var(--text); margin-right: 2px; }
+.task-summary .is-overdue { color: var(--danger); }
+#tasksView .quick-add .input { border-radius: var(--r-pill); padding-inline: 18px; }
+#tasksView .quick-add .btn--icon { border-radius: var(--r-pill); }
+#tasksView .card--list { background: none; border: 0; box-shadow: none; border-radius: 0; overflow: visible; -webkit-backdrop-filter: none; backdrop-filter: none; }
+#tasksView .task { padding: 13px 2px; border-bottom: 1px solid var(--border); background: none; }
+#tasksView .task:last-child { border-bottom: 0; }
+#tasksView .task__check { border-radius: var(--r-pill); }
+#tasksView .task.is-tappable:active { background: var(--surface-2); }
+.task-group, #tasksView .section__title { font-size: 11px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--text-2); }
+.task-group { margin: var(--sp-5) 0 2px; }
+.task-group:first-child { margin-top: var(--sp-2); }
+.task-group.is-overdue { color: var(--danger); }
+#tasksView .section + .section { margin-top: var(--sp-5); }
+
+.plan-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-3); margin: 4px 0 2px; }
+.plan-head__titles { min-width: 0; }
+.plan-head__range { font-size: 32px; font-weight: 600; letter-spacing: -.04em; line-height: 1.05; }
+.plan-head__sum { margin-top: 6px; font-size: 14px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.plan-head__nav { display: flex; gap: 6px; flex: none; }
+.plan-tools { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: var(--sp-2) 0 var(--sp-4); }
+#trainingView .week-phase { position: relative; margin-bottom: var(--sp-4); padding: 0 0 0 14px; border: 0; border-radius: 0; background: none; }
+#trainingView .week-phase::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 3px; border-radius: 2px; background: var(--ph, var(--border-strong)); }
+
+.plan-days { display: flex; flex-direction: column; }
+.plan-day { position: relative; border-bottom: 1px solid var(--border); }
+.plan-day:last-child { border-bottom: 0; }
+.plan-day.has-phase::before { content: ""; position: absolute; left: -9px; top: 16px; height: 30px; width: 3px; border-radius: 2px; background: var(--ph); }
+.plan-day.is-today { margin: 0 -12px; padding: 0 12px; border-radius: var(--r-lg); border-bottom-color: transparent; background: var(--accent-soft); }
+.plan-day.is-today.has-phase::before { left: 3px; }
+.plan-day__row { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 62px; padding: 8px 0; text-align: left; color: inherit; }
+.plan-day__date { display: flex; flex-direction: column; width: 38px; flex: none; line-height: 1.1; }
+.plan-day__date span { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+.plan-day__date strong { font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+.plan-day.is-today .plan-day__date span, .plan-day.is-today .plan-day__date strong { color: var(--accent); }
+.plan-day__main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.plan-day__label { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-day__meta { margin-top: 2px; font-size: 13px; color: var(--text-2); }
+.plan-day__rest { color: var(--text-3); }
+.plan-day__race { color: var(--danger); font-weight: 500; }
+.plan-day__wx { flex: none; font-size: 14px; color: var(--text-2); white-space: nowrap; }
+.plan-day__body { display: flex; flex-direction: column; gap: var(--sp-2); padding: 0 0 var(--sp-4); }
+.plan-day__body .session { padding: 10px; }
+.plan-day__body .session__selects { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 6px; }
