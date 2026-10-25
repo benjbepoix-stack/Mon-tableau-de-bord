@@ -81,7 +81,9 @@ export function normalizeFamilies(raw) {
   return list.length ? list : DEFAULT_FAMILIES.map(f => ({ ...f, types: [...f.types] }));
 }
 
-export const defaultSession = () => ({ id: uid(), family: '', training: '', distance: '', time: '', elevation: '' });
+export const defaultSession = () => ({ id: uid(), family: '', training: '', distance: '', time: '', elevation: '', slot: '' });
+/** Créneau d'une séance : matin, après-midi ou soir ('' = au meilleur moment selon la météo). */
+export const SLOT_IDS = ['matin', 'aprem', 'soir'];
 
 function familyForLegacyTraining(training, families) {
   const exact = families.find(f => f.types.includes(training));
@@ -107,7 +109,8 @@ function normalizeSession(v, families) {
     training,
     distance: str(v.distance, 12),
     time: str(v.time, 8),
-    elevation: str(v.elevation, 12)
+    elevation: str(v.elevation, 12),
+    slot: SLOT_IDS.includes(v.slot) ? v.slot : ''
   };
 }
 
