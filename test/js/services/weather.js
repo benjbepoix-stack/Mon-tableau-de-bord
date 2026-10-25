@@ -113,3 +113,95 @@ export async function fetchWeek(weekStart, { force = false } = {}) {
     clearTimeout(timer);
   }
 }
+
+/* ---------- Prévision par créneau (planifier les séances) ---------- */
+/** Heures couvertes par chaque créneau de la journée. */
+export const SLOT_HOURS = { matin: [7, 8, 9, 10, 11], aprem: [12, 13, 14, 15, 16, 17], soir: [18, 19, 20, 21] };
+const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+const slotCache = new Map();
+
+/** Famille d'icône d'un code WMO. */
+const skyOf = code => (code >= 95 ? 'storm' : code >= 71 && code <= 77 ? 'snow' : code === 85 || code === 86 ? 'snow' : code >= 51 ? 'rain' : code >= 45 ? 'fog' : code === 3 ? 'cloud' : code === 2 ? 'part' : 'sun');
+
+/**
+ * Météo heure par heure regroupée en matin / après-midi / soir, du jour `fromKey` sur `days` jours
+ * (dans la fenêtre de prévision : aujourd'hui + 15 jours).
+ * @returns {Promise<Record<string, {min,max,sky,label,sunrise,sunset,slots:Record<string,{t,rain,mm,wind,gust,dir,deg,sky,label}>}>>}
+ */
+export async function fetchSlots(fromKey, days = 7) {
+  const today = new Date();
+  const first = new Date(`${fromKey}T12:00:00`);
+  const start = first < today ? today : first;
+  const max = addDays(today, FUTURE_DAYS);
+  const endWanted = addDays(first, days - 1);
+  const end = endWanted > max ? max : endWanted;
+  if (start > end) return {};
+
+  const place = getPlace();
+  const key = `${place.lat},${place.lon}_${dateKey(start)}_${dateKey(end)}`;
+  const hit = slotCache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL) return hit.data;
+
+  const url = new URL('https://api.open-meteo.com/v1/forecast');
+  Object.entries({
+    latitude: place.lat,
+    longitude: place.lon,
+    hourly: 'temperature_2m,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,wind_direction_10m,weather_code',
+    daily: 'weather_code,temperature_2m_min,temperature_2m_max,sunrise,sunset',
+    timezone: 'Europe/Paris',
+    wind_speed_unit: 'kmh',
+    start_date: dateKey(start),
+    end_date: dateKey(end)
+  }).forEach(([k, v]) => url.searchParams.set(k, v));
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const json = await response.json();
+    if (json.error || !json.hourly?.time || !json.daily?.time) throw new Error(json.reason || 'Réponse météo invalide');
+    const h = json.hourly;
+    const byHour = {};
+    h.time.forEach((t, i) => (byHour[t] = i));
+    const data = {};
+    json.daily.time.forEach((day, di) => {
+      const slots = {};
+      for (const [slot, hours] of Object.entries(SLOT_HOURS)) {
+        const idx = hours.map(x => byHour[`${day}T${String(x).padStart(2, '0')}:00`]).filter(i => i !== undefined);
+        if (!idx.length) continue;
+        const pick = name => idx.map(i => h[name][i]).filter(v => v !== null && v !== undefined);
+        const temps = pick('temperature_2m');
+        const winds = pick('wind_speed_10m');
+        const strongest = idx.reduce((a, b) => ((h.wind_speed_10m[b] ?? 0) > (h.wind_speed_10m[a] ?? 0) ? b : a));
+        const code = Math.max(...pick('weather_code'), 0);
+        const deg = h.wind_direction_10m[strongest] ?? 0;
+        slots[slot] = {
+          t: Math.round(temps.reduce((a, b) => a + b, 0) / (temps.length || 1)),
+          rain: Math.max(0, ...pick('precipitation_probability')),
+          mm: Math.round(pick('precipitation').reduce((a, b) => a + b, 0) * 10) / 10,
+          wind: Math.round(Math.max(0, ...winds)),
+          gust: Math.round(Math.max(0, ...pick('wind_gusts_10m'))),
+          deg,
+          dir: COMPASS[Math.round(deg / 45) % 8],
+          sky: skyOf(code),
+          label: (WMO[code] || ['', 'Conditions météo'])[1]
+        };
+      }
+      const code = json.daily.weather_code[di];
+      data[day] = {
+        min: Math.round(json.daily.temperature_2m_min[di]),
+        max: Math.round(json.daily.temperature_2m_max[di]),
+        sky: skyOf(code),
+        label: (WMO[code] || ['', 'Conditions météo'])[1],
+        sunrise: (json.daily.sunrise[di] || '').slice(11, 16),
+        sunset: (json.daily.sunset[di] || '').slice(11, 16),
+        slots
+      };
+    });
+    slotCache.set(key, { at: Date.now(), data });
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
+}

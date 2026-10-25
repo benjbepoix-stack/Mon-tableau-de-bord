@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Tableau de bord personnel : agenda, tâches, entraînements, courses et mesures.">
-  <meta name="theme-color" content="#0b100e">
+  <meta name="theme-color" content="#0a0f0d">
   <meta name="color-scheme" content="dark light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -25,11 +25,12 @@
       var t = localStorage.getItem('dashboard_theme');
       if ((t !== 'light' && t !== 'dark') || (t === 'dark' && !localStorage.getItem('dashboard_theme_auto_v1'))) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.dataset.theme = t;
-      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#eef1ec' : '#0b100e');
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#f5f4ee' : '#0a0f0d');
     } catch (e) {}
   </script>
 
   <link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/geist-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
@@ -38,7 +39,8 @@
   <link rel="stylesheet" href="css/views/training.css">
   <link rel="stylesheet" href="css/minimal.css">
   <link rel="stylesheet" href="css/horizon.css">
-  <link rel="stylesheet" href="css/foret.css">
+  <link rel="stylesheet" href="css/vivant.css">
+  <link rel="stylesheet" href="css/carnet2.css">
 
   <script type="module" src="js/main.js"></script>
 </head>
@@ -53,37 +55,32 @@
       </div>
       <div class="topbar__actions">
         <span class="sync-pill" id="syncStatus" data-status="connecting" role="status"><span class="spinner spinner--xs"></span><span>Connexion…</span></span>
+        <button type="button" class="icon-btn icon-btn--glass" id="briefingBtn" aria-label="Revoir le briefing du matin" title="Briefing du matin"><span data-icon="sun" data-size="19"></span></button>
         <button type="button" class="icon-btn icon-btn--glass" id="settingsBtn" aria-label="Réglages" aria-haspopup="dialog"><span data-icon="settings" data-size="19"></span></button>
       </div>
     </div>
   </header>
 
   <nav class="tabbar" aria-label="Navigation principale">
-    <button type="button" class="tabbar__item is-active" data-view="dashboardView" aria-current="page"><span data-icon="horizon"></span><span>Accueil</span></button>
-    <button type="button" class="tabbar__item" data-view="tasksView"><span data-icon="calendar"></span><span>Agenda</span></button>
-    <button type="button" class="tabbar__item" data-view="trainingView"><span data-icon="training"></span><span>Planning</span></button>
+    <button type="button" class="tabbar__item is-active" data-view="todayView" aria-current="page">Aujourd’hui</button>
+    <button type="button" class="tabbar__item" data-view="todoView">À faire</button>
+    <button type="button" class="tabbar__item" data-view="weekView">Semaine</button>
   </nav>
-  <button type="button" class="fab" id="fabAdd" aria-label="Ajouter" aria-haspopup="dialog"><span data-icon="plus" data-size="26"></span></button>
+  <button type="button" class="k-fab" id="kFab" aria-label="Ajouter une tâche ou un rendez-vous"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
 
   <main class="app" id="main" tabindex="-1">
 
-    <!-- ================= ACCUEIL ================= -->
-    <section id="dashboardView" class="view" aria-labelledby="headerTitle">
-      <section class="today-card" id="todaySession"></section>
-      <section class="hz-late" id="homeLate" aria-label="En retard" hidden></section>
-      <section class="hz-block" aria-labelledby="radarTitle">
-        <div class="hz-head"><h2 class="hz-cap" id="radarTitle">14 jours</h2><span class="hz-when" id="radarMonth"></span></div>
-        <div class="hz-radar" id="homeRadar"></div>
-      </section>
-      <section class="hz-block" aria-labelledby="todayTitle">
-        <div class="hz-head"><h2 class="hz-cap" id="todayTitle">Aujourd’hui</h2></div>
-        <div class="hz-list" id="homeToday"></div>
-      </section>
-      <section class="hz-block" id="homeSoonBlock" aria-labelledby="soonTitle">
-        <div class="hz-head"><h2 class="hz-cap" id="soonTitle">Bientôt</h2><button type="button" class="hz-link" data-goto="tasksView">Agenda</button></div>
-        <div class="hz-list" id="homeSoon"></div>
-      </section>
+    <!-- ================= ÉCRANS « VIVANT » (rendus par js/views/vivant.js) ================= -->
+    <section id="todayView" class="view v-view" aria-label="Aujourd’hui"></section>
+    <section id="todoView" class="view v-view" hidden aria-label="À faire"></section>
+    <section id="weekView" class="view v-view" hidden aria-label="Semaine"></section>
 
+    <!-- Anciens écrans : conservés (notes, liste, agenda mensuel) mais plus affichés. -->
+    <!-- ================= DASHBOARD ================= -->
+    <section id="dashboardView" class="view" hidden aria-labelledby="headerTitle">
+
+
+      <section class="today-card" id="todaySession"></section>
       <!-- Accès aux autres apps (même compte) ; pastille rouge : entretien en retard -->
       <nav class="app-tiles" aria-label="Mes autres apps">
         <a class="app-tile" href="https://benjbepoix-stack.github.io/Allure/"><i class="app-tile__icon" data-icon="mountain" data-size="22"></i><span>Allure</span></a>
@@ -94,6 +91,30 @@
 
       <section class="section">
         <header class="section__head">
+          <h2 class="section__title">À venir</h2>
+          <div class="section__tools">
+            <button type="button" class="btn btn--soft btn--sm" data-open="appointments"><span data-icon="plus" data-size="16"></span><span>RDV</span></button>
+            <button type="button" class="btn btn--soft btn--sm" data-open="events"><span data-icon="plus" data-size="16"></span><span>Événement</span></button>
+          </div>
+        </header>
+        <div class="segmented agenda-mode" role="tablist" id="agendaMode" aria-label="Affichage de l’agenda">
+          <button type="button" role="tab" data-agenda-mode="list" aria-selected="true">Liste</button>
+          <button type="button" role="tab" data-agenda-mode="month" aria-selected="false">Mois</button>
+        </div>
+        <div id="agendaListPanel">
+          <div class="stack" id="agenda"></div>
+          <button type="button" class="link-btn link-btn--center agenda-more" id="agendaMore" aria-controls="agendaLater" hidden></button>
+          <div class="stack" id="agendaLater" hidden></div>
+        </div>
+        <div id="agendaMonthPanel" hidden>
+          <div class="card mcal" id="monthCal"></div>
+          <div id="monthCalDay"></div>
+        </div>
+        <div class="agenda-links"><button type="button" class="link-btn" data-view-all="appointments">Tous les RDV</button><button type="button" class="link-btn" data-view-all="events">Tous les événements</button></div>
+      </section>
+
+      <section class="section">
+        <header class="section__head">
           <h2 class="section__title"><label for="notes">Notes</label></h2>
           <span class="save-state" id="notesStatus" aria-live="polite"></span>
         </header>
@@ -101,16 +122,19 @@
       </section>
     </section>
 
-    <!-- ================= AGENDA ================= -->
+    <!-- ================= TÂCHES ================= -->
     <section id="tasksView" class="view" hidden aria-labelledby="headerTitle">
-      <div class="card mcal" id="monthCal"></div>
-      <div id="monthCalDay"></div>
-
-      <section class="section">
+      <section class="section section--first">
         <header class="section__head">
-          <h2 class="section__title">Tâches</h2>
+          <h2 class="section__title sr-only">Tâches</h2>
           <div class="section__tools"><div class="task-progress" id="taskProgress"></div></div>
         </header>
+        <form class="quick-add" id="taskQuick" novalidate>
+          <input class="input" name="title" maxlength="100" placeholder="payer la cantine demain, dentiste jeudi 17h30…" aria-label="Nouvelle tâche ou rendez-vous" autocomplete="off" enterkeyhint="done">
+          <button type="submit" class="btn btn--primary btn--icon" aria-label="Ajouter la tâche (vide : formulaire complet)"><span data-icon="plus" data-size="20"></span></button>
+        </form>
+        <p class="quick-chip" id="taskQuickChip" aria-live="polite" hidden></p>
+        <p class="swipe-hint">Glisse une tâche à droite quand elle est faite, à gauche pour demain.</p>
         <div class="card card--list" id="tasks"></div>
       </section>
 
@@ -139,7 +163,6 @@
         <header class="section__head"><h2 class="section__title" id="seasonTitle">Saison</h2></header>
         <div class="card card--list" id="seasonWidget"></div>
       </section>
-      <div class="agenda-links"><button type="button" class="link-btn" data-view-all="appointments">Tous les RDV</button><button type="button" class="link-btn" data-view-all="events">Tous les événements</button></div>
     </section>
 
     <!-- ================= ENTRAÎNEMENT ================= -->
@@ -183,6 +206,9 @@
     </section>
 
   </main>
+
+  <!-- Briefing du matin (js/features/briefing.js) : plein écran à la première ouverture du jour -->
+  <section class="briefing" id="briefing" aria-label="Briefing du matin" tabindex="-1" hidden></section>
 
   <!-- ================= FEUILLES / MODALES ================= -->
 
@@ -300,37 +326,9 @@
     <div class="sheet sheet--dialog" role="dialog" aria-modal="true" aria-labelledby="calendarTitle" tabindex="-1" id="calendarContent"></div>
   </div>
 
-  <!-- Bouton + : tâche express (avec échéance en un appui), puis les autres saisies -->
-  <div class="sheet-backdrop" id="addSheet" hidden>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="addTitle" tabindex="-1">
-      <div class="sheet__grabber" aria-hidden="true"></div>
-      <header class="sheet__head"><h2 class="sheet__title" id="addTitle">Ajouter</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
-      <form class="add-quick" id="addQuick" novalidate>
-        <label class="hz-cap" for="addTask">Tâche</label>
-        <div class="add-quick__field">
-          <input id="addTask" name="title" maxlength="100" placeholder="Écrire la tâche…" autocomplete="off" enterkeyhint="done">
-          <button type="submit" class="add-quick__go" aria-label="Ajouter la tâche"><span data-icon="arrowUp" data-size="20"></span></button>
-        </div>
-        <div class="add-when" id="addWhen" role="radiogroup" aria-label="Échéance"></div>
-      </form>
-      <h3 class="hz-cap add-sub">Autre chose</h3>
-      <div class="add-grid">
-        <button type="button" class="add-tile" data-add="appointments"><span class="add-tile__icon"><span data-icon="clock" data-size="19"></span></span><span><b>Rendez-vous</b><small>Heure, lieu, Calendrier</small></span></button>
-        <button type="button" class="add-tile" data-add="events"><span class="add-tile__icon"><span data-icon="sparkle" data-size="19"></span></span><span><b>Événement</b><small>Anniversaire, sortie</small></span></button>
-        <button type="button" class="add-tile" data-add="session"><span class="add-tile__icon"><span data-icon="training" data-size="19"></span></span><span><b>Séance</b><small>Dans le planning</small></span></button>
-        <button type="button" class="add-tile" data-add="note"><span class="add-tile__icon"><span data-icon="note" data-size="19"></span></span><span><b>Note</b><small>Une idée à garder</small></span></button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Un jour du radar : ce qui est prévu, et ajouter ce jour-là -->
-  <div class="sheet-backdrop" id="daySheet" hidden>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dayTitle" tabindex="-1">
-      <div class="sheet__grabber" aria-hidden="true"></div>
-      <header class="sheet__head"><div><p class="hz-cap" id="dayKicker"></p><h2 class="sheet__title" id="dayTitle"></h2></div><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
-      <div class="sheet__scroll" id="dayContent"></div>
-      <button type="button" class="btn btn--primary btn--lg btn--block" id="dayAdd"><span data-icon="plus" data-size="18"></span><span>Ajouter ce jour-là</span></button>
-    </div>
+  <!-- Pop-up de démarrage : tâches en retard et entretiens Garage en retard -->
+  <div class="sheet-backdrop sheet-backdrop--dialog" id="overdueSheet" hidden>
+    <div class="sheet sheet--dialog" role="alertdialog" aria-modal="true" aria-labelledby="overdueTitle" tabindex="-1" id="overdueContent"></div>
   </div>
 
   <noscript><div class="noscript">JavaScript est nécessaire pour utiliser cette application.</div></noscript>

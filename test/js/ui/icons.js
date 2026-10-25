@@ -3,8 +3,6 @@ const svg = (paths, size = 20) =>
   `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 
 const P = {
-  arrowUp: '<path d="M12 19V5M6 11l6-6 6 6"/>',
-  horizon: '<path d="M3 18c3-5 5-8 7.5-8s3.5 3 5.5 3 3-2 5-4"/><circle cx="17" cy="6" r="2"/>',
   mountain: '<path d="M3 19 9 9.5l3.5 5 2.5-3.5L21 19z"/>',
   wallet: '<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M16 13h2M6 6l9-3 1.5 3"/>',
   house: '<path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/>',

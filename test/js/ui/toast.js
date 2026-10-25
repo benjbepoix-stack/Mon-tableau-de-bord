@@ -18,15 +18,15 @@ function ensureHost() {
 /**
  * Affiche un toast.
  * @param {string} message
- * @param {{type?:'success'|'error'|'info'|'loading', duration?:number}} options
+ * @param {{type?:'success'|'error'|'info'|'loading', duration?:number, action?:{label:string, onClick:Function}}} options
  * @returns {{close:Function, update:Function}}
  */
-export function toast(message, { type = 'success', duration } = {}) {
+export function toast(message, { type = 'success', duration, action } = {}) {
   const el = document.createElement('div');
   el.className = `toast toast--${type}`;
   const render = (msg, t) => {
     el.className = `toast toast--${t}`;
-    el.innerHTML = `<span class="toast__icon">${ICONS[t] ? icon(ICONS[t], 18) : '<span class="spinner spinner--sm"></span>'}</span><span class="toast__text">${esc(msg)}</span>`;
+    el.innerHTML = `<span class="toast__icon">${ICONS[t] ? icon(ICONS[t], 18) : '<span class="spinner spinner--sm"></span>'}</span><span class="toast__text">${esc(msg)}</span>${action ? `<button type="button" class="toast__action">${esc(action.label)}</button>` : ''}`;
   };
   render(message, type);
   ensureHost().appendChild(el);
@@ -41,11 +41,14 @@ export function toast(message, { type = 'success', duration } = {}) {
   };
   const schedule = t => {
     clearTimeout(timer);
-    const ms = duration ?? (t === 'error' ? 4500 : 2200);
+    const ms = duration ?? (t === 'error' ? 4500 : action ? 4000 : 2200);
     if (t !== 'loading') timer = setTimeout(close, ms);
   };
   schedule(type);
-  el.addEventListener('click', close);
+  el.addEventListener('click', e => {
+    if (action && e.target.closest('.toast__action')) action.onClick();
+    close();
+  });
   return {
     close,
     update(msg, t = 'success') {

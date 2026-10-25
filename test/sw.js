@@ -6,7 +6,7 @@
    À l'installation, l'app-shell (HTML/CSS/JS/icônes) est aussi pré-mis en cache :
    un tout premier lancement hors ligne (avant toute visite en ligne réussie)
    affiche donc l'app au lieu d'un écran blanc. */
-const CACHE = 'carnet-test-v1';
+const CACHE = 'carnet-test-v2';
 
 const PRECACHE_URLS = [
   './',
@@ -17,16 +17,19 @@ const PRECACHE_URLS = [
   './css/layout.css',
   './css/minimal.css',
   './css/horizon.css',
+  './css/vivant.css',
+  './css/carnet2.css',
+  './fonts/geist-mono-latin.woff2',
+  './js/core/parse.js',
+  './js/features/briefing.js',
+  './js/views/vivant.js',
+  './js/ui/feedback.js',
   './fonts/geist-latin.woff2',
   './fonts/geist-latin-ext.woff2',
-  './fonts/geist-mono-latin.woff2',
   './img/horizon-sombre.svg',
   './img/horizon-clair.svg',
   './img/horizon-nuit.svg',
   './img/horizon-sauge.svg',
-  './img/horizon-foret.svg',
-  './img/horizon-foret-clair.svg',
-  './css/foret.css',
   './js/features/backdrop.js',
   './css/tokens.css',
   './css/views/dashboard.css',
@@ -43,6 +46,7 @@ const PRECACHE_URLS = [
   './js/features/calendar-prompt.js',
   './js/features/ics.js',
   './js/features/linked-apps.js',
+  './js/features/overdue-prompt.js',
   './js/features/persist.js',
   './js/features/reminders.js',
   './js/features/settings.js',

@@ -50,6 +50,8 @@ export const datedAlerts = () => [...garage, ...maison].filter(a => a.due);
 /** Échéances en retard publiées par Garage et Maison (pop-up de démarrage). */
 export const lateAlerts = () => [...garage, ...maison].filter(a => a.level === 'late').sort(byUrgency);
 export const onLinkedChange = fn => listeners.add(fn);
+/** Tout ce que publient Garage et Maison, plus les tâches de saison du mois. */
+export const linkedItems = () => ({ garage: [...garage].sort(byUrgency), maison: [...maison].sort(byUrgency), season: season.tasks });
 
 /* Prêt : premier instantané du nœud reçu (ou mode local, sans échéances). */
 let readyResolve;

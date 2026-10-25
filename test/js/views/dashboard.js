@@ -1,5 +1,4 @@
-/* Accueil « Horizon » (séance du jour, retards, radar des 14 jours, aujourd'hui, bientôt, notes),
-   Agenda (calendrier du mois, tâches) et bouton + (saisie express). */
+/* Accueil (séance du jour, agenda chronologique : RDV, événements, courses d'Allure, notes) et Tâches. */
 import { $, $$, esc, uid, debounce } from '../core/utils.js';
 import { combine, formatDate, formatKey, fromKey, relativeDay, daysUntil, todayKey, dateKey, addDays, isRepeat, nextOccurrenceKey, nextTaskDate, occurrencesBetween, REPEATS } from '../core/dates.js';
 import { state, commit } from '../core/store.js';
@@ -12,15 +11,20 @@ import { offerCalendar } from '../features/calendar-prompt.js';
 import { confirmSaved } from '../features/persist.js';
 import { isRestTraining, REST_TRAINING } from '../core/schema.js';
 import { PHASE_TYPES, phaseOn, racesOn } from '../core/season.js';
-import { datedAlerts, lateAlerts, GARAGE_URL, MAISON_URL } from '../features/linked-apps.js';
+import { readText, write } from '../services/storage.js';
+import { datedAlerts, GARAGE_URL, MAISON_URL } from '../features/linked-apps.js';
+import { parseEntry } from '../core/parse.js';
+import { burst, buzz } from '../ui/feedback.js';
 
 export const ALLURE_URL = 'https://benjbepoix-stack.github.io/Allure/';
-/** Accueil : radar et « Bientôt » sur 14 jours (aujourd'hui compris) ; au-delà, l'Agenda. */
-const RADAR_DAYS = 14;
-const SOON_MAX = 6;
+/** Accueil : seuls les rendez-vous, événements et courses des 30 prochains jours sont affichés, le reste se déplie. */
+const AGENDA_DAYS = 30;
 /** Échéance proche : carte encadrée en couleur (rouge aujourd'hui / demain, ambre jusqu'à 10 jours). */
 const SOON_DAYS = 10;
 const URGENT_DAYS = 1;
+const AGENDA_MODE_KEY = 'dashboard_agenda_mode';
+let laterOpen = false;
+let agendaMode = readText(AGENDA_MODE_KEY, 'list') === 'month' ? 'month' : 'list';
 let calMonth = todayKey().slice(0, 7);
 let calDay = todayKey();
 
@@ -92,20 +96,20 @@ function itemCard(x, type) {
 }
 
 /* ---------- Séance du jour ---------- */
-const sessionFacts = x => [x.distance ? `${String(x.distance).replace('.', ',')} km` : '', x.time ? x.time.replace(/^0(\d)/, '$1').replace(':', ' h ') : '', x.elevation ? `${x.elevation} m D+` : ''].filter(Boolean).join(' · ');
 function renderToday() {
   const key = todayKey();
   const families = state.families || [];
   const sessions = (Array.isArray(state.plans?.[key]) ? state.plans[key] : []).filter(x => x.training);
   const phase = phaseOn(key);
   const races = racesOn(key);
+  const facts = x => [x.distance ? `${String(x.distance).replace('.', ',')} km` : '', x.time ? x.time.replace(/^0(\d)/, '$1').replace(':', ' h ') : '', x.elevation ? `${x.elevation} m D+` : ''].filter(Boolean).join(' · ');
   // Course d'abord, puis séances : le sport en gros, la séance et ses chiffres en dessous.
   const items = [
     ...races.map(r => ({ big: r.name, small: ['Course', r.time ? `départ ${r.time}` : ''].filter(Boolean).join(' · ') })),
     ...sessions.map(x => {
       if (isRestTraining(x.training)) return { big: REST_TRAINING.replace(' - ', '\u00a0– '), small: '', rest: true };
       const f = families.find(a => a.id === x.family);
-      return { big: f ? f.name : x.training, small: [f ? x.training : '', sessionFacts(x)].filter(Boolean).join(' · ') };
+      return { big: f ? f.name : x.training, small: [f ? x.training : '', facts(x)].filter(Boolean).join(' · ') };
     })
   ];
   const [main, ...more] = items;
@@ -135,6 +139,31 @@ function raceItem(r) {
   </a>`;
 }
 
+/** Rendez-vous, événements et courses à venir, dans l'ordre chronologique. */
+function upcomingAgenda() {
+  const today = todayKey();
+  const races = (state.races || []).filter(r => r.date >= today).map(r => ({ ...r, kind: 'races' }));
+  return [...upcoming('appointments').map(x => ({ ...x, kind: 'appointments' })), ...upcoming('events').map(x => ({ ...x, kind: 'events' })), ...races].sort((a, b) => startOf(a) - startOf(b));
+}
+
+const agendaHtml = x => (x.kind === 'races' ? raceItem(x) : itemCard(x, x.kind));
+
+function renderAgendaList() {
+  const limit = dateKey(addDays(new Date(), AGENDA_DAYS));
+  const items = upcomingAgenda();
+  const soon = items.filter(x => x.date <= limit);
+  const later = items.filter(x => x.date > limit);
+  $('#agenda').innerHTML = soon.length
+    ? soon.map(agendaHtml).join('')
+    : '<div class="empty-state"><p>Rien de prévu.</p></div>';
+  const more = $('#agendaMore');
+  more.hidden = !later.length;
+  more.setAttribute('aria-expanded', String(laterOpen));
+  more.innerHTML = `<span>${laterOpen ? 'Masquer' : 'Plus tard'} (${later.length})</span>${icon(laterOpen ? 'chevronUp' : 'chevronDown', 16)}`;
+  $('#agendaLater').hidden = !laterOpen || !later.length;
+  $('#agendaLater').innerHTML = laterOpen ? later.map(agendaHtml).join('') : '';
+}
+
 /* ---------- Calendrier du mois ---------- */
 const monthBounds = month => {
   const [y, m] = month.split('-').map(Number);
@@ -145,8 +174,9 @@ const shiftMonth = (month, n) => {
   return dateKey(new Date(y, m - 1 + n, 1, 12)).slice(0, 7);
 };
 
-/** Tout ce qui tombe entre deux jours inclus, par jour : { 'AAAA-MM-JJ': [{ kind, …élément, date }] }. */
-function itemsBetween(from, to) {
+/** Tout ce qui tombe dans le mois, par jour : { 'AAAA-MM-JJ': [{ kind, …élément, date }] }. */
+function monthItems(month) {
+  const [from, to] = monthBounds(month);
   const byDay = {};
   const add = (date, item) => (byDay[date] ||= []).push({ ...item, date });
   ['appointments', 'events'].forEach(kind => state.dashboard[kind].forEach(x => occurrencesBetween(x, from, to).forEach(d => add(d, { ...x, kind }))));
@@ -156,7 +186,6 @@ function itemsBetween(from, to) {
   Object.values(byDay).forEach(list => list.sort((a, b) => (a.time || '99').localeCompare(b.time || '99')));
   return byDay;
 }
-const monthItems = month => itemsBetween(...monthBounds(month));
 
 function dayItemHtml(x) {
   if (x.kind === 'appointments' || x.kind === 'events') return itemCard(x, x.kind);
@@ -203,109 +232,14 @@ function renderMonthCalendar() {
     : '';
 }
 
-/* ---------- Accueil « Horizon » : retards, radar des 14 jours, aujourd'hui, bientôt ---------- */
-const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
-const shortDay = key => formatKey(key, { weekday: 'short', day: 'numeric' });
-const lateLabel = key => `−${Math.max(1, -daysUntil(key))} j`;
-const overdueTasks = () => state.dashboard.tasks.filter(t => !t.done && t.date && t.date < todayKey()).sort((a, b) => a.date.localeCompare(b.date));
-const RADAR_LETTERS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-
-/** Une ligne de l'accueil ou d'un jour : tâche cochable, RDV / événement modifiable, course, séance, échéance Garage / Maison. */
-function homeRow(x, when = '', tone = '') {
-  const end = when ? `<span class="hrow__when">${esc(when)}</span>` : '';
-  const cls = `hrow${tone ? ` is-${tone}` : ''}`;
-  const body = (title, sub) => `<div class="hrow__body"><div class="hrow__title">${esc(title)}</div>${sub ? `<div class="hrow__sub">${esc(sub)}</div>` : ''}</div>`;
-  if (x.kind === 'tasks') {
-    return `<div class="${cls} is-tappable" data-id="${esc(x.id)}" data-type="tasks" tabindex="0" aria-label="Modifier « ${esc(x.title)} »">
-      <button type="button" class="hrow__check" data-action="toggle" role="checkbox" aria-checked="false" aria-label="Marquer « ${esc(x.title)} » comme faite">${icon('check', 14)}</button>
-      ${body(x.title, isRepeat(x.repeat) ? REPEATS[x.repeat].label : x.note)}${end}</div>`;
-  }
-  if (x.kind === 'appointments' || x.kind === 'events') {
-    return `<div class="${cls} is-tappable" data-id="${esc(x.id)}" data-type="${x.kind}" tabindex="0" aria-label="Modifier « ${esc(x.title)} »">
-      <span class="hrow__icon">${icon(x.kind === 'appointments' ? 'clock' : 'sparkle', 18)}</span>
-      ${body(x.title, [x.kind === 'appointments' ? 'Rendez-vous' : 'Événement', x.location].filter(Boolean).join(' · '))}${end}</div>`;
-  }
-  if (x.kind === 'races') {
-    return `<a class="${cls}" href="${ALLURE_URL}"><span class="hrow__icon is-accent">${icon('flag', 18)}</span>${body(x.name, ['Course', x.distance ? `${String(x.distance).replace('.', ',')} km` : ''].filter(Boolean).join(' · '))}${end}</a>`;
-  }
-  if (x.kind === 'session') {
-    return `<button type="button" class="${cls}" data-goto="trainingView"><span class="hrow__icon is-accent">${icon('training', 18)}</span>${body(x.title, x.sub)}${end}</button>`;
-  }
-  // Échéance publiée par Mon Garage ou Ma Maison : un appui ouvre l'app.
-  const garage = (x.source || x.kind) === 'garage';
-  return `<a class="${cls}" href="${garage ? GARAGE_URL : `${MAISON_URL}#/entretien`}"><span class="hrow__icon">${icon(garage ? 'car' : 'house', 18)}</span>${body(x.title, [garage ? 'Garage' : 'Maison', x.owner].filter(Boolean).join(' · '))}${end}</a>`;
+function renderAgenda() {
+  $$('#agendaMode [data-agenda-mode]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.agendaMode === agendaMode)));
+  $('#agendaListPanel').hidden = agendaMode !== 'list';
+  $('#agendaMonthPanel').hidden = agendaMode !== 'month';
+  if (agendaMode === 'month') renderMonthCalendar();
+  else renderAgendaList();
 }
 
-function renderRadar(today, byDay) {
-  const start = fromKey(today);
-  $('#homeRadar').innerHTML = Array.from({ length: RADAR_DAYS }, (_, i) => {
-    const d = addDays(start, i);
-    const key = dateKey(d);
-    const n = (byDay[key] || []).length;
-    const label = `${formatKey(key, { weekday: 'long', day: 'numeric', month: 'long' })}${n ? ` · ${n} chose${n > 1 ? 's' : ''} prévue${n > 1 ? 's' : ''}` : ''}`;
-    return `<button type="button" class="hz-day${i === 0 ? ' is-today' : ''}${d.getDay() % 6 === 0 ? ' is-weekend' : ''}" data-radar-day="${key}" aria-label="${esc(label)}"><small>${RADAR_LETTERS[d.getDay()]}</small><b>${d.getDate()}</b><span class="hz-pips">${'<i></i>'.repeat(Math.min(n, 3))}</span></button>`;
-  }).join('');
-  const m1 = formatDate(start, { month: 'long' });
-  const m2 = formatDate(addDays(start, RADAR_DAYS - 1), { month: 'long' });
-  $('#radarMonth').textContent = m1 === m2 ? cap(m1) : `${cap(m1)} – ${m2}`;
-}
-
-function renderHome() {
-  const today = todayKey();
-  // En retard : les tâches de Carnet (cochables ici) et les entretiens publiés par Garage / Maison.
-  const late = [...overdueTasks().map(t => ({ ...t, kind: 'tasks' })), ...lateAlerts()];
-  const lateEl = $('#homeLate');
-  lateEl.hidden = !late.length;
-  lateEl.innerHTML = late.length
-    ? `<h2 class="hz-cap">En retard · ${late.length}</h2>${late.map(x => homeRow(x, x.kind === 'tasks' ? lateLabel(x.date) : x.due ? lateLabel(x.due) : 'Retard', 'late')).join('')}`
-    : '';
-
-  const byDay = itemsBetween(today, dateKey(addDays(fromKey(today), RADAR_DAYS - 1)));
-  renderRadar(today, byDay);
-  const todays = byDay[today] || [];
-  $('#homeToday').innerHTML = todays.length ? todays.map(x => homeRow(x, x.time || '', 'today')).join('') : '<p class="hz-empty">Rien d’autre aujourd’hui.</p>';
-
-  // Bientôt : une tâche répétée n'apparaît qu'à sa prochaine échéance.
-  const seen = new Set();
-  const soon = Object.keys(byDay)
-    .filter(k => k > today)
-    .sort()
-    .flatMap(k => byDay[k])
-    .filter(x => (x.kind === 'tasks' ? !seen.has(x.id) && seen.add(x.id) : true));
-  $('#homeSoon').innerHTML = soon.length
-    ? soon
-        .slice(0, SOON_MAX)
-        .map(x => homeRow(x, `${shortDay(x.date)}${x.time ? ` · ${x.time}` : ''}`))
-        .join('') + (soon.length > SOON_MAX ? `<button type="button" class="hz-more" data-goto="tasksView">${soon.length - SOON_MAX} de plus dans l’agenda</button>` : '')
-    : '<p class="hz-empty">Rien de prévu dans les deux semaines.</p>';
-}
-
-/* ---------- Un jour du radar ---------- */
-let dayOpen = '';
-
-function openDay(key) {
-  dayOpen = key;
-  renderDay();
-  openSheet('daySheet', { focus: false });
-}
-
-function renderDay() {
-  const key = dayOpen;
-  const diff = daysUntil(key);
-  $('#dayKicker').textContent = diff === 0 ? 'Aujourd’hui' : diff === 1 ? 'Demain' : `Dans ${diff} jours`;
-  $('#dayTitle').textContent = cap(formatKey(key, { weekday: 'long', day: 'numeric', month: 'long' }));
-  const phase = phaseOn(key);
-  const sessions = (Array.isArray(state.plans?.[key]) ? state.plans[key] : [])
-    .filter(x => x.training && !isRestTraining(x.training))
-    .map(x => {
-      const f = (state.families || []).find(a => a.id === x.family);
-      return { kind: 'session', title: f ? `${f.name} · ${x.training}` : x.training, sub: sessionFacts(x) };
-    });
-  const rows = [...sessions, ...(itemsBetween(key, key)[key] || [])];
-  $('#dayContent').innerHTML = `${phase ? `<p class="day-phase"><b>${esc(PHASE_TYPES[phase.type].short)}</b>${esc(PHASE_TYPES[phase.type].advice || '')}</p>` : ''}${
-    rows.length ? `<div class="hz-list">${rows.map(x => homeRow(x, x.time && x.kind !== 'session' ? x.time : '')).join('')}</div>` : '<p class="hz-empty">Rien de prévu ce jour-là.</p>'
-  }`;
-}
 /** Sous-titre d'une tâche : échéance, périodicité, devenir une fois cochée. */
 function taskSub(t) {
   const overdue = !t.done && t.date && t.date < todayKey();
@@ -350,11 +284,9 @@ export function renderNotes() {
 
 export function renderDashboard() {
   renderToday();
-  renderHome();
-  renderMonthCalendar();
+  renderAgenda();
   renderTasks();
   if (isOpen('archiveSheet')) renderArchive();
-  if (isOpen('daySheet')) renderDay();
 }
 
 /* ---------- Archive ---------- */
@@ -379,8 +311,15 @@ function renderArchive() {
     .join('');
 }
 
+/** Historique des rendez-vous ou des événements (feuille « Tous les RDV »). */
+export function openArchive(type = 'appointments') {
+  archive = { type, tab: upcoming(type).length ? 'upcoming' : 'past' };
+  renderArchive();
+  openSheet('archiveSheet', { focus: false });
+}
+
 /* ---------- Formulaire ---------- */
-function openEditor(type, id = null) {
+export function openEditor(type, id = null) {
   const item = id ? state.dashboard[type].find(x => x.id === id) : null;
   if (id && !item) return toastError('Cet élément n’existe plus.');
   const form = $('#itemForm');
@@ -480,123 +419,69 @@ async function removeItem(type, id) {
   return true;
 }
 
-/* ---------- Bouton + : tâche express avec échéance en un appui, puis les autres saisies ---------- */
-let addDate = '';
-/** Jour choisi depuis le radar (« Ajouter ce jour-là ») : proposé en premier. */
-let addDay = '';
-
-function nextSaturday() {
-  const d = new Date();
-  return dateKey(addDays(d, (6 - d.getDay() + 7) % 7 || 7));
-}
-
-function whenChoices() {
-  const sat = nextSaturday();
-  const list = [
-    { key: '', label: 'Sans date' },
-    { key: todayKey(), label: 'Aujourd’hui' },
-    { key: dateKey(addDays(new Date(), 1)), label: 'Demain' },
-    { key: sat, label: cap(shortDay(sat)) }
-  ];
-  if (addDay && !list.some(c => c.key === addDay)) list.splice(1, 0, { key: addDay, label: cap(formatKey(addDay, { weekday: 'short', day: 'numeric', month: 'short' })) });
-  return list;
-}
-
-function renderWhen() {
-  $('#addWhen').innerHTML =
-    whenChoices()
-      .map(c => `<button type="button" class="add-chip" role="radio" aria-checked="${c.key === addDate}" data-when="${c.key}">${c.key === addDate ? icon('check', 14) : ''}${esc(c.label)}</button>`)
-      .join('') + '<button type="button" class="add-chip add-chip--more" data-when-more>Autre…</button>';
-}
-
-export function openAdd(date = '') {
-  addDay = date;
-  addDate = date;
-  $('#addQuick').reset();
-  renderWhen();
-  openSheet('addSheet');
-}
-
-function onAddSubmit(e) {
+/**
+ * Saisie express en langage naturel : « payer la cantine demain » devient une tâche datée,
+ * « dentiste jeudi 17h30 » (jour et heure) un rendez-vous. Champ vide : formulaire complet.
+ */
+function onQuickTask(e) {
   e.preventDefault();
-  const input = $('#addTask');
-  const title = input.value.trim().slice(0, 100);
-  if (!title) return input.focus();
-  state.dashboard.tasks.push({ id: uid(), title, date: addDate, time: '', note: '', done: false });
+  const input = e.currentTarget.elements.title;
+  const raw = input.value.trim();
+  if (!raw) return openEditor('tasks');
+  const { title, date, time } = parseEntry(raw);
+  if (!title) return;
+  if (date && time) {
+    state.dashboard.appointments.push({ id: uid(), title, date, time, note: '' });
+    toast(`Rendez-vous · ${formatKey(date, { weekday: 'short', day: 'numeric', month: 'short' })} ${time}`);
+  } else {
+    state.dashboard.tasks.push({ id: uid(), title, date, time: '', note: '', done: false });
+  }
   commit('dashboard');
+  const r = e.currentTarget.querySelector('[type=submit]')?.getBoundingClientRect();
+  if (r) burst(r.left + r.width / 2, r.top + r.height / 2, 10);
+  buzz(10);
   input.value = '';
-  closeSheet('addSheet');
-  toast(addDate ? `Tâche ajoutée · ${relativeDay(addDate).toLowerCase()}` : 'Tâche ajoutée');
+  renderQuickChip(input);
 }
 
-function onAddClick(e) {
-  const when = e.target.closest('[data-when]');
-  if (when) {
-    addDate = when.dataset.when;
-    return renderWhen();
-  }
-  const date = addDay || addDate;
-  if (e.target.closest('[data-when-more]')) {
-    // Autre date, heure ou répétition : le formulaire complet, titre déjà saisi.
-    const title = $('#addTask').value.trim();
-    closeSheet('addSheet');
-    openEditor('tasks');
-    $('#itemTitleInput').value = title;
-    if (date) $('#itemForm').elements.date.value = date;
+/** Pastille sous la saisie express : ce que Carnet a compris (date, heure, rendez-vous). */
+function renderQuickChip(input) {
+  const chip = $('#taskQuickChip');
+  const { date, time } = parseEntry(input.value);
+  if (!input.value.trim() || !date) {
+    chip.hidden = true;
     return;
   }
-  const add = e.target.closest('[data-add]');
-  if (!add) return;
-  closeSheet('addSheet');
-  const kind = add.dataset.add;
-  if (kind === 'appointments' || kind === 'events') {
-    openEditor(kind);
-    if (addDay) $('#itemForm').elements.date.value = addDay;
-  } else if (kind === 'session') {
-    $('[data-view="trainingView"]').click();
-    requestAnimationFrame(() => $('[data-action="week-today"]')?.click());
-  } else if (kind === 'note') {
-    $('[data-view="dashboardView"]').click();
-    setTimeout(() => {
-      const notes = $('#notes');
-      notes.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      notes.focus({ preventScroll: true });
-    }, 80);
-  }
-}
-
-function initAdd() {
-  $('#fabAdd').addEventListener('click', () => openAdd());
-  $('#addQuick').addEventListener('submit', onAddSubmit);
-  $('#addSheet').addEventListener('click', onAddClick);
-  $('#dayAdd').addEventListener('click', () => {
-    const key = dayOpen;
-    closeSheet('daySheet');
-    openAdd(key);
-  });
-  // Une séance touchée dans la feuille d'un jour mène au planning : la feuille se ferme.
-  $('#daySheet').addEventListener('click', e => e.target.closest('[data-goto]') && closeSheet('daySheet'));
+  const day = daysUntil(date);
+  const label = day === 0 ? 'aujourd’hui' : day === 1 ? 'demain' : formatKey(date, { weekday: 'short', day: 'numeric', month: 'short' });
+  chip.textContent = `${label}${time ? ` · ${time} · rendez-vous` : ''}`;
+  chip.hidden = false;
 }
 
 async function onClick(e) {
-  const radar = e.target.closest('[data-radar-day]');
-  if (radar) return openDay(radar.dataset.radarDay);
+  if (e.target.closest('#agendaMore')) {
+    laterOpen = !laterOpen;
+    return renderAgenda();
+  }
+  const mode = e.target.closest('[data-agenda-mode]');
+  if (mode) {
+    agendaMode = mode.dataset.agendaMode;
+    write(AGENDA_MODE_KEY, agendaMode);
+    return renderAgenda();
+  }
   const step = e.target.closest('[data-cal-step]');
   if (step) {
     calMonth = shiftMonth(calMonth, Number(step.dataset.calStep));
     calDay = todayKey().startsWith(calMonth) ? todayKey() : `${calMonth}-01`;
-    return renderMonthCalendar();
+    return renderAgenda();
   }
   const day = e.target.closest('[data-cal-day]');
   if (day) {
     calDay = day.dataset.calDay;
-    return renderMonthCalendar();
+    return renderAgenda();
   }
   const open = e.target.closest('[data-open]');
-  if (open) {
-    if (isOpen('daySheet')) closeSheet('daySheet');
-    return openEditor(open.dataset.open);
-  }
+  if (open) return openEditor(open.dataset.open);
   const viewAll = e.target.closest('[data-view-all]');
   if (viewAll) {
     archive = { type: viewAll.dataset.viewAll, tab: upcoming(viewAll.dataset.viewAll).length ? 'upcoming' : 'past' };
@@ -627,7 +512,6 @@ async function onClick(e) {
       break;
     case 'edit':
       if (isOpen('archiveSheet')) closeSheet('archiveSheet');
-      if (isOpen('daySheet')) closeSheet('daySheet');
       openEditor(type, id);
       break;
     case 'reminder':
@@ -647,12 +531,13 @@ function onKey(e) {
 }
 
 export function initDashboard() {
-  ['#dashboardView', '#tasksView', '#archiveSheet', '#daySheet'].forEach(sel => {
+  ['#dashboardView', '#tasksView', '#archiveSheet'].forEach(sel => {
     $(sel).addEventListener('click', onClick);
     $(sel).addEventListener('keydown', onKey);
   });
   $('#itemForm').addEventListener('submit', onSubmit);
-  initAdd();
+  $('#taskQuick').addEventListener('submit', onQuickTask);
+  $('#taskQuick').elements.title.addEventListener('input', e => renderQuickChip(e.target));
   $('#itemDelete').addEventListener('click', async () => {
     const form = $('#itemForm');
     if (await removeItem(form.elements.type.value, form.elements.editId.value)) closeSheet('itemSheet');
