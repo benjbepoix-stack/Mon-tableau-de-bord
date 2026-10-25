@@ -311,8 +311,15 @@ function renderArchive() {
     .join('');
 }
 
+/** Historique des rendez-vous ou des événements (feuille « Tous les RDV »). */
+export function openArchive(type = 'appointments') {
+  archive = { type, tab: upcoming(type).length ? 'upcoming' : 'past' };
+  renderArchive();
+  openSheet('archiveSheet', { focus: false });
+}
+
 /* ---------- Formulaire ---------- */
-function openEditor(type, id = null) {
+export function openEditor(type, id = null) {
   const item = id ? state.dashboard[type].find(x => x.id === id) : null;
   if (id && !item) return toastError('Cet élément n’existe plus.');
   const form = $('#itemForm');

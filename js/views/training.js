@@ -188,6 +188,11 @@ async function loadWeather(force = false) {
 
 let scrolledToTodayOnOpen = false;
 
+/** Ouvre le planning détaillé sur la semaine d'une date (depuis l'onglet Semaine). */
+export function setTrainingWeek(date) {
+  weekStart = mondayOf(date);
+}
+
 export function showTraining() {
   renderTraining();
   loadWeather();

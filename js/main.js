@@ -17,23 +17,25 @@ import { tidyTasks } from './features/task-tidy.js';
 import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining, renderTraining, showTraining } from './views/training.js';
-import { renderSportTasks } from './features/sport-tasks.js';
 import { initBriefing, maybeShowBriefing, isBriefingOpen } from './features/briefing.js';
-import { initTaskSwipe } from './features/task-swipe.js';
+import { initVivant, showVivant } from './views/vivant.js';
 
-const showTasks = () => {
-  renderDashboard();
-  renderSportTasks();
-};
+// Les trois écrans du briefing (vivant.js) se redessinent à chaque changement ; le planning
+// détaillé (training.js) reste accessible depuis Semaine pour éditer les séances.
+const ALL = ['dashboard', 'notes', 'races', 'plans', 'families', 'objectives'];
+const vivant = id => ({ show: () => showVivant(id), render: () => showVivant(id), slices: ALL });
 const VIEWS = {
-  dashboardView: { title: 'Aujourd’hui', show: renderDashboard, render: renderDashboard, slices: ['races', 'plans', 'families', 'objectives'] },
-  tasksView: { title: 'À faire', show: showTasks, render: renderSportTasks, slices: ['races'] },
-  trainingView: { title: 'Semaine', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
+  todayView: { title: 'Aujourd’hui', ...vivant('todayView') },
+  todoView: { title: 'À faire', ...vivant('todoView') },
+  weekView: { title: 'Semaine', ...vivant('weekView') },
+  trainingView: { title: 'Planning détaillé', tab: 'weekView', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
 };
+/** Anciens noms d'écran (onglet mémorisé, liens data-goto). */
+const LEGACY = { dashboardView: 'todayView', tasksView: 'todoView' };
 const VIEW_KEY = 'dashboard_last_view';
 /** Dernier compte connecté sur cet appareil (un autre compte vide d'abord les données locales). */
 const LAST_UID = 'dashboard_last_uid';
-let currentView = 'dashboardView';
+let currentView = 'todayView';
 /** Données du cloud reçues (ou mode local) : le ménage des tâches cochées peut se faire sans risque. */
 let settled = false;
 
@@ -47,12 +49,13 @@ function settle() {
 }
 
 function switchView(id, { scroll = true } = {}) {
-  if (!VIEWS[id]) id = 'dashboardView';
+  id = LEGACY[id] || id;
+  if (!VIEWS[id]) id = 'todayView';
   currentView = id;
   document.body.dataset.screen = id;
   $$('.view').forEach(v => (v.hidden = v.id !== id));
   $$('[data-view]').forEach(b => {
-    const active = b.dataset.view === id;
+    const active = b.dataset.view === (VIEWS[id].tab || id);
     b.classList.toggle('is-active', active);
     if (active) b.setAttribute('aria-current', 'page');
     else b.removeAttribute('aria-current');
@@ -107,9 +110,9 @@ function onUser(user) {
 
 /** Depuis le pop-up de démarrage : ouvre le tableau de bord et met la tâche en évidence. */
 function goToTask(id) {
-  switchView('tasksView');
+  switchView('todoView');
   setTimeout(() => {
-    const row = document.querySelector(`#tasks [data-id="${CSS.escape(id)}"]`);
+    const row = document.querySelector(`#todoView [data-task="${CSS.escape(id)}"]`);
     row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, 80);
 }
@@ -144,7 +147,7 @@ function init() {
   initDashboard();
   initTraining();
   initOverduePrompt({ onView: goToTask });
-  initTaskSwipe();
+  initVivant({ go: id => switchView(id) });
   initBriefing({ onDone: () => VIEWS[currentView].show() });
 
   renderNotes();
@@ -160,7 +163,7 @@ function init() {
   initBackdrop();
   initAuth({ onLocal: goLocal });
 
-  let initial = 'dashboardView';
+  let initial = 'todayView';
   try {
     initial = sessionStorage.getItem(VIEW_KEY) || initial;
   } catch {
@@ -206,7 +209,10 @@ function init() {
     maybeShowBriefing() || checkOverdue();
   };
   setTimeout(overdueFallback, 6000);
-  onLinkedChange(() => currentView === 'dashboardView' && renderDashboard());
+  onLinkedChange(() => {
+    renderDashboard();
+    if (currentView !== 'trainingView') VIEWS[currentView].render();
+  });
 
   document.documentElement.classList.add('is-ready');
 

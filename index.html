@@ -61,15 +61,21 @@
   </header>
 
   <nav class="tabbar" aria-label="Navigation principale">
-    <button type="button" class="tabbar__item is-active" data-view="dashboardView" aria-current="page"><span data-icon="home"></span><span>Aujourd’hui</span></button>
-    <button type="button" class="tabbar__item" data-view="tasksView"><span data-icon="check"></span><span>À faire</span></button>
-    <button type="button" class="tabbar__item" data-view="trainingView"><span data-icon="training"></span><span>Semaine</span></button>
+    <button type="button" class="tabbar__item is-active" data-view="todayView" aria-current="page">Aujourd’hui</button>
+    <button type="button" class="tabbar__item" data-view="todoView">À faire</button>
+    <button type="button" class="tabbar__item" data-view="weekView">Semaine</button>
   </nav>
 
   <main class="app" id="main" tabindex="-1">
 
+    <!-- ================= ÉCRANS « VIVANT » (rendus par js/views/vivant.js) ================= -->
+    <section id="todayView" class="view v-view" aria-label="Aujourd’hui"></section>
+    <section id="todoView" class="view v-view" hidden aria-label="À faire"></section>
+    <section id="weekView" class="view v-view" hidden aria-label="Semaine"></section>
+
+    <!-- Anciens écrans : conservés (notes, liste, agenda mensuel) mais plus affichés. -->
     <!-- ================= DASHBOARD ================= -->
-    <section id="dashboardView" class="view" aria-labelledby="headerTitle">
+    <section id="dashboardView" class="view" hidden aria-labelledby="headerTitle">
 
 
       <section class="today-card" id="todaySession"></section>
