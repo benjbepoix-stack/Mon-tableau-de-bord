@@ -20,14 +20,15 @@ import { initTraining, renderTraining, showTraining } from './views/training.js'
 import { initBriefing, maybeShowBriefing, isBriefingOpen } from './features/briefing.js';
 import { initVivant, showVivant } from './views/vivant.js';
 
-// Les trois écrans du briefing (vivant.js) se redessinent à chaque changement ; le planning
-// détaillé (training.js) reste accessible depuis Semaine pour éditer les séances.
+// Les quatre espaces (vivant.js) se redessinent à chaque changement ; le planning
+// détaillé (training.js) reste accessible depuis Sport pour éditer les séances.
 const ALL = ['dashboard', 'notes', 'races', 'plans', 'families', 'objectives'];
 const vivant = id => ({ show: () => showVivant(id), render: () => showVivant(id), slices: ALL });
 const VIEWS = {
-  todayView: { title: 'Aujourd’hui', ...vivant('todayView') },
-  todoView: { title: 'À faire', ...vivant('todoView') },
-  weekView: { title: 'Semaine', ...vivant('weekView') },
+  todayView: { title: 'Accueil', ...vivant('todayView') },
+  agendaView: { title: 'Agenda', ...vivant('agendaView') },
+  todoView: { title: 'Tâches', ...vivant('todoView') },
+  weekView: { title: 'Sport', ...vivant('weekView') },
   trainingView: { title: 'Planning détaillé', tab: 'weekView', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
 };
 /** Anciens noms d'écran (onglet mémorisé, liens data-goto). */
@@ -72,10 +73,12 @@ function switchView(id, { scroll = true } = {}) {
 }
 
 /** Re-rendu ciblé selon les tranches d'état modifiées. */
-function onStateChange(slices) {
+function onStateChange(slices, source) {
   if (slices.includes('theme')) applyTheme(state.theme, { animate: true });
   if (slices.includes('notes')) renderNotes();
   if (slices.includes('dashboard')) renderDashboard();
+  // Note tapée dans l'app : rien à redessiner (le champ garde le curseur où il est).
+  if (source === 'local' && slices.length === 1 && slices[0] === 'notes') return;
   const view = VIEWS[currentView];
   if (view.render && view.slices.some(s => slices.includes(s))) view.render();
 }
