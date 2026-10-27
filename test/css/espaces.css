@@ -280,6 +280,53 @@ body.e-flow-on .k-fab { transform: rotate(45deg); }
 .e-btn--ghost { background: var(--surface); color: var(--text); box-shadow: var(--k-shadow); }
 .e-btn:disabled { opacity: .45; cursor: default; }
 
+/* ---------- Sport épuré (test) : une seule liste de 7 jours ---------- */
+.s-phase { padding: 0 !important; overflow: hidden; box-shadow: inset 3px 0 0 var(--ph, var(--accent)), var(--k-shadow) !important; }
+.s-phase summary { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 10px; padding: 14px 16px 12px; list-style: none; cursor: pointer; }
+.s-phase summary::-webkit-details-marker { display: none; }
+.s-phase__l { font-size: 14px; color: var(--text-2); }
+.s-phase__l b { color: var(--ph, var(--text)); font-size: 15px; }
+.s-phase__r { font-size: 13px; color: var(--text-2); white-space: nowrap; }
+.s-phase .e-season { grid-column: 1 / -1; height: 6px; margin: 10px 0 0; }
+.s-phase .e-season__me { top: -4px; height: 14px; }
+.s-phase__adv { margin: 0; padding: 0 16px 4px; font-size: 13px; line-height: 1.4; color: var(--text-2); }
+.s-phase .e-goals { margin: 10px 16px 14px; }
+div.card.s-phase { padding: 12px 16px !important; }
+.s-prog { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 46px; margin-top: 10px; border: 0; border-radius: 16px; background: var(--gradient-accent); color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; transition: transform .35s var(--k-spring); }
+.s-prog:active { transform: scale(.97); }
+.s-prog svg { width: 17px; height: 17px; }
+.v-view .card.s-week { margin-top: 12px; overflow: hidden; }
+.s-day { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 11px 14px; scroll-margin-top: 14px; }
+.s-day + .s-day { border-top: 1px solid var(--border); }
+.s-day__d { display: grid; justify-items: center; padding-top: 1px; line-height: 1.05; }
+.s-day__d small { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); }
+.s-day__d b { font-size: 19px; letter-spacing: -.02em; color: var(--text); }
+.s-day.is-past .s-day__d b, .s-day.is-past .s-day__d small { color: var(--text-3); }
+.s-day.is-today { margin: 4px; border-radius: 16px; background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.s-day.is-today + .s-day { border-top: 0; }
+.s-day.is-today .s-day__d small, .s-day.is-today .s-day__d b { color: var(--accent); }
+.s-day__b { display: grid; gap: 8px; min-width: 0; }
+.s-day__w { display: flex; align-items: center; gap: 3px; padding-top: 3px; font-size: 13px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.s-day__w svg { width: 16px; height: 16px; }
+.s-day__w.q-good svg { color: var(--ok); } .s-day__w.q-ok svg { color: var(--soon); } .s-day__w.q-bad svg { color: var(--late); }
+.s-free { justify-self: stretch; min-height: 26px; padding: 0; border: 0; background: none; text-align: left; font: inherit; font-size: 14px; color: var(--text-3); cursor: pointer; }
+span.s-free { cursor: default; }
+.s-ses { display: flex; align-items: center; gap: 8px; padding-left: 10px; box-shadow: inset 3px 0 0 var(--kc, var(--text-3)); border-radius: 2px; text-decoration: none; color: inherit; }
+.s-ses.k-run { --kc: var(--k-run); } .s-ses.k-bike { --kc: var(--k-bike); } .s-ses.k-gym { --kc: var(--k-gym); } .s-ses.k-rdv { --kc: var(--rdv); }
+.s-ses__m { flex: 1; min-width: 0; display: grid; gap: 1px; padding: 0; border: 0; background: none; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.s-ses__m b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.s-ses__m span { font-size: 12.5px; color: var(--text-2); }
+.s-ses__m em { font-style: normal; color: var(--late); }
+.s-ses.is-done b { color: var(--text-2); text-decoration: line-through; }
+.s-ses.is-miss b { color: var(--text-2); }
+.s-ses .e-check { width: 28px; height: 28px; }
+.s-day.is-today .e-check:not(.is-on) i { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
+.s-week + .e-wkline { margin-top: 10px; text-align: center; }
+.s-edit .e-pm__b { padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+.s-edit .e-ed { padding: 0; background: none; animation: none; }
+.s-slots { padding: 0 0 14px; animation: none; }
+.s-edit .e-ed__a { gap: 8px; } .s-edit .e-ed__a .e-ed__ok { margin-left: auto; }
+
 @media (prefers-reduced-motion: reduce) {
   .e-flow { transition: none; clip-path: none; }
   .e-pm, .e-pm__card { transition: none; }
