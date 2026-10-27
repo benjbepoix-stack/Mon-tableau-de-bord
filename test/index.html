@@ -41,6 +41,7 @@
   <link rel="stylesheet" href="css/horizon.css">
   <link rel="stylesheet" href="css/vivant.css">
   <link rel="stylesheet" href="css/carnet2.css">
+  <link rel="stylesheet" href="css/espaces.css">
 
   <script type="module" src="js/main.js"></script>
 </head>
@@ -62,18 +63,20 @@
   </header>
 
   <nav class="tabbar" aria-label="Navigation principale">
-    <button type="button" class="tabbar__item is-active" data-view="todayView" aria-current="page">Aujourd’hui</button>
-    <button type="button" class="tabbar__item" data-view="todoView">À faire</button>
-    <button type="button" class="tabbar__item" data-view="weekView">Semaine</button>
+    <button type="button" class="tabbar__item is-active" data-view="todayView" aria-current="page">Accueil</button>
+    <button type="button" class="tabbar__item" data-view="agendaView">Agenda</button>
+    <button type="button" class="tabbar__item" data-view="todoView">Tâches</button>
+    <button type="button" class="tabbar__item" data-view="weekView">Sport</button>
   </nav>
-  <button type="button" class="k-fab" id="kFab" aria-label="Ajouter une tâche ou un rendez-vous"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button type="button" class="k-fab" id="kFab" aria-label="Ajouter"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
 
   <main class="app" id="main" tabindex="-1">
 
     <!-- ================= ÉCRANS « VIVANT » (rendus par js/views/vivant.js) ================= -->
     <section id="todayView" class="view v-view" aria-label="Aujourd’hui"></section>
-    <section id="todoView" class="view v-view" hidden aria-label="À faire"></section>
-    <section id="weekView" class="view v-view" hidden aria-label="Semaine"></section>
+    <section id="agendaView" class="view v-view" hidden aria-label="Agenda"></section>
+    <section id="todoView" class="view v-view" hidden aria-label="Tâches"></section>
+    <section id="weekView" class="view v-view" hidden aria-label="Sport"></section>
 
     <!-- Anciens écrans : conservés (notes, liste, agenda mensuel) mais plus affichés. -->
     <!-- ================= DASHBOARD ================= -->
