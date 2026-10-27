@@ -5,42 +5,43 @@
    sport (course, vélo, salle) servent aussi aux créneaux météo de « Planifier ».
    ========================================================= */
 :root {
-  --bg: #0c1210; --bg-2: #0c1210;
-  --surface: #151d1a; --surface-solid: #151d1a; --surface-2: #1c2622; --surface-3: #25302b; --field: #1c2622;
-  --border: rgba(225, 240, 232, .07); --border-strong: rgba(225, 240, 232, .13);
-  --text: #ecf0e8; --text-2: #9caaa2; --text-3: #6f7d76;
-  --accent: #7fd1a6; --accent-2: #7fd1a6; --accent-ink: #0b1a12; --accent-soft: rgba(127, 209, 166, .12);
-  --gradient-accent: #7fd1a6;
+  /* Couleurs du logo : ciel #0EA5E9 → indigo #6366F1. Fonds légèrement bleutés, accent indigo. */
+  --bg: #0b0e17; --bg-2: #0b0e17;
+  --surface: #141927; --surface-solid: #141927; --surface-2: #1b2133; --surface-3: #262d42; --field: #1b2133;
+  --border: rgba(226, 232, 255, .07); --border-strong: rgba(226, 232, 255, .13);
+  --text: #eceffa; --text-2: #a0a8bf; --text-3: #737b93;
+  --accent: #8b95ff; --accent-2: #38bdf8; --accent-ink: #0b0e24; --accent-soft: rgba(129, 140, 248, .15);
+  --gradient-accent: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
   --late: #ff917c; --late-bg: rgba(255, 145, 124, .13);
   --soon: #e8c36b; --soon-bg: rgba(232, 195, 107, .12);
-  --ok: #82d1a3; --ok-bg: rgba(130, 209, 163, .11);
+  --ok: #6fd6a0; --ok-bg: rgba(111, 214, 160, .11);
   --danger: #ff917c; --danger-soft: rgba(255, 145, 124, .13);
   --k-run: #f3c04f; --k-run-bg: rgba(243, 192, 79, .14);
-  --k-bike: #86a6f6; --k-bike-bg: rgba(134, 166, 246, .14);
+  --k-bike: #38bdf8; --k-bike-bg: rgba(56, 189, 248, .14);
   --k-swim: #5fd0cb;
-  --k-gym: #c0a0f0; --k-gym-bg: rgba(192, 160, 240, .13);
-  --k-shadow: 0 0 0 1px rgba(225, 240, 232, .05) inset;
+  --k-gym: #e08bd8; --k-gym-bg: rgba(224, 139, 216, .13);
+  --k-shadow: 0 0 0 1px rgba(226, 232, 255, .05) inset;
   --k-spring: cubic-bezier(.34, 1.45, .64, 1);
   --k-ease: cubic-bezier(.2, .8, .2, 1);
-  --pollen: #7fd1a6;
+  --pollen: #8b95ff; --pollen-ink: #0b0e24;
 }
 :root[data-theme="light"] {
-  --bg: #f3f2ec; --bg-2: #f3f2ec;
-  --surface: #ffffff; --surface-solid: #ffffff; --surface-2: #f1efe8; --surface-3: #e7e4db; --field: #f1efe8;
-  --border: rgba(30, 28, 20, .08); --border-strong: rgba(30, 28, 20, .14);
-  --text: #1a1c17; --text-2: #686b61; --text-3: #8e9084;
-  --accent: #23664a; --accent-2: #23664a; --accent-ink: #ffffff; --accent-soft: rgba(35, 102, 74, .11);
-  --gradient-accent: #23664a;
+  --bg: #f4f5fa; --bg-2: #f4f5fa;
+  --surface: #ffffff; --surface-solid: #ffffff; --surface-2: #eef0f7; --surface-3: #e1e4f0; --field: #eef0f7;
+  --border: rgba(20, 24, 56, .08); --border-strong: rgba(20, 24, 56, .14);
+  --text: #161a2b; --text-2: #5d6378; --text-3: #868ca0;
+  --accent: #4f46e5; --accent-2: #0284c7; --accent-ink: #ffffff; --accent-soft: rgba(79, 70, 229, .1);
+  --gradient-accent: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
   --late: #c2381f; --late-bg: #fde9e4;
   --soon: #8a6100; --soon-bg: #fbf1d9;
-  --ok: #22743f; --ok-bg: #e2f3e7;
+  --ok: #1f7a4a; --ok-bg: #e0f4e9;
   --danger: #c2381f; --danger-soft: #fde9e4;
-  --k-run: #d99a14; --k-run-bg: #fbf0d6;
-  --k-bike: #3b6fd8; --k-bike-bg: #e3ebfb;
+  --k-run: #c98a0c; --k-run-bg: #fbf0d6;
+  --k-bike: #0284c7; --k-bike-bg: #e0f2fe;
   --k-swim: #0f8a8a;
-  --k-gym: #8a5cc8; --k-gym-bg: #eee6f9;
-  --k-shadow: 0 1px 2px rgba(40, 30, 20, .05), 0 10px 26px -14px rgba(60, 40, 20, .22);
-  --pollen: #23664a;
+  --k-gym: #a3409b; --k-gym-bg: #f8e6f6;
+  --k-shadow: 0 1px 2px rgba(20, 24, 56, .05), 0 10px 26px -14px rgba(30, 36, 90, .22);
+  --pollen: #4f46e5; --pollen-ink: #ffffff;
 }
 body { background: var(--bg); }
 
@@ -57,8 +58,8 @@ body { background: var(--bg); }
   position: fixed; z-index: 41; bottom: calc(env(safe-area-inset-bottom) + 21px);
   left: calc(max(14px, 50% - 250px) + min(420px, 100% - 98px) + 12px);
   display: grid; place-items: center; width: 56px; height: 56px; border: 0; border-radius: 50%;
-  background: var(--accent); color: var(--accent-ink); cursor: pointer;
-  box-shadow: 0 10px 22px -10px var(--accent), 0 0 0 5px var(--accent-soft);
+  background: var(--gradient-accent); color: #fff; cursor: pointer;
+  box-shadow: 0 10px 22px -10px #6366f1, 0 0 0 5px var(--accent-soft);
   animation: k-breathe 3.4s ease-in-out infinite; transition: transform .5s var(--k-spring); -webkit-tap-highlight-color: transparent;
 }
 .k-fab:active { transform: scale(.9); transition-duration: 90ms; }

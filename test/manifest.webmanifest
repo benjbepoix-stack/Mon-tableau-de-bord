@@ -3,8 +3,8 @@
   "short_name": "Carnet test",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0e1114",
-  "theme_color": "#0e1114",
+  "background_color": "#0b0e17",
+  "theme_color": "#0b0e17",
   "icons": [
     {
       "src": "icon-192.png",
