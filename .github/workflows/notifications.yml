@@ -1,0 +1,41 @@
+# Notifications de Carnet : toutes les 10 minutes, envoie les rappels dus
+# (rendez-vous, tâches à heure fixe, résumé du matin) aux appareils abonnés.
+# Script : scripts/notify/send.mjs. Secrets requis : FIREBASE_SERVICE_ACCOUNT, VAPID_PRIVATE_KEY.
+name: Notifications Carnet
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: carnet-notifications
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TZ: Europe/Paris
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            js/core
+            scripts/notify
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/notify/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: scripts/notify
+      - run: node send.mjs
+        working-directory: scripts/notify
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}

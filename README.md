@@ -122,6 +122,13 @@ Sur iPhone, chaque tâche datée et non terminée a un bouton cloche : il copie 
 
 À l’installation, l’app-shell (HTML/CSS/JS/icônes) est aussi pré-mis en cache : un tout premier lancement hors ligne (avant toute visite en ligne réussie) affiche donc l’app au lieu d’un écran blanc.
 
+## Notifications (version test/ pour l'instant)
+
+* **Activer** : Réglages → Notifications → « Activer les notifications » (compte connecté). Sur iPhone : iOS 16.4+ et Carnet ouverte depuis l'écran d'accueil. Réglages par appareil : rappel avant les rendez-vous / événements (15 min à 24 h), résumé du matin (séances, agenda, tâches du jour et en retard), rappel à l'heure des tâches qui en ont une. Code : `test/js/features/push.js`, réception dans `test/sw.js`.
+* **Envoi** : la tâche GitHub `.github/workflows/notifications.yml` lance `scripts/notify/send.mjs` toutes les 10 minutes (GitHub peut la retarder de quelques minutes). Abonnements : `users/<uid>/carnet_push/devices`, envois déjà faits : `users/<uid>/carnet_push/sent` (jamais deux fois la même notification).
+* **Secrets à créer une fois** (dépôt → *Settings* → *Secrets and variables* → *Actions*) : `FIREBASE_SERVICE_ACCOUNT` (console Firebase `test-e27e9` → Paramètres du projet → Comptes de service → *Générer une nouvelle clé privée*, coller tout le JSON) et `VAPID_PRIVATE_KEY` (clé privée associée à la clé publique écrite dans `push.js` et `send.mjs`). Sans ces secrets, la tâche ne fait rien.
+* Essai sans rien envoyer : `cd scripts/notify && npm ci && FIREBASE_SERVICE_ACCOUNT="$(cat cle.json)" TZ=Europe/Paris node send.mjs --dry`.
+
 ## Météo
 
 Par défaut sur Besançon. Le bouton 📍 à côté de la météo (onglet Planning) permet de changer de ville (recherche via l’API de géocodage gratuite d’Open-Meteo) ; le choix est mémorisé sur l’appareil.

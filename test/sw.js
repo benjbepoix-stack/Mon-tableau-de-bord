@@ -6,7 +6,7 @@
    À l'installation, l'app-shell (HTML/CSS/JS/icônes) est aussi pré-mis en cache :
    un tout premier lancement hors ligne (avant toute visite en ligne réussie)
    affiche donc l'app au lieu d'un écran blanc. */
-const CACHE = 'carnet-test-v4';
+const CACHE = 'carnet-test-v5';
 
 const PRECACHE_URLS = [
   './',
@@ -48,6 +48,7 @@ const PRECACHE_URLS = [
   './js/features/linked-apps.js',
   './js/features/overdue-prompt.js',
   './js/features/persist.js',
+  './js/features/push.js',
   './js/features/reminders.js',
   './js/features/settings.js',
   './js/features/sport-tasks.js',
@@ -102,5 +103,35 @@ self.addEventListener('fetch', e => {
         return res;
       })
       .catch(() => caches.match(e.request).then(hit => hit || (e.request.mode === 'navigate' ? caches.match('./') : Response.error())))
+  );
+});
+
+/* Notifications (Web Push) : envoyées par scripts/notify/send.mjs, voir js/features/push.js. */
+self.addEventListener('push', e => {
+  let data = {};
+  try {
+    data = e.data ? e.data.json() : {};
+  } catch {
+    data = { body: e.data?.text() || '' };
+  }
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'Carnet', {
+      body: data.body || '',
+      tag: data.tag || undefined,
+      icon: 'icon-192.png',
+      badge: 'icon-192.png',
+      data: { url: data.url || './' }
+    })
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const target = new URL(e.notification.data?.url || './', self.registration.scope).href;
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      const open = list.find(c => c.url.startsWith(self.registration.scope));
+      return open ? open.focus() : self.clients.openWindow(target);
+    })
   );
 });
