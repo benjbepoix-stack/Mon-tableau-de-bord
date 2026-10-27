@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Tableau de bord personnel : agenda, tâches, entraînements, courses et mesures.">
-  <meta name="theme-color" content="#0a0f0d">
+  <meta name="theme-color" content="#0b0e17">
   <meta name="color-scheme" content="dark light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -25,7 +25,7 @@
       var t = localStorage.getItem('dashboard_theme');
       if ((t !== 'light' && t !== 'dark') || (t === 'dark' && !localStorage.getItem('dashboard_theme_auto_v1'))) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.dataset.theme = t;
-      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#f5f4ee' : '#0a0f0d');
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#f4f5fa' : '#0b0e17');
     } catch (e) {}
   </script>
 
@@ -168,46 +168,6 @@
       </section>
     </section>
 
-    <!-- ================= ENTRAÎNEMENT ================= -->
-    <section id="trainingView" class="view" hidden aria-labelledby="headerTitle">
-      <div id="trainingWeekPanel">
-        <div class="toolbar toolbar--week">
-          <button type="button" class="btn btn--primary" data-action="week-today"><span data-icon="calendar" data-size="18"></span><span>Aujourd’hui</span></button>
-          <button type="button" class="btn btn--soft" data-action="open-manager"><span data-icon="settings" data-size="18"></span><span>Sports</span></button>
-        </div>
-
-        <div class="training-grid">
-          <section class="card week-card">
-            <header class="card__head"><h2 class="card__title">Semaine</h2></header>
-            <div id="weekPhase"></div>
-            <div id="weekMini" class="week-list"></div>
-            <div class="summary">
-              <div><strong id="sumDistance">0 km</strong><span>Distance</span></div>
-              <div><strong id="sumTime">0h00</strong><span>Durée</span></div>
-              <div><strong id="sumElevation">0 m</strong><span>D+</span></div>
-              <div><strong id="sumSessions">0</strong><span>Séances</span></div>
-            </div>
-          </section>
-
-          <section class="card" id="splitCard">
-            <header class="card__head"><h2 class="card__title">Répartition</h2></header>
-            <div class="donut-chart">
-              <div class="donut" id="weekDonut"><div class="donut__center"><strong id="weekDonutTotal">0</strong><span>activités</span></div></div>
-              <div class="legend" id="weekLegend"></div>
-            </div>
-          </section>
-        </div>
-
-        <div class="week-nav">
-          <button type="button" class="icon-btn icon-btn--glass" data-action="week-prev" aria-label="Semaine précédente"><span data-icon="chevronLeft"></span></button>
-          <div class="week-nav__label" id="weekLabel" aria-live="polite"></div>
-          <button type="button" class="icon-btn icon-btn--glass" data-action="week-next" aria-label="Semaine suivante"><span data-icon="chevronRight"></span></button>
-        </div>
-        <section id="days" class="days" aria-label="Détail des jours de la semaine"></section>
-      </div>
-
-    </section>
-
   </main>
 
   <!-- Briefing du matin (js/features/briefing.js) : plein écran à la première ouverture du jour -->
@@ -228,20 +188,6 @@
             <button type="button" role="radio" data-theme-pick="dark" aria-checked="false">Sombre</button>
             <button type="button" role="radio" data-theme-pick="light" aria-checked="false">Clair</button>
           </div>
-        </div>
-        <div class="field">
-          <span class="field__label" id="backdropLabel">Fond de l’accueil</span>
-          <div class="backdrop-picker" role="radiogroup" aria-labelledby="backdropLabel" id="backdropPicker">
-            <button type="button" role="radio" data-backdrop="auto" aria-checked="false"><span>Auto</span></button>
-            <button type="button" role="radio" data-backdrop="crepuscule" aria-checked="false"><span>Crépuscule</span></button>
-            <button type="button" role="radio" data-backdrop="matin" aria-checked="false"><span>Matin</span></button>
-            <button type="button" role="radio" data-backdrop="nuit" aria-checked="false"><span>Nuit</span></button>
-            <button type="button" role="radio" data-backdrop="sauge" aria-checked="false"><span>Sauge</span></button>
-            <button type="button" role="radio" data-backdrop="uni" aria-checked="false"><span>Uni</span></button>
-            <button type="button" role="radio" data-backdrop="photo" aria-checked="false"><span>Ma photo</span></button>
-          </div>
-          <div class="backdrop-actions"><button type="button" class="link-btn" id="backdropChoose">Choisir une photo…</button><button type="button" class="link-btn" id="backdropRemove" hidden>Retirer la photo</button></div>
-          <input type="file" id="backdropFile" accept="image/*" hidden>
         </div>
         <div class="field">
           <span class="field__label">Compte</span>
@@ -313,7 +259,7 @@
   <div class="sheet-backdrop" id="sportSheet" hidden>
     <div class="sheet sheet--tall" role="dialog" aria-modal="true" aria-labelledby="sportTitle" tabindex="-1">
       <div class="sheet__grabber" aria-hidden="true"></div>
-      <header class="sheet__head"><h2 class="sheet__title" id="sportTitle">Sports &amp; séances</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
+      <header class="sheet__head"><h2 class="sheet__title" id="sportTitle">Sports et types de séance</h2><button type="button" class="icon-btn" data-close aria-label="Fermer"><span data-icon="close"></span></button></header>
       <div class="sheet__scroll">
         <div id="familyList" class="stack"></div>
         <form class="inline-form inline-form--main" data-mgr-form="family" novalidate>

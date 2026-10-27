@@ -12,27 +12,25 @@ import { initCalendarPrompt } from './features/calendar-prompt.js';
 import { setLinked, linkedLocal, onLinkedChange, linkedReady } from './features/linked-apps.js';
 import { initAuth, openAuth, closeAuth, noAccountChosen, forgetNoAccount } from './features/auth.js';
 import { initSettings, renderAccount } from './features/settings.js';
-import { initBackdrop } from './features/backdrop.js';
 import { tidyTasks } from './features/task-tidy.js';
 import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
-import { initTraining, renderTraining, showTraining } from './views/training.js';
+import { initTraining } from './views/training.js';
 import { initBriefing, maybeShowBriefing, isBriefingOpen } from './features/briefing.js';
 import { initVivant, showVivant } from './views/vivant.js';
 
-// Les quatre espaces (vivant.js) se redessinent à chaque changement ; le planning
-// détaillé (training.js) reste accessible depuis Sport pour éditer les séances.
+// Les quatre espaces (vivant.js) se redessinent à chaque changement. Sport contient le planning
+// détaillé et se place lui-même sur le jour en cours (pas de retour en haut de page).
 const ALL = ['dashboard', 'notes', 'races', 'plans', 'families', 'objectives'];
 const vivant = id => ({ show: () => showVivant(id), render: () => showVivant(id), slices: ALL });
 const VIEWS = {
   todayView: { title: 'Accueil', ...vivant('todayView') },
   agendaView: { title: 'Agenda', ...vivant('agendaView') },
   todoView: { title: 'Tâches', ...vivant('todoView') },
-  weekView: { title: 'Sport', ...vivant('weekView') },
-  trainingView: { title: 'Planning détaillé', tab: 'weekView', show: showTraining, render: renderTraining, slices: ['families', 'plans', 'objectives', 'races'] }
+  weekView: { title: 'Sport', ...vivant('weekView'), keepScroll: true }
 };
 /** Anciens noms d'écran (onglet mémorisé, liens data-goto). */
-const LEGACY = { dashboardView: 'todayView', tasksView: 'todoView' };
+const LEGACY = { dashboardView: 'todayView', tasksView: 'todoView', trainingView: 'weekView' };
 const VIEW_KEY = 'dashboard_last_view';
 /** Dernier compte connecté sur cet appareil (un autre compte vide d'abord les données locales). */
 const LAST_UID = 'dashboard_last_uid';
@@ -69,7 +67,7 @@ function switchView(id, { scroll = true } = {}) {
   } catch {
     /* navigation privée : sans importance */
   }
-  if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (scroll && !VIEWS[id].keepScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 /** Re-rendu ciblé selon les tranches d'état modifiées. */
@@ -120,6 +118,17 @@ function goToTask(id) {
   }, 80);
 }
 
+/** L'ancien choix de fond (paysage ou photo de l'appareil) n'existe plus : on libère la place qu'il prenait. */
+function forgetBackdrop() {
+  try {
+    if (localStorage.getItem('carnet_backdrop') === null) return;
+    localStorage.removeItem('carnet_backdrop');
+    indexedDB.deleteDatabase('carnet_backdrop');
+  } catch {
+    /* stockage indisponible : rien à libérer */
+  }
+}
+
 function initGlobalErrors() {
   let last = 0;
   const report = error => {
@@ -163,7 +172,7 @@ function init() {
     if (go) switchView(go.dataset.goto);
   });
   initSettings();
-  initBackdrop();
+  forgetBackdrop();
   initAuth({ onLocal: goLocal });
 
   let initial = 'todayView';
@@ -214,7 +223,7 @@ function init() {
   setTimeout(overdueFallback, 6000);
   onLinkedChange(() => {
     renderDashboard();
-    if (currentView !== 'trainingView') VIEWS[currentView].render();
+    VIEWS[currentView].render();
   });
 
   document.documentElement.classList.add('is-ready');
