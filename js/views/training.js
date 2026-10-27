@@ -117,6 +117,7 @@ function sessionHTML(k, s, idx) {
       <label class="mini-field"><span>Durée · h:min</span><input class="input input--center input--wheel${s.time && s.time !== '00:00' ? '' : ' is-zero'}" type="time" step="60" data-field="time" value="${esc(s.time || '00:00')}"${dis}></label>
       <label class="mini-field"><span>D+ · m</span><input class="input input--center" type="text" inputmode="numeric" data-field="elevation" value="${esc(s.elevation)}" placeholder="0"${dis}></label>
     </div>
+    <label class="mini-field session__slot"><span>Créneau</span><select class="input select" data-field="slot"${dis}>${[['', 'Au mieux selon la météo'], ['matin', 'Matin'], ['aprem', 'Après-midi'], ['soir', 'Soir']].map(([v, l]) => `<option value="${v}"${v === (s.slot || '') ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
   </div>`;
 }
 
@@ -159,12 +160,15 @@ function renderDays(keys, phases = getPhases()) {
   container.scrollLeft = scroll;
 }
 
+/** Vrai pendant l'enregistrement d'un champ de séance : le rendu épargne les cartes des jours. */
+let quietDays = false;
+
 export function renderTraining() {
   const keys = weekKeys();
   $('#weekLabel').innerHTML = `<strong>${weekRange()}</strong>`;
   const phases = getPhases();
   renderOverview(keys, phases);
-  renderDays(keys, phases);
+  if (!quietDays) renderDays(keys, phases);
   if ($('#sportSheet') && !$('#sportSheet').hidden) renderManager();
 }
 
@@ -227,7 +231,14 @@ function updateSession(k, id, field, value) {
     }
     s[field] = value ? String(n) : '';
   } else s[field] = value;
-  commit('plans');
+  // Seul le sport change la forme de la carte : pour les autres champs, on enregistre sans
+  // redessiner les jours (la roue de durée ou le clavier restent ouverts pendant la saisie).
+  quietDays = field !== 'family';
+  try {
+    commit('plans');
+  } finally {
+    quietDays = false;
+  }
 }
 
 async function onClick(e) {
