@@ -112,10 +112,7 @@ function loadWx() {
         if (!Object.keys(data).length) return;
         renderCurrent();
         // Pop-up « Programmer ma semaine » ouvert avant la météo : on refait la proposition.
-        if (P && !P.touched) {
-          P.items = proposeWeek();
-          renderPlan();
-        }
+        replanIfUntouched();
       })
       .catch(err => {
         console.warn('[météo]', err);
@@ -663,8 +660,9 @@ function scrollToDay(k) {
   }));
 }
 
-/* ---------- Programmer ma semaine ---------- */
-let P = null; // { items: [{ s, from, k, sl }], sel }
+/* ---------- Programmer ma semaine : un jour après l'autre ---------- */
+// P = { days, i (index du jour, days.length = récap), items: [{ s, from, slot0, k, sl, pk, psl }], sel: { jour: id }, seen: { jour: 'ok'|'skip'|'edit' }, touched, dir }
+let P = null;
 const planEl = () => $('#ePlan');
 const isHard = s => ['qualité', 'longue'].includes(effort(s));
 /** Jours encore à venir de la semaine affichée, avec leurs créneaux encore possibles. */
@@ -685,7 +683,7 @@ function proposeWeek() {
   const cells = planCells();
   const days = [...new Set(cells.map(c => c.k))];
   const all = doneMap();
-  const items = days.flatMap(k => sessionsOn(k).filter(s => !isDone(k, s, all)).map(s => ({ s, from: k, k, sl: s.slot || '' })));
+  const items = days.flatMap(k => sessionsOn(k).filter(s => !isDone(k, s, all)).map(s => ({ s, from: k, slot0: s.slot || '', k, sl: s.slot || '' })));
   const load = {};
   const hard = {};
   days.forEach(k => (load[k] = sessionsOn(k).filter(s => isDone(k, s, all)).length));
@@ -704,50 +702,144 @@ function proposeWeek() {
     load[best.k] = (load[best.k] || 0) + 1;
     if (isHard(x.s)) hard[best.k] = true;
   });
+  items.forEach(x => ((x.pk = x.k), (x.psl = x.sl)));
   return items;
 }
-const changedItems = () => P.items.filter(x => x.k !== x.from || x.sl !== (x.s.slot || ''));
+const changedItems = () => P.items.filter(x => x.k !== x.from || x.sl !== x.slot0);
+const onDay = k => P.items.filter(x => x.k === k);
+/** Séance « active » d'un jour : celle que l'on place en touchant un créneau. */
+function selOn(k) {
+  const here = onDay(k);
+  return here.find(x => x.s.id === P.sel[k]) || here[0] || null;
+}
+/** Une séance est-elle à sa place proposée ? Sert au bandeau « Carnet propose ». */
+const atProposal = x => x.k === x.pk && x.sl === x.psl;
+const wxLine = w => (w ? `${w.t}° · vent ${w.wind} · raf. ${w.gust} · pluie ${w.rain} %` : 'météo pas encore connue');
+const placeLine = x => {
+  if (kindOf(x.s) === 'indoor') return 'intérieur';
+  return wxLine(slotsOn(x.k)?.[x.sl]);
+};
+const WIND_MAX = 70;
+/** Carte d'un créneau : tout ce qu'il faut pour choisir, sans faire défiler. */
+function slotCardHTML(k, sl, cur, best) {
+  const w = slotsOn(k)?.[sl];
+  const past = slotPast(k, sl);
+  const kind = cur ? kindOf(cur.s) : 'run';
+  const q = w && !past && kind !== 'indoor' ? `q-${level(score(kind, w))}` : '';
+  const here = onDay(k).filter(x => x.sl === sl);
+  const on = cur && cur.sl === sl;
+  const wind = w ? Math.min(100, (w.wind / WIND_MAX) * 100) : 0;
+  const gust = w ? Math.min(100, (w.gust / WIND_MAX) * 100) : 0;
+  return `<button type="button" class="p-slot ${q} ${on ? 'is-on' : ''} ${past ? 'is-past' : ''}" data-pm="slot" data-slot="${sl}" ${past || !cur ? (past ? 'disabled' : 'aria-disabled="true"') : ''} aria-pressed="${on}">
+    <span class="p-slot__h">${SLOTS[sl]}${sl === best && !past ? `<i class="p-star" title="Meilleur moment">${I.star}</i>` : ''}</span>
+    ${w ? `<span class="p-slot__t">${skyOf(w)}<b>${w.t}°</b></span>
+    <span class="p-slot__r">${w.label ? esc(w.label) : ''}</span>
+    <span class="p-slot__m"><span>Pluie</span><b>${w.rain} %${w.mm ? ` · ${String(w.mm).replace('.', ',')} mm` : ''}</b></span>
+    <span class="p-slot__m"><span>Vent</span><b><i class="p-arrow" style="--deg:${(w.deg + 180) % 360}deg" title="Vent de ${esc(w.dir)}">${I.fwd}</i>${w.wind} km/h ${esc(w.dir)}</b></span>
+    <span class="p-slot__m"><span>Rafales</span><b class="${w.gust >= 55 ? 'is-warn' : ''}">${w.gust} km/h</b></span>
+    <span class="p-gauge" aria-hidden="true"><i style="width:${gust}%" class="p-gauge__g"></i><i style="width:${wind}%"></i></span>` : `<span class="p-slot__t"><b>—</b></span><span class="p-slot__r">${past ? 'passé' : 'météo à venir'}</span>`}
+    ${here.length ? `<span class="p-slot__s">${here.map(x => `<em class="t-${TILE[kindOf(x.s)]} ${cur && x.s.id === cur.s.id ? 'is-sel' : ''}">${esc(abbr(x.s))}</em>`).join('')}</span>` : ''}
+  </button>`;
+}
+function dayStepHTML(k) {
+  const cur = selOn(k);
+  const here = onDay(k);
+  const away = P.items.filter(x => x.from === k && x.k !== k);
+  const kind = cur ? kindOf(cur.s) : 'run';
+  const best = bestSlot(kind === 'indoor' ? 'run' : kind, k);
+  const prop = here.filter(x => x.pk === k);
+  const fromElse = here.filter(x => x.from !== k);
+  const anyProposal = P.items.some(x => (x.pk === k || x.from === k) && (x.pk !== x.from || x.psl !== x.slot0));
+  const sug = !here.length && !away.length ? '' : `<div class="p-sug ${P.seen[k] === 'ok' ? 'is-ok' : ''}">
+      <span class="p-sug__i">${I.star}</span>
+      <span class="p-sug__t">${anyProposal ? `<b>Carnet propose</b> ${esc(prop.map(x => `${x.s.training || familyOf(x.s)?.name || 'Séance'} ${x.psl ? SLOTS[x.psl].toLowerCase() : ''}`).join(', ') || 'de libérer ce jour')}${fromElse.length ? ` <small>(${esc(fromElse.map(x => `venue de ${dayWord(x.from)}`).join(', '))})</small>` : ''}` : '<b>Ton planning tient la route</b> rien de mieux à proposer ce jour.'}</span>
+      ${anyProposal ? `<span class="p-sug__a"><button type="button" class="p-mini p-mini--go" data-pm="accept">${I.check}Accepter</button><button type="button" class="p-mini" data-pm="skip">Garder le mien</button></span>` : ''}
+    </div>`;
+  return `<div class="p-step ${reduced() ? '' : P.dir || ''}">
+    <div class="p-day"><h3>${esc(dayTitle(k))}</h3><span>${esc(cap(formatKey(k, { day: 'numeric', month: 'long' })))}</span></div>
+    ${sug}
+    <div class="p-slots">${SLOT_IDS.map(sl => slotCardHTML(k, sl, cur, best)).join('')}</div>
+    <div class="p-ses">
+      ${here.map(x => `<div class="p-se ${cur && x.s.id === cur.s.id ? 'is-sel' : ''}">
+        <button type="button" class="p-se__m" data-pm="pick" data-id="${esc(x.s.id)}"><span class="e-tile t-${TILE[kindOf(x.s)]}">${esc(abbr(x.s))}</span><span><b>${esc(x.s.training || familyOf(x.s)?.name || 'Séance')}</b><small>${esc(x.sl ? SLOTS[x.sl] : 'Moment à choisir')} · ${esc(placeLine(x))}</small></span></button>
+        <button type="button" class="p-mini" data-pm="moveday" data-id="${esc(x.s.id)}" aria-expanded="${P.mv === x.s.id}">Autre jour</button>
+        ${P.mv === x.s.id ? `<div class="p-days">${P.days.filter(d => d !== k).map(d => `<button type="button" data-pm="todays" data-id="${esc(x.s.id)}" data-day="${d}">${esc(cap(WD[fromKey(d).getDay()]))} ${fromKey(d).getDate()}</button>`).join('')}</div>` : ''}
+      </div>`).join('')}
+      ${away.map(x => `<div class="p-se is-away"><span class="p-se__m"><span class="e-tile t-${TILE[kindOf(x.s)]}">${esc(abbr(x.s))}</span><span><b>${esc(x.s.training || 'Séance')}</b><small>part ${esc(dayWord(x.k))}${x.sl ? ` ${SLOTS[x.sl].toLowerCase()}` : ''}, meilleure météo</small></span></span><button type="button" class="p-mini" data-pm="keephere" data-id="${esc(x.s.id)}">La garder ici</button></div>`).join('')}
+      ${!here.length ? `<p class="p-empty">${away.length ? 'Plus rien ce jour.' : 'Rien de prévu ce jour.'} Les créneaux montrent le temps qu’il fera.</p>` : ''}
+      <button type="button" class="p-add" data-pm="add">+ Séance ${esc(dayWord(k))}</button>
+    </div>
+  </div>`;
+}
+function recapHTML() {
+  const n = changedItems().length;
+  return `<div class="p-step ${reduced() ? '' : P.dir || ''}">
+    <div class="p-day"><h3>Ta semaine</h3><span>${n ? `${n} changement${n > 1 ? 's' : ''} à valider` : 'Rien n’a changé'}</span></div>
+    <div class="card e-list p-recap">${P.days.map(k => {
+      const here = onDay(k).sort((a, b) => SLOT_IDS.indexOf(a.sl) - SLOT_IDS.indexOf(b.sl));
+      return `<button type="button" class="p-rc" data-pm="goto" data-i="${P.days.indexOf(k)}"><span class="p-rc__d"><small>${esc(WD[fromKey(k).getDay()])}</small><b>${fromKey(k).getDate()}</b></span><span class="p-rc__b">${here.length ? here.map(x => `<span class="p-rc__s"><b>${esc(x.s.training || familyOf(x.s)?.name || 'Séance')}</b><small>${esc(`${x.sl ? `${SLOTS[x.sl]} · ` : ''}${placeLine(x)}`)}</small>${x.k !== x.from ? `<em>depuis ${esc(dayWord(x.from))}</em>` : x.sl !== x.slot0 ? '<em>nouveau moment</em>' : ''}</span>`).join('') : '<span class="p-rc__none">Repos</span>'}</span>${I.fwd}</button>`;
+    }).join('')}</div>
+  </div>`;
+}
 function renderPlan() {
   const el = planEl();
-  const cells = planCells();
-  const days = [...new Set(cells.map(c => c.k))];
-  const sel = P.items.find(x => x.s.id === P.sel);
-  const kind = sel ? kindOf(sel.s) : 'run';
-  const chip = x => `<span class="e-pm__chip t-${TILE[kindOf(x.s)]} ${P.sel === x.s.id ? 'is-sel' : ''}" data-pm="pick" data-id="${esc(x.s.id)}">${esc(abbr(x.s))}</span>`;
-  const n = changedItems().length;
-  el.querySelector('.e-pm__b').innerHTML = `
-    <p class="e-row__s e-pm__lead">${P.items.length ? 'Carnet a placé tes séances sur les meilleurs moments de la semaine. Touche une séance, puis un créneau pour la déplacer.' : 'Aucune séance à placer d’ici la fin de la semaine. Ajoute-les avec « + Séance », puis reviens ici : la grille montre déjà où il fera beau.'}</p>
-    <div class="e-pm__grid" role="grid">
-      <span></span>${SLOT_IDS.map(sl => `<small>${SLOTS[sl]}</small>`).join('')}
-      ${days.map(k => {
-        const ws = slotsOn(k);
-        return `<span class="e-pm__d ${k === todayKey() ? 'is-today' : ''}"><b>${esc(dayDiff(k) === 0 ? 'Auj.' : cap(WD[fromKey(k).getDay()]))}</b><small>${fromKey(k).getDate()}</small></span>${SLOT_IDS.map(sl => {
-          const w = ws?.[sl];
-          const open = cells.some(c => c.k === k && c.sl === sl);
-          const here = P.items.filter(x => x.k === k && x.sl === sl);
-          const q = w && kind !== 'indoor' ? `q-${level(score(kind, w))}` : '';
-          return `<button type="button" class="e-pm__c ${q}" data-pm="cell" data-day="${k}" data-slot="${sl}" ${open ? '' : 'disabled'} aria-label="${esc(`${dayTitle(k)} ${SLOTS[sl].toLowerCase()}`)}">${w ? `<em>${skyOf(w)}${w.t}°</em>` : '<em>—</em>'}${here.map(chip).join('')}</button>`;
-        }).join('')}`;
-      }).join('')}
-    </div>
-    ${P.items.length ? `<div class="card e-list e-pm__list">${P.items.map(x => {
-      const w = slotsOn(x.k)?.[x.sl];
-      const moved = x.k !== x.from;
-      return `<button type="button" class="e-row ${P.sel === x.s.id ? 'is-sel' : ''}" data-pm="pick" data-id="${esc(x.s.id)}"><span class="e-tile t-${TILE[kindOf(x.s)]}">${esc(abbr(x.s))}</span><span class="e-row__b"><span class="e-row__t">${esc(x.s.training || familyOf(x.s)?.name || 'Séance')}</span><span class="e-row__s">${esc(`${dayWord(x.k)}${x.sl ? ` ${SLOTS[x.sl].toLowerCase()}` : ''}`)}${w && kindOf(x.s) !== 'indoor' ? ` · ${w.t}° · pluie ${w.rain} % · vent ${w.wind}` : kindOf(x.s) === 'indoor' ? ' · intérieur' : ''}${moved ? `<br><span class="e-better">déplacée depuis ${esc(dayWord(x.from))}</span>` : ''}</span></span></button>`;
-    }).join('')}</div>` : ''}`;
-  const moved = changedItems().filter(x => x.k !== x.from).length;
-  const ok = el.querySelector('[data-pm="apply"]');
-  ok.disabled = !n;
-  ok.textContent = !n ? 'Rien à changer' : moved ? `Valider · ${moved} déplacée${moved > 1 ? 's' : ''}` : 'Valider les créneaux';
+  const last = P.days.length;
+  const k = P.days[P.i];
+  el.querySelector('.p-strip').innerHTML = `${P.days.map((d, i) => {
+    const c = onDay(d).length;
+    return `<button type="button" class="${i === P.i ? 'is-on' : ''} ${P.seen[d] ? 'is-seen' : ''}" data-pm="goto" data-i="${i}" aria-current="${i === P.i}"><small>${esc(dayDiff(d) === 0 ? 'auj' : WD[fromKey(d).getDay()])}</small><b>${fromKey(d).getDate()}</b><i>${c ? '•'.repeat(Math.min(c, 3)) : ''}</i></button>`;
+  }).join('')}<button type="button" class="p-strip__r ${P.i === last ? 'is-on' : ''}" data-pm="goto" data-i="${last}" aria-label="Récap">${I.check}</button>`;
+  el.querySelector('.p-bar i').style.width = `${(P.i / last) * 100}%`;
+  el.querySelector('.e-pm__b').innerHTML = !last ? '<p class="p-empty">La semaine est terminée : plus aucun jour à programmer.</p>' : P.i === last ? recapHTML() : dayStepHTML(k);
+  const back = el.querySelector('[data-pm="prev"]');
+  const next = el.querySelector('[data-pm="next"]');
+  back.textContent = P.i ? 'Précédent' : 'Annuler';
+  if (P.i >= last) {
+    const n = changedItems().length;
+    next.dataset.pm = 'apply';
+    next.innerHTML = n ? `${I.check}Valider la semaine` : 'Fermer';
+  } else {
+    next.dataset.pm = 'next';
+    next.innerHTML = `${P.i === last - 1 ? 'Voir le récap' : `Suivant · ${esc(cap(WD_FULL[fromKey(P.days[P.i + 1]).getDay()]))}`}${I.fwd}`;
+  }
+  P.dir = '';
+}
+function stepTo(i) {
+  const last = P.days.length;
+  i = Math.max(0, Math.min(last, i));
+  if (i === P.i) return;
+  if (P.i < last && !P.seen[P.days[P.i]]) P.seen[P.days[P.i]] = 'edit';
+  P.dir = i > P.i ? 'in' : 'back';
+  P.i = i;
+  P.mv = null;
+  buzz(6);
+  renderPlan();
 }
 function openPlan() {
   loadWx();
-  P = { items: proposeWeek(), sel: null };
+  const days = [...new Set(planCells().map(c => c.k))];
+  P = { days, i: 0, items: proposeWeek(), sel: {}, seen: {}, dir: 'in' };
   const el = planEl();
   el.hidden = false;
   document.body.classList.add('e-flow-on');
   renderPlan();
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('is-open')));
+}
+/** Météo arrivée après l'ouverture : on refait la proposition si rien n'a encore été touché. */
+function replanIfUntouched() {
+  if (!P || P.touched) return;
+  P.items = proposeWeek();
+  renderPlan();
+}
+/** Séance ajoutée depuis l'assistant : elle rejoint le jour en cours. */
+function addToPlan(k, id) {
+  if (!P) return;
+  const s = plansOn(k).find(x => x.id === id);
+  if (!s || P.items.some(x => x.s.id === id)) return;
+  P.items.push({ s, from: k, slot0: s.slot || '', k, sl: s.slot || '', pk: k, psl: s.slot || '' });
+  P.sel[k] = id;
+  P.touched = true;
+  renderPlan();
 }
 function closePlan() {
   const el = planEl();
@@ -767,8 +859,10 @@ function applyPlan() {
     state.plans[x.k] = [...plansOn(x.k).filter(y => y.family || y.training || y.distance || y.time || y.elevation), x.s];
   });
   commit('plans');
+  const r = planEl().querySelector('[data-pm="apply"]')?.getBoundingClientRect();
+  if (r) burst(r.left + r.width / 2, r.top, 22);
   closePlan();
-  buzz(12);
+  buzz([10, 40, 14]);
   toast(`Semaine programmée · ${list.length} séance${list.length > 1 ? 's' : ''} placée${list.length > 1 ? 's' : ''}`, { action: { label: 'Annuler', onClick: () => { Object.assign(state.plans, before); commit('plans'); } } });
 }
 function onPlanClick(e) {
@@ -776,27 +870,90 @@ function onPlanClick(e) {
   const b = e.target.closest('[data-pm]');
   if (!b || b.disabled) return;
   const a = b.dataset.pm;
+  const k = P?.days[P.i];
+  const item = id => P.items.find(y => y.s.id === id);
   if (a === 'close') return closePlan();
   if (a === 'apply') return applyPlan();
+  if (a === 'next') return stepTo(P.i + 1);
+  if (a === 'prev') return P.i ? stepTo(P.i - 1) : closePlan();
+  if (a === 'goto') return stepTo(Number(b.dataset.i));
+  if (a === 'add') return openFlow({ type: 'sess', i: 1, d: { day: k, fixedDay: true } });
+  if (a === 'accept') {
+    // On garde la proposition pour toutes les séances qui touchent ce jour, puis jour suivant.
+    P.items.filter(x => x.pk === k || x.from === k || x.k === k).forEach(x => ((x.k = x.pk), (x.sl = x.psl)));
+    P.seen[k] = 'ok';
+    buzz(10);
+    return stepTo(P.i + 1);
+  }
+  if (a === 'skip') {
+    P.items.filter(x => x.from === k || x.k === k).forEach(x => ((x.k = x.from), (x.sl = x.slot0)));
+    P.seen[k] = 'skip';
+    P.touched = true;
+    return stepTo(P.i + 1);
+  }
   if (a === 'pick') {
-    e.stopPropagation();
-    P.sel = P.sel === b.dataset.id ? null : b.dataset.id;
+    P.sel[k] = b.dataset.id;
     return renderPlan();
   }
-  if (a === 'cell') {
-    const x = P.items.find(y => y.s.id === P.sel);
-    if (x) {
-      x.k = b.dataset.day;
-      x.sl = b.dataset.slot;
-      P.sel = null;
-      P.touched = true;
-      buzz(8);
-    } else {
-      const here = P.items.filter(y => y.k === b.dataset.day && y.sl === b.dataset.slot);
-      if (here.length === 1) P.sel = here[0].s.id;
-    }
+  if (a === 'slot') {
+    const x = selOn(k);
+    if (!x) return toast('Ajoute d’abord une séance à ce jour');
+    x.sl = b.dataset.slot;
+    P.touched = true;
+    P.seen[k] = 'edit';
+    buzz(8);
     renderPlan();
+    planEl().querySelector(`.p-slot[data-slot="${x.sl}"]`)?.classList.add('is-landed');
+    return;
   }
+  if (a === 'moveday') {
+    P.mv = P.mv === b.dataset.id ? null : b.dataset.id;
+    return renderPlan();
+  }
+  if (a === 'todays') {
+    const x = item(b.dataset.id);
+    if (!x) return;
+    x.k = b.dataset.day;
+    if (x.sl && slotPast(x.k, x.sl)) x.sl = '';
+    if (!x.sl) x.sl = bestSlot(kindOf(x.s) === 'indoor' ? 'run' : kindOf(x.s), x.k) || 'soir';
+    P.touched = true;
+    P.mv = null;
+    buzz(8);
+    toast(`${x.s.training || 'Séance'} → ${dayWord(x.k)}`);
+    return renderPlan();
+  }
+  if (a === 'keephere') {
+    const x = item(b.dataset.id);
+    if (!x) return;
+    x.k = k;
+    x.sl = x.slot0 && !slotPast(k, x.slot0) ? x.slot0 : bestSlot(kindOf(x.s) === 'indoor' ? 'run' : kindOf(x.s), k) || 'soir';
+    P.sel[k] = x.s.id;
+    P.touched = true;
+    return renderPlan();
+  }
+}
+/** Glisser à gauche / à droite : jour suivant / précédent. */
+function initPlanSwipe(el) {
+  let x0 = null;
+  let y0 = 0;
+  const body = el.querySelector('.e-pm__b');
+  body.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    x0 = e.touches[0].clientX;
+    y0 = e.touches[0].clientY;
+  }, { passive: true });
+  body.addEventListener('touchend', e => {
+    if (x0 === null || !P) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    const dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) stepTo(P.i + (dx < 0 ? 1 : -1));
+  });
+  document.addEventListener('keydown', e => {
+    if (!P || el.hidden || !$('#eFlow')?.hidden) return;
+    if (e.key === 'ArrowRight') stepTo(P.i + 1);
+    if (e.key === 'ArrowLeft') stepTo(P.i - 1);
+  });
 }
 
 function moveSession(id, from, to, slot) {
@@ -908,7 +1065,8 @@ function openFlow(preset) {
 function closeFlow() {
   const el = flowEl();
   el.classList.remove('is-open');
-  document.body.classList.remove('e-flow-on');
+  // L'assistant « Programmer ma semaine » peut rester ouvert dessous.
+  if (!P) document.body.classList.remove('e-flow-on');
   setTimeout(() => (el.hidden = true), reduced() ? 0 : 500);
 }
 const steps = () => (F.type ? STEPS[F.type].filter(s => !(s === 'day' && F.d.fixedDay)) : ['kind', '', '', '']);
@@ -969,6 +1127,7 @@ function saveFlow() {
   } else if (F.type === 'sess') {
     state.plans[d.day] = [...plansOn(d.day).filter(x => x.family || x.training || x.distance || x.time || x.elevation), { id, family: d.family, training: d.type, distance: '', time: '', elevation: '', slot: d.slot }];
     commit('plans');
+    addToPlan(d.day, id);
     weekStart = dateKey(mondayOf(fromKey(d.day)));
     focusDay = d.day;
     target = 'weekView';
@@ -1222,12 +1381,13 @@ export function initVivant({ go }) {
   // « Programmer ma semaine » : feuille par-dessus Sport.
   const pm = document.createElement('section');
   pm.id = 'ePlan';
-  pm.className = 'e-pm';
   pm.hidden = true;
-  pm.innerHTML = `<div class="e-pm__card" role="dialog" aria-modal="true" aria-labelledby="ePlanTitle"><div class="e-pm__h"><h2 id="ePlanTitle">Programmer ma semaine</h2><button type="button" class="k-round" data-pm="close" aria-label="Fermer">${I.x}</button></div><div class="e-pm__b"></div><div class="e-pm__f"><button type="button" class="e-btn e-btn--ghost" data-pm="close">Annuler</button><button type="button" class="e-btn" data-pm="apply">Valider</button></div></div>`;
+  pm.className = 'e-pm p-plan';
+  pm.innerHTML = `<div class="e-pm__card" role="dialog" aria-modal="true" aria-labelledby="ePlanTitle"><div class="e-pm__h"><h2 id="ePlanTitle">Programmer ma semaine</h2><button type="button" class="k-round" data-pm="close" aria-label="Fermer">${I.x}</button></div><div class="p-strip"></div><div class="p-bar"><i></i></div><div class="e-pm__b"></div><div class="e-pm__f"><button type="button" class="e-btn e-btn--ghost" data-pm="prev">Annuler</button><button type="button" class="e-btn p-next" data-pm="next">Suivant</button></div></div>`;
   document.body.appendChild(pm);
   pm.addEventListener('click', onPlanClick);
-  document.addEventListener('keydown', e => e.key === 'Escape' && !pm.hidden && closePlan());
+  initPlanSwipe(pm);
+  document.addEventListener('keydown', e => e.key === 'Escape' && !pm.hidden && $('#eFlow')?.hidden && closePlan());
   // Fiche d'une séance : feuille par-dessus Sport.
   const ed = document.createElement('section');
   ed.id = 'eEdit';
