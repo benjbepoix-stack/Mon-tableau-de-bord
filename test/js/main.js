@@ -25,13 +25,12 @@ const ALL = ['dashboard', 'notes', 'races', 'plans', 'families', 'objectives'];
 const vivant = id => ({ show: () => showVivant(id), render: () => showVivant(id), slices: ALL });
 const VIEWS = {
   todayView: { title: 'Accueil', ...vivant('todayView') },
-  planView: { title: 'Ma semaine', ...vivant('planView'), keepScroll: true },
   agendaView: { title: 'Mois', ...vivant('agendaView') },
   todoView: { title: 'Tâches', ...vivant('todoView') },
   weekView: { title: 'Sport', ...vivant('weekView'), keepScroll: true }
 };
 /** Anciens noms d'écran (onglet mémorisé, liens data-goto). */
-const LEGACY = { dashboardView: 'todayView', tasksView: 'todoView', trainingView: 'weekView' };
+const LEGACY = { dashboardView: 'todayView', tasksView: 'todoView', trainingView: 'weekView', planView: 'todayView' };
 const VIEW_KEY = 'dashboard_last_view';
 /** Dernier compte connecté sur cet appareil (un autre compte vide d'abord les données locales). */
 const LAST_UID = 'dashboard_last_uid';
