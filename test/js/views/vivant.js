@@ -2,7 +2,10 @@
  * « Les trois espaces » : un accueil calme et un écran par univers.
  *  - Accueil : prochain rendez-vous (anneau de proximité), puis trois cartes (Ensuite, À faire,
  *    Sport) qui ouvrent chacune leur écran, et la note ;
- *  - Agenda : mini-calendrier du mois et rendez-vous / événements à venir, comptés en nombre ;
+ *  - Ma semaine : tout ce qui est prévu jour par jour (rendez-vous, événements, séances, tâches), la météo
+ *    en petit, et des propositions quand une séance tombe sur un créneau pris ou une mauvaise météo ;
+ *    le dimanche soir, elle s'ouvre sur la semaine suivante (état des lieux) ;
+ *  - Mois : calendrier du mois et ce qui est prévu, mois par mois, sur les deux mois suivants ;
  *  - Tâches : tâches groupées par échéance (glisser à droite = faite, à gauche = demain), et celles
  *    de Garage, Maison et Allure au même format, avec le nom de l'app ;
  *  - Sport : le planning détaillé. Phase de saison (Cadence) jusqu'à la prochaine course, « Programmer
@@ -13,7 +16,7 @@
  */
 import { $, esc, uid } from '../core/utils.js';
 import { state, commit } from '../core/store.js';
-import { todayKey, dateKey, addDays, fromKey, combine, formatKey, formatDate, isRepeat, nextOccurrenceKey, REPEATS, mondayOf } from '../core/dates.js';
+import { todayKey, dateKey, addDays, fromKey, combine, formatKey, formatDate, isRepeat, nextOccurrenceKey, occurrencesBetween, REPEATS, mondayOf } from '../core/dates.js';
 import { isRestTraining } from '../core/schema.js';
 import { parseEntry } from '../core/parse.js';
 import { getPhases, phaseOn, PHASE_TYPES } from '../core/season.js';
@@ -41,7 +44,6 @@ let current = 'todayView';
 let entering = true;
 let wx = {};
 const wxAsked = new Set();
-let more = 8; // rendez-vous affichés dans l'agenda
 let daySel = null; // jour choisi dans le mini-calendrier
 let monthOff = 0;
 let weekStart = '';
@@ -50,6 +52,12 @@ let flash = null; // élément ajouté, mis en évidence au prochain rendu
 let landed = null;
 let editId = null; // séance dépliée pour modification dans Sport
 let focusDay = null; // jour sur lequel se placer en arrivant sur Sport
+let planStart = ''; // lundi de la semaine affichée dans « Ma semaine »
+let planFocus = null; // semaine à afficher en arrivant sur « Ma semaine » (au lieu de la semaine en cours)
+let assign = false; // Tâches : mode « Répartir sur la semaine »
+let assignStart = '';
+let assignKeep = false;
+let monthsShown = 3; // Mois : ce mois-ci et les deux suivants
 
 /* ---------- Séances ---------- */
 const familyOf = s => (state.families || []).find(f => f.id === s.family);
@@ -103,7 +111,7 @@ function toggleDone(k, id) {
 
 /* ---------- Météo par créneau ---------- */
 function loadWx() {
-  [todayKey(), weekStart].filter(Boolean).forEach(k => {
+  [...new Set([todayKey(), weekStart, planStart].filter(Boolean))].forEach(k => {
     if (wxAsked.has(k)) return;
     wxAsked.add(k);
     fetchSlots(k, 8)
@@ -211,35 +219,51 @@ function dayWord(k) {
 const dayTitle = k => (dayDiff(k) === 0 ? 'Aujourd’hui' : dayDiff(k) === 1 ? 'Demain' : cap(formatKey(k, { weekday: 'long', day: 'numeric' })));
 const hhmm = t => t.replace(':', ' h ');
 
-/** Rendez-vous et événements à venir (prochaine occurrence pour ceux qui se répètent). */
+/** Nombre de jours après le premier pour un événement sur plusieurs jours (0 sinon). */
+const spanDays = x => (x.endDate && x.date && x.endDate > x.date ? Math.round((fromKey(x.endDate) - fromKey(x.date)) / 86400000) : 0);
+/** Premier jour de l'occurrence qui couvre le jour k (plusieurs jours et répétitions compris), sinon null. */
+function startCovering(x, k) {
+  const occ = occurrencesBetween(x, dateKey(addDays(fromKey(k), -spanDays(x))), k);
+  return occ.length ? occ[occ.length - 1] : null;
+}
+const endOf = (x, start) => (spanDays(x) ? dateKey(addDays(fromKey(start), spanDays(x))) : '');
+/** Rendez-vous et événements à venir (prochaine occurrence pour ceux qui se répètent ; un événement
+ *  sur plusieurs jours déjà commencé reste à venir jusqu'à son dernier jour). */
 function upcoming() {
   const today = todayKey();
   const now = Date.now();
   const items = [];
   ['appointments', 'events'].forEach(kind =>
     state.dashboard[kind].forEach(x => {
-      const date = isRepeat(x.repeat) ? nextOccurrenceKey(x) : x.date;
-      if (!date || date < today) return;
-      const end = combine(date, x.endTime || x.time, '23:59');
+      const date = (spanDays(x) && startCovering(x, today)) || (isRepeat(x.repeat) ? nextOccurrenceKey(x) : x.date);
+      if (!date) return;
+      const endDate = endOf(x, date);
+      if ((endDate || date) < today) return;
+      const end = endDate ? null : combine(date, x.endTime || x.time, '23:59');
       if (end && end.getTime() < now) return;
-      items.push({ id: x.id, title: x.title, date, time: x.time, place: x.location || '', kind, repeat: x.repeat });
+      items.push({ id: x.id, title: x.title, date, endDate, time: x.time, endTime: x.endTime, place: x.location || '', kind, repeat: x.repeat });
     })
   );
   return items.sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
 }
-/** Rendez-vous et événements d'un jour donné (répétitions comprises). */
+/** Rendez-vous et événements d'un jour donné (répétitions et événements sur plusieurs jours compris). */
 function itemsOn(k) {
   const out = [];
   ['appointments', 'events'].forEach(kind =>
     state.dashboard[kind].forEach(x => {
-      const date = isRepeat(x.repeat) ? (x.date <= k ? nextOccurrenceKey(x, fromKey(k)) : x.date) : x.date;
-      if (date === k) out.push({ id: x.id, title: x.title, date: k, time: x.time, place: x.location || '', kind });
+      const date = startCovering(x, k);
+      if (date) out.push({ id: x.id, title: x.title, date, endDate: endOf(x, date), on: k, time: x.time, endTime: x.endTime, place: x.location || '', kind });
     })
   );
-  return out.sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+  // Événements de plusieurs jours et journées entières d'abord, puis par heure.
+  return out.sort((a, b) => (a.endDate ? '0' : a.time || '1').localeCompare(b.endDate ? '0' : b.time || '1'));
 }
 /** Proximité d'un rendez-vous : classe de couleur, remplissage de l'anneau, libellés. */
 function prox(x) {
+  if (x.endDate && x.date <= todayKey() && x.endDate >= todayKey()) {
+    const left = dayDiff(x.endDate) + 1;
+    return { cls: 'is-today', fill: 1, big: `${left}`, small: left > 1 ? 'jours' : 'jour', short: 'en cours', label: 'en cours' };
+  }
   const at = combine(x.date, x.time, '12:00');
   const h = (at - Date.now()) / 3600000;
   const d = dayDiff(x.date);
@@ -255,7 +279,11 @@ function prox(x) {
   const label = { 'is-imminent': 'imminent', 'is-today': 'aujourd’hui', 'is-week': 'cette semaine', 'is-later': 'plus tard' }[cls];
   return { cls, fill, big, small, short, label };
 }
-const whenOf = x => `${dayWord(x.date)}${x.time ? ` · ${hhmm(x.time)}` : ' · journée'}`;
+/** Jour proche (« demain », « jeu. 5 ») ou lointain (« jeu. 5 déc. »). */
+const dateWord = k => (Math.abs(dayDiff(k)) <= 6 ? dayWord(k) : formatKey(k, { weekday: 'short', day: 'numeric', month: 'short' }));
+const span = x => `du ${dateWord(x.date)} au ${dateWord(x.endDate)}`;
+const hours = x => (x.time ? `${hhmm(x.time)}${x.endTime ? ` – ${hhmm(x.endTime)}` : ''}` : '');
+const whenOf = x => (x.endDate ? span(x) : `${dateWord(x.date)}${x.time ? ` · ${hours(x)}` : ' · journée'}`);
 const openTasks = () => state.dashboard.tasks.filter(t => !t.done).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || (a.time || '99').localeCompare(b.time || '99'));
 const isLate = t => t.date && t.date < todayKey();
 function taskMeta(t) {
@@ -288,7 +316,7 @@ function nextCard(x, small) {
 function rdvRow(x, showDay = true) {
   const p = prox(x);
   return `<button type="button" class="e-row ${p.cls} ${flash === x.id ? 'e-flash' : ''}" data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"><span class="e-tile t-rdv">${x.kind === 'events' ? I.star : I.clock}</span>
-    <span class="e-row__b"><span class="e-row__t">${esc(x.title)}</span><span class="e-row__s">${esc(showDay ? whenOf(x) : x.time ? hhmm(x.time) : 'toute la journée')}${x.place ? ` · ${esc(x.place)}` : ''}${x.kind === 'events' ? ' · événement' : ''}</span></span>
+    <span class="e-row__b"><span class="e-row__t">${esc(x.title)}</span><span class="e-row__s">${esc(showDay || x.endDate ? whenOf(x) : x.time ? hours(x) : 'toute la journée')}${x.place ? ` · ${esc(x.place)}` : ''}${x.kind === 'events' ? ' · événement' : ''}</span></span>
     <span class="e-dist"><span>${p.short}</span><span class="e-dist__bar"><i style="width:${Math.round(p.fill * 100)}%"></i></span></span></button>`;
 }
 function taskRow(t) {
@@ -296,6 +324,7 @@ function taskRow(t) {
     <div class="e-row k-task ${flash === t.id ? 'e-flash' : ''}" data-task="${esc(t.id)}" tabindex="0" role="button" aria-label="Modifier « ${esc(t.title)} »"><button type="button" class="e-check" data-v="tdone" data-id="${esc(t.id)}" aria-label="Cocher « ${esc(t.title)} »"><i>${I.check}</i></button>
     <span class="e-row__b"><span class="e-row__t">${esc(t.title)}</span><span class="e-row__s ${isLate(t) ? 'is-late' : ''}">${esc(taskMeta(t))}</span></span></div></div>`;
 }
+const raceRow = x => `<a class="e-row" href="${ALLURE_URL}"><span class="e-tile t-run">🏁</span><span class="e-row__b"><span class="e-row__t">${esc(x.title)}</span><span class="e-row__s">${esc(whenOf(x))}${x.place ? ` · ${esc(x.place)}` : ''} · course</span></span><span class="e-go">${I.out}</span></a>`;
 const appRow = a => `<a class="e-row" href="${a.href}"><span class="e-check is-app"><i></i></span><span class="e-row__b"><span class="e-row__t">${esc(a.title)}<span class="e-src">${esc(a.src)}</span></span><span class="e-row__s ${a.late ? 'is-late' : ''}">${esc(a.sub || '')}</span></span><span class="e-go">${I.out}</span></a>`;
 function sessRow(s, k, showDay) {
   const sl = slotOf(s, k);
@@ -410,23 +439,22 @@ export function renderAgendaView() {
     const list = itemsOn(daySel);
     body = `<div class="e-sec"><h2>${esc(dayTitle(daySel))}</h2><button type="button" class="k-lnk" data-v="mday" data-day="${daySel}">Tout voir</button></div><div class="card e-list">${list.map(x => rdvRow(x, false)).join('') || '<p class="e-empty">Rien ce jour-là. Le + en ajoute un.</p>'}</div>`;
   } else {
-    body = `<div style="margin-top:12px">${nextCard(up[0])}</div>`;
-    let grp = '';
-    up.slice(1, more).forEach(x => {
-      const d = dayDiff(x.date);
-      const g = d <= 6 ? 'Cette semaine' : d <= 13 ? 'La semaine prochaine' : `En ${MONTHS[fromKey(x.date).getMonth()]}`;
-      if (g !== grp) {
-        body += `${grp ? '</div>' : ''}<div class="e-sec"><h2>${g}</h2></div><div class="card e-list">`;
-        grp = g;
-      }
-      body += rdvRow(x);
-    });
-    if (grp) body += '</div>';
-    if (!up.length) body += '<div class="card e-empty">Aucun rendez-vous à venir. Le + en ajoute un.</div>';
-    if (up.length > more) body += `<button type="button" class="e-more" data-v="more">Voir plus · ${up.length - more} autre${up.length - more > 1 ? 's' : ''}</button>`;
+    // Ce qui est prévu, mois par mois : ce mois-ci et les deux suivants (« Voir » ajoute un mois).
+    const last = dateKey(new Date(now.getFullYear(), now.getMonth() + monthsShown, 0));
+    const races = (state.races || []).filter(r => r.date >= today).map(r => ({ id: r.id, title: r.name, date: r.date, time: r.time, place: r.location || '', kind: 'race' }));
+    const list = [...up, ...races].filter(x => x.date <= last).sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
+    for (let i = 0; i < monthsShown; i++) {
+      const m = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const ym = dateKey(m).slice(0, 7);
+      const items = list.filter(x => (x.date < today ? today : x.date).slice(0, 7) === ym);
+      body += `<div class="e-sec"><h2>${cap(MONTHS[m.getMonth()])}${m.getFullYear() !== now.getFullYear() ? ` ${m.getFullYear()}` : ''}${i ? '' : ' · ce mois-ci'}</h2><small>${items.length ? `${items.length} prévu${items.length > 1 ? 's' : ''}` : ''}</small></div>
+        <div class="card e-list">${items.map(x => (x.kind === 'race' ? raceRow(x) : rdvRow(x))).join('') || '<p class="e-empty">Rien de prévu pour l’instant.</p>'}</div>`;
+    }
+    const nx = new Date(now.getFullYear(), now.getMonth() + monthsShown, 1);
+    body += `<button type="button" class="e-more" data-v="mmore">Voir ${MONTHS[nx.getMonth()]}</button>`;
   }
   host.innerHTML = `
-    ${head(`${up.length} rendez-vous et événement${up.length > 1 ? 's' : ''} à venir`, 'Agenda')}
+    ${head(`${up.length} rendez-vous et événement${up.length > 1 ? 's' : ''} à venir`, 'Mois')}
     <div class="card e-month">
       <div class="e-month__h"><button type="button" class="k-round" data-v="mo" data-step="-1" aria-label="Mois précédent" ${monthOff <= 0 ? 'disabled' : ''}>${I.back}</button><b>${cap(MONTHS[base.getMonth()])} ${base.getFullYear()}</b><button type="button" class="k-round" data-v="mo" data-step="1" aria-label="Mois suivant">${I.fwd}</button></div>
       <div class="e-month__g">${['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'].map(d => `<small>${d}</small>`).join('')}${cells
@@ -443,6 +471,7 @@ export function renderAgendaView() {
 
 /* ---------- Tâches ---------- */
 export function renderTodoView() {
+  if (assign) return renderAssign();
   const host = $('#todoView');
   const tasks = openTasks();
   const today = todayKey();
@@ -458,13 +487,250 @@ export function renderTodoView() {
     ['Sans date', tasks.filter(t => !t.date)]
   ].filter(g => g[1].length);
   host.innerHTML = `
-    ${head(`${tasks.length} tâche${tasks.length > 1 ? 's' : ''}${apps.length ? ` · ${apps.length} de tes apps` : ''}`, 'Tâches')}
+    ${head(`${tasks.length} tâche${tasks.length > 1 ? 's' : ''}${apps.length ? ` · ${apps.length} de tes apps` : ''}`, 'Tâches', tasks.length ? '<button type="button" class="k-lnk w-asbtn" data-v="assign">Répartir sur la semaine</button>' : '')}
     ${groups.map(([label, list, cls]) => `<div class="e-sec ${cls || ''}"><h2>${label}</h2><small>${list.length}</small></div><div class="card e-list">${list.map(taskRow).join('')}</div>`).join('') || '<div class="card e-empty">Rien à faire. Belle journée.</div>'}
     ${apps.length ? `<div class="e-sec"><h2>Depuis tes apps</h2><small>${apps.length}</small></div><div class="card e-list">${apps.map(appRow).join('')}</div>` : ''}
     ${doneToday.length ? `<div class="e-sec"><h2>Faites aujourd’hui</h2><small>${doneToday.length}</small></div><div class="card e-list">${doneToday.map(t => `<button type="button" class="e-row is-done" data-v="undo" data-id="${esc(t.id)}"><span class="e-check is-on"><i>${I.check}</i></span><span class="e-row__b"><span class="e-row__t">${esc(t.title)}</span><span class="e-row__s">${isRepeat(t.repeat) ? esc(REPEATS[t.repeat].label.toLowerCase()) : 'disparaît demain · touche pour annuler'}</span></span></button>`).join('')}</div>` : ''}
     ${tasks.length ? '<p class="k-hint">→ fait · ← demain · touche pour modifier</p>' : ''}`;
   bindRows(host);
   done(host);
+}
+
+/* ---------- Tâches : répartir sur la semaine ---------- */
+/** Chaque tâche à faire, avec les 7 jours de la semaine choisie : un appui l'attribue à ce jour. */
+function renderAssign() {
+  const host = $('#todoView');
+  const thisMon = dateKey(mondayOf(new Date()));
+  if (!assignStart) assignStart = thisMon;
+  const keys = keysOf(assignStart);
+  const today = todayKey();
+  const off = Math.round((fromKey(assignStart) - fromKey(thisMon)) / 6048e5);
+  const tasks = openTasks().filter(t => !isRepeat(t.repeat)).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const free = tasks.filter(t => !t.date).length;
+  const row = t => {
+    const out = t.date && !keys.includes(t.date);
+    return `<div class="w-as ${flash === t.id ? 'e-flash' : ''}"><button type="button" class="w-as__t" data-v="tedit" data-id="${esc(t.id)}"><b>${esc(t.title)}</b><small class="${isLate(t) ? 'is-late' : ''}">${esc(t.date ? (out ? `${isLate(t) ? 'en retard · ' : ''}${dateWord(t.date)}` : cap(formatKey(t.date, { weekday: 'long', day: 'numeric' }))) : 'pas encore de jour')}</small></button>
+      <div class="w-as__d">${keys.map(k => { const d = fromKey(k); return `<button type="button" data-v="aday" data-id="${esc(t.id)}" data-day="${k}" aria-pressed="${t.date === k}" class="${k < today ? 'is-past' : ''} ${k === today ? 'is-today' : ''}" aria-label="${esc(formatKey(k, { weekday: 'long', day: 'numeric' }))}"><small>${WD[d.getDay()].slice(0, 1).toUpperCase()}</small>${d.getDate()}</button>`; }).join('')}</div></div>`;
+  };
+  host.innerHTML = `
+    ${head(`${free} sans jour · ${tasks.length - free} placée${tasks.length - free > 1 ? 's' : ''}`, 'Répartir', '<button type="button" class="k-lnk" data-v="assign">Terminé</button>')}
+    <div class="w-seg" role="group" aria-label="Semaine">${[[0, 'Cette semaine'], [1, 'Semaine prochaine']].map(([o, l]) => `<button type="button" data-v="aweek" data-off="${o}" aria-pressed="${off === o}">${l}</button>`).join('')}</div>
+    <p class="k-hint w-hint">Touche un jour pour y mettre la tâche, touche-le encore pour l’enlever.</p>
+    <div class="card w-aslist">${tasks.map(row).join('') || '<p class="e-empty">Aucune tâche à répartir. Le + en ajoute une.</p>'}</div>`;
+  done(host);
+}
+function assignDay(id, k) {
+  const t = state.dashboard.tasks.find(x => x.id === id);
+  if (!t) return;
+  const prev = t.date;
+  t.date = t.date === k ? '' : k;
+  if (!t.date) t.time = '';
+  buzz(8);
+  commit('dashboard');
+  toast(t.date ? `${t.title} · ${dayWord(t.date)}` : `${t.title} · sans jour`, { action: { label: 'Annuler', onClick: () => { t.date = prev; commit('dashboard'); } } });
+}
+
+/* ---------- Ma semaine : tout ce qui est prévu, et ce qu'on peut réorganiser ---------- */
+/** Plages horaires des créneaux, en minutes (mêmes heures que la météo par créneau). */
+const SLOT_RANGE = { matin: [7 * 60, 12 * 60], aprem: [12 * 60, 18 * 60], soir: [18 * 60, 22 * 60] };
+const toMin = t => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+/** Heures prises un jour donné : rendez-vous et événements avec une heure (1 h si pas de fin). */
+function busyOn(k) {
+  return itemsOn(k)
+    .filter(x => x.time && (!x.endDate || x.date === k))
+    .map(x => ({ x, a: toMin(x.time), b: x.endTime && x.endTime > x.time ? toMin(x.endTime) : toMin(x.time) + 60 }));
+}
+/** Plus longue plage libre d'un créneau (en minutes) et ce qui l'occupe. */
+function freeIn(k, sl) {
+  let [a, b] = SLOT_RANGE[sl];
+  if (k === todayKey()) a = Math.max(a, new Date().getHours() * 60 + new Date().getMinutes());
+  const busy = busyOn(k).filter(r => r.b > a && r.a < b).sort((p, q) => p.a - q.a);
+  let gap = 0;
+  let cur = a;
+  busy.forEach(r => {
+    gap = Math.max(gap, r.a - cur);
+    cur = Math.max(cur, r.b);
+  });
+  gap = Math.max(gap, b - cur);
+  return { gap: Math.max(0, gap), by: busy[0]?.x || null };
+}
+const needOf = s => durMin(s.time) || 60;
+const okSlot = (s, k, sl) => !slotPast(k, sl) && freeIn(k, sl).gap >= needOf(s);
+const wxScore = (s, k, sl) => score(kindOf(s), slotsOn(k)?.[sl]);
+/** Créneau d'une séance dans « Ma semaine » : celui choisi, sinon le meilleur créneau libre selon la météo. */
+function planSlot(s, k) {
+  if (s.slot) return s.slot;
+  const open = SLOT_IDS.filter(sl => okSlot(s, k, sl));
+  if (!open.length) return slotOf(s, k);
+  return open.reduce((a, b) => (wxScore(s, k, b) > wxScore(s, k, a) ? b : a));
+}
+/** Séance à faire à la maison : un sport d'intérieur (renfo de préférence). */
+function homeFamily() {
+  const fams = (state.families || []).filter(f => kindOfFamily(f.name) === 'indoor');
+  const f = fams.find(x => /muscu|renfo/i.test(x.name)) || fams[0];
+  if (!f) return null;
+  const types = f.types.filter(t => !isRestTraining(t));
+  return { f, type: types.find(t => /renfo/i.test(t)) || types[0] || '' };
+}
+/** Ce qui ne va pas pour une séance (créneau pris, météo à éviter) et ce que Carnet propose à la place. */
+function issueOf(s, k) {
+  if (k < todayKey() || isDone(k, s)) return null;
+  const sl = planSlot(s, k);
+  if (!sl) return null;
+  const kind = kindOf(s);
+  const w = slotsOn(k)?.[sl];
+  const f = freeIn(k, sl);
+  const busy = !slotPast(k, sl) && f.gap < needOf(s) ? f.by || { title: 'la journée' } : null;
+  const bad = kind !== 'indoor' && w && level(score(kind, w)) === 'bad';
+  const past = slotPast(k, sl);
+  if (!busy && !bad && !past) return null;
+  const fine = (k2, sl2) => okSlot(s, k2, sl2) && (kind === 'indoor' || !slotsOn(k2)?.[sl2] || level(wxScore(s, k2, sl2)) !== 'bad');
+  const same = SLOT_IDS.filter(x => x !== sl && fine(k, x)).sort((p, q) => wxScore(s, k, q) - wxScore(s, k, p))[0];
+  let other = null;
+  if (!same) {
+    keysOf(planStart).filter(k2 => k2 !== k && k2 >= todayKey()).forEach(k2 => {
+      SLOT_IDS.filter(x => fine(k2, x) && slotsOn(k2)?.[x]).forEach(x => {
+        const v = wxScore(s, k2, x) - Math.abs(dayDiff(k2) - dayDiff(k)) * 4 + (sessionsOn(k2).length ? 0 : 12);
+        if (!other || v > other.v) other = { k: k2, sl: x, v };
+      });
+    });
+  }
+  const home = kind !== 'indoor' && (bad || (busy && !same)) ? homeFamily() : null;
+  const reason = busy
+    ? `« ${busy.title} »${busy.time ? ` à ${hhmm(busy.time)}` : ''} : pas ${durLabel(needOf(s))} de libre le ${SLOTS[sl].toLowerCase()}`
+    : past ? `le ${SLOTS[sl].toLowerCase()} est passé` : `${why(w) || 'météo à éviter'} le ${SLOTS[sl].toLowerCase()}`;
+  return { sl, reason, same, other, home };
+}
+/** Une ligne de « Ma semaine » : heure à gauche, puis titre et détails. */
+const wRow = ({ when, sub, title, cls = '', act, check = '', id }) =>
+  `<div class="w-it ${cls} ${flash === id || landed === id ? 'e-flash' : ''}"><span class="w-when">${when}</span><button type="button" class="w-it__m" ${act}><b>${title}</b>${sub ? `<span>${sub}</span>` : ''}</button>${check}</div>`;
+const SLOT_WHEN = { matin: 'matin', aprem: 'ap.-midi', soir: 'soir' };
+function planDayHTML(k, all) {
+  const d = fromKey(k);
+  const today = todayKey();
+  const past = k < today;
+  const rows = [];
+  const fixes = [];
+  itemsOn(k).forEach(x => {
+    const n = spanDays(x);
+    const sub = x.endDate ? `jour ${dayDiff(k) - dayDiff(x.date) + 1} sur ${n + 1} · jusqu’au ${dateWord(x.endDate)}` : [x.endTime ? `jusqu’à ${hhmm(x.endTime)}` : '', x.place, x.kind === 'events' ? 'événement' : ''].filter(Boolean).join(' · ');
+    rows.push({ at: x.endDate || !x.time ? '00:00' : x.time, html: wRow({ id: x.id, cls: 'is-rdv', when: x.time && (!x.endDate || x.date === k) ? hhmm(x.time) : 'journée', title: esc(x.title), sub: esc(sub), act: `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"` }) });
+  });
+  (state.races || []).filter(r => r.date === k).forEach(r => rows.push({ at: r.time || '00:01', html: wRow({ id: r.id, cls: 'is-rdv', when: r.time ? hhmm(r.time) : 'journée', title: `🏁 ${esc(r.name)}`, sub: 'course', act: 'data-v="race"' }) }));
+  sessionsOn(k).forEach(s => {
+    const sl = planSlot(s, k);
+    const done = isDone(k, s, all);
+    const w = slotsOn(k)?.[sl];
+    const kind = kindOf(s);
+    const sub = [familyOf(s)?.name, s.distance ? km(s.distance) : '', durLabel(durMin(s.time)), !past && kind !== 'indoor' && w ? `${w.t}° · vent ${w.wind}` : kind === 'indoor' ? 'à la maison / en salle' : ''].filter(Boolean).join(' · ');
+    const check = k <= today ? `<button type="button" class="e-check ${done ? 'is-on' : ''}" data-v="session" data-day="${k}" data-id="${esc(s.id)}" aria-pressed="${done}" aria-label="${done ? 'Séance faite' : 'Marquer la séance faite'}"><i>${I.check}</i></button>` : '';
+    rows.push({ at: sl ? `${pad(SLOT_RANGE[sl][0] / 60)}:30` : '12:30', html: wRow({ id: s.id, cls: `is-ses k-${TILE[kind]} ${done ? 'is-done' : ''} ${past && !done ? 'is-miss' : ''}`, when: sl ? SLOT_WHEN[sl] : 'séance', title: esc(s.training || familyOf(s)?.name || 'Séance'), sub: esc(sub), act: `data-v="pedit" data-day="${k}" data-id="${esc(s.id)}"`, check }) });
+    const is = issueOf(s, k);
+    if (is) {
+      const btns = [
+        is.same ? `<button type="button" data-v="pslot" data-day="${k}" data-id="${esc(s.id)}" data-slot="${is.same}">Passer ${is.same === 'aprem' ? 'l’après-midi' : `le ${SLOTS[is.same].toLowerCase()}`}${slotsOn(k)?.[is.same] && kind !== 'indoor' ? ` · ${slotsOn(k)[is.same].t}°` : ''}</button>` : '',
+        is.other ? `<button type="button" data-v="mvto" data-day="${k}" data-id="${esc(s.id)}" data-to="${is.other.k}" data-slot="${is.other.sl}">${esc(cap(dayWord(is.other.k)))} ${SLOTS[is.other.sl].toLowerCase()}</button>` : '',
+        is.home ? `<button type="button" data-v="phome" data-day="${k}" data-id="${esc(s.id)}">${esc(is.home.type || is.home.f.name)} à la maison</button>` : ''
+      ].filter(Boolean);
+      fixes.push(`<div class="w-fix"><p><b>${esc(s.training || 'Séance')}</b> : ${esc(is.reason)}.${btns.length ? ' Tu peux :' : ''}</p>${btns.length ? `<div class="w-fix__b">${btns.join('')}</div>` : ''}</div>`);
+    }
+  });
+  // Une tâche en retard passe sur aujourd'hui (elle n'est plus montrée à son ancien jour).
+  const all2 = state.dashboard.tasks.filter(t => (t.date === k && (t.done ? !t.doneAt || t.doneAt >= today : k >= today)) || (k === today && !t.done && isLate(t)));
+  all2.forEach(t => rows.push({ at: t.time || '99:99', html: wRow({ id: t.id, cls: `is-task ${t.done ? 'is-done' : ''}`, when: t.time ? hhmm(t.time) : 'tâche', title: esc(t.title), sub: isLate(t) ? `<em class="is-late">en retard · prévue ${esc(dateWord(t.date))}</em>` : '', act: `data-v="tedit" data-id="${esc(t.id)}"`, check: `<button type="button" class="e-check ${t.done ? 'is-on' : ''}" data-v="wtdone" data-id="${esc(t.id)}" aria-pressed="${t.done}" aria-label="${t.done ? 'Tâche faite' : 'Cocher la tâche'}"><i>${I.check}</i></button>` }) }));
+  rows.sort((a, b) => a.at.localeCompare(b.at));
+  // Jour encore libre de séance : le meilleur moment libre, pour l'information (rien n'est placé tout seul).
+  let hint = '';
+  if (!past && !sessionsOn(k).length && slotsOn(k)) {
+    const free = SLOT_IDS.filter(sl => !slotPast(k, sl) && freeIn(k, sl).gap >= 60 && slotsOn(k)[sl]);
+    const best = free.sort((a, b) => score('run', slotsOn(k)[b]) - score('run', slotsOn(k)[a]))[0];
+    if (best) { const w = slotsOn(k)[best]; hint = `<button type="button" class="w-free" data-v="addsess" data-day="${k}">${I.run}<span>Libre ${best === 'aprem' ? 'l’après-midi' : `le ${SLOTS[best].toLowerCase()}`} · ${w.t}° · vent ${w.wind}${level(score('run', w)) === 'bad' ? ' · plutôt à la maison' : ''}</span><b>+ Séance</b></button>`; }
+  }
+  const w = wx[k];
+  const wind = w?.slots ? Math.max(...Object.values(w.slots).map(x => x.wind)) : null;
+  return `<section class="card w-day ${k === today ? 'is-today' : ''} ${past ? 'is-past' : ''}" id="wday-${k}">
+    <header class="w-day__h"><h2>${k === today ? 'Aujourd’hui' : cap(WD_FULL[d.getDay()])} <span>${esc(formatDate(d, { day: 'numeric', month: 'short' }))}</span></h2>
+      ${!past && w ? `<span class="w-wx">${SKY[w.sky] || SKY.cloud}${w.max}°${wind !== null ? ` · ${wind} km/h` : ''}</span>` : ''}
+      <button type="button" class="k-round w-add" data-v="wadd" data-day="${k}" aria-label="Ajouter ${esc(dayWord(k))}">+</button></header>
+    ${rows.length ? `<div class="w-list">${rows.map(r => r.html).join('')}</div>` : `<p class="w-none">${past ? 'Rien' : 'Rien de prévu'}</p>`}
+    ${fixes.join('')}${hint}
+  </section>`;
+}
+const isSundayEve = () => new Date().getDay() === 0 && new Date().getHours() >= 15;
+const defaultPlanStart = () => dateKey(addDays(mondayOf(new Date()), isSundayEve() ? 7 : 0));
+export function renderPlanView() {
+  const host = $('#planView');
+  if (!planStart) planStart = defaultPlanStart();
+  const keys = keysOf(planStart);
+  const start = fromKey(planStart);
+  const end = addDays(start, 6);
+  const today = todayKey();
+  const all = doneMap();
+  const wi = Math.round((start - mondayOf(new Date())) / 6048e5);
+  const label = wi === 0 ? 'Cette semaine' : wi === 1 ? 'Semaine prochaine' : wi === -1 ? 'Semaine dernière' : wi > 0 ? `Dans ${wi} semaines` : `Il y a ${-wi} semaines`;
+  const range = `${start.getDate()}${start.getMonth() !== end.getMonth() ? ` ${formatDate(start, { month: 'short' })}` : ''} – ${end.getDate()} ${formatDate(end, { month: 'short' })}`;
+  // État des lieux de la semaine affichée.
+  const ev = new Set(keys.flatMap(k => itemsOn(k).map(x => `${x.id}|${x.date}`))).size;
+  const ses = keys.flatMap(k => sessionsOn(k).map(s => ({ s, k })));
+  const tasksIn = state.dashboard.tasks.filter(t => !t.done && keys.includes(t.date)).length;
+  const noDay = state.dashboard.tasks.filter(t => !t.done && !t.date).length;
+  const toFix = ses.filter(({ s, k }) => issueOf(s, k)).length;
+  const empty = keys.filter(k => k >= today && !itemsOn(k).length && !sessionsOn(k).length && !state.dashboard.tasks.some(t => !t.done && t.date === k));
+  const ritual = wi === 1 && new Date().getDay() === 0;
+  const prepare = wi === 0 && [5, 6, 0].includes(new Date().getDay());
+  const notes = [
+    toFix ? `<li class="is-warn">${toFix} séance${toFix > 1 ? 's' : ''} à revoir (créneau pris ou météo) : les propositions sont sous le jour.</li>` : '',
+    noDay ? `<li>${noDay} tâche${noDay > 1 ? 's' : ''} sans jour <button type="button" class="k-lnk" data-v="toassign">Répartir</button></li>` : '',
+    empty.length ? `<li>Rien de prévu ${empty.map(k => WD[fromKey(k).getDay()]).join(', ')}.</li>` : ''
+  ].filter(Boolean);
+  host.innerHTML = `
+    ${head(`${label} · ${esc(range)}`, 'Ma semaine', `<div class="k-nav">${wi ? '<button type="button" class="k-lnk e-today-lnk" data-v="ptoday">Aujourd’hui</button>' : ''}<button type="button" class="k-round" data-v="pweek" data-step="-1" aria-label="Semaine précédente">${I.back}</button><button type="button" class="k-round" data-v="pweek" data-step="1" aria-label="Semaine suivante">${I.fwd}</button></div>`)}
+    <section class="card w-sum ${ritual ? 'is-ritual' : ''}">
+      ${ritual ? '<p class="w-sum__k">Dimanche soir · état des lieux de la semaine qui vient</p>' : ''}
+      <div class="w-sum__n"><span><b>${ev}</b> rendez-vous et événement${ev > 1 ? 's' : ''}</span><span><b>${ses.length}</b> séance${ses.length > 1 ? 's' : ''}</span><span><b>${tasksIn}</b> tâche${tasksIn > 1 ? 's' : ''}</span></div>
+      ${notes.length ? `<ul class="w-sum__l">${notes.join('')}</ul>` : ''}
+    </section>
+    ${prepare ? '<button type="button" class="s-prog" data-v="pweek" data-step="1">Préparer la semaine prochaine</button>' : ''}
+    ${keys.map(k => planDayHTML(k, all)).join('')}
+    <p class="k-hint">Carnet ne place rien tout seul : il signale et propose, tu choisis.</p>`;
+  done(host);
+}
+function setSessionSlot(k, id, sl) {
+  const s = plansOn(k).find(x => x.id === id);
+  if (!s) return;
+  const prev = s.slot;
+  s.slot = sl;
+  landed = id;
+  commit('plans');
+  setTimeout(() => (landed = null), 1300);
+  buzz(10);
+  toast(`${s.training || 'Séance'} · ${SLOTS[sl].toLowerCase()}`, { action: { label: 'Annuler', onClick: () => { s.slot = prev; commit('plans'); } } });
+}
+function sessionAtHome(k, id) {
+  const s = plansOn(k).find(x => x.id === id);
+  const h = homeFamily();
+  if (!s || !h) return;
+  const prev = { family: s.family, training: s.training, distance: s.distance, elevation: s.elevation };
+  Object.assign(s, { family: h.f.id, training: h.type, distance: '', elevation: '' });
+  landed = id;
+  commit('plans');
+  setTimeout(() => (landed = null), 1300);
+  buzz(10);
+  toast(`${h.type || h.f.name} à la maison`, { action: { label: 'Annuler', onClick: () => { Object.assign(s, prev); commit('plans'); } } });
+}
+function toggleTask(id) {
+  const t = state.dashboard.tasks.find(x => x.id === id);
+  if (!t) return;
+  if (t.done) {
+    t.done = false;
+    delete t.doneAt;
+  } else {
+    t.done = true;
+    t.doneAt = todayKey();
+    buzz(12);
+  }
+  commit('dashboard');
+  return t.done;
 }
 
 /* ---------- Sport : le planning détaillé ---------- */
@@ -649,9 +915,10 @@ function deleteSession(k, id) {
 }
 
 /** Se place sur un jour de Sport (en haut de l'écran, sous l'en-tête). */
-function scrollToDay(k) {
+const scrollToDay = k => scrollToId(`pday-${k}`);
+function scrollToId(domId) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    const el = document.getElementById(`pday-${k}`);
+    const el = document.getElementById(domId);
     if (!el) return;
     // offsetTop (et non getBoundingClientRect) : l'animation d'entrée décale encore les cartes.
     let y = 0;
@@ -1051,11 +1318,11 @@ function bindRows(host) {
 }
 
 /* ---------- Le + : une question par écran ---------- */
-const STEPS = { task: ['kind', 'title', 'day', 'done'], appointments: ['kind', 'title', 'day', 'time', 'done'], events: ['kind', 'title', 'day', 'done'], sess: ['kind', 'family', 'type', 'day', 'slot', 'done'] };
+const STEPS = { task: ['kind', 'title', 'day', 'done'], appointments: ['kind', 'title', 'day', 'time', 'done'], events: ['kind', 'title', 'day', 'end', 'done'], sess: ['kind', 'family', 'type', 'day', 'slot', 'done'] };
 let F = null;
 const flowEl = () => $('#eFlow');
 function openFlow(preset) {
-  F = { type: null, i: 0, d: {}, ...(preset || {}) };
+  F = { type: null, i: 0, d: {}, from: current, ...(preset || {}) };
   const el = flowEl();
   el.hidden = false;
   document.body.classList.add('e-flow-on');
@@ -1092,7 +1359,7 @@ function stepHTML(st) {
   const days = Array.from({ length: 14 }, (_, i) => dateKey(addDays(new Date(), i)));
   switch (st) {
     case 'kind':
-      return `<h2 class="e-q">Qu’est-ce que tu ajoutes ?</h2><div class="e-kinds">${[['task', 'Tâche', 'Avec ou sans date', 't-task', I.list], ['appointments', 'Rendez-vous', 'Un jour, une heure', 't-rdv', I.clock], ['events', 'Événement', 'Une journée à retenir', 't-rdv', I.star], ['sess', 'Séance', 'Placée avec la météo', 't-run', I.run]].map(([k, b, s, t, ic], i) => `<button type="button" class="e-kind" data-fl="kind" data-val="${k}" style="animation-delay:${i * 50}ms"><span class="e-tile ${t}">${ic}</span><b>${b}</b><span>${s}</span></button>`).join('')}</div>
+      return `<h2 class="e-q">Qu’est-ce que tu ajoutes${d.fixedDay ? `, ${dateWord(d.day)}` : ''} ?</h2><div class="e-kinds">${[['task', 'Tâche', 'Avec ou sans date', 't-task', I.list], ['appointments', 'Rendez-vous', 'Un jour, une heure', 't-rdv', I.clock], ['events', 'Événement', 'Un ou plusieurs jours', 't-rdv', I.star], ['sess', 'Séance', 'Placée avec la météo', 't-run', I.run]].map(([k, b, s, t, ic], i) => `<button type="button" class="e-kind" data-fl="kind" data-val="${k}" style="animation-delay:${i * 50}ms"><span class="e-tile ${t}">${ic}</span><b>${b}</b><span>${s}</span></button>`).join('')}</div>
         <p class="e-lab">Ou écris tout d’un coup</p><form class="e-big" data-fl="quick" autocomplete="off"><input id="eQuick" placeholder="dentiste jeudi 17h30" aria-label="Écrire en une phrase" maxlength="120"><button type="submit" aria-label="Valider">${I.go}</button></form><div id="eQuickChip"></div>`;
     case 'title':
       return `<h2 class="e-q">${F.type === 'task' ? 'Qu’y a-t-il à faire ?' : F.type === 'appointments' ? 'Quel rendez-vous ?' : 'Quel événement ?'}</h2><form class="e-big" data-fl="title" autocomplete="off"><input value="${esc(d.title || '')}" placeholder="${F.type === 'task' ? 'Payer la cantine' : F.type === 'appointments' ? 'Dentiste' : 'Anniversaire'}" aria-label="Titre" maxlength="100"><button type="submit" aria-label="Continuer">${I.go}</button></form>`;
@@ -1101,19 +1368,28 @@ function stepHTML(st) {
     case 'type':
       return `<h2 class="e-q">Quelle séance ?</h2><div class="e-opts e-opts--2">${(fam?.types || []).filter(t => !isRestTraining(t)).map((t, i) => `<button type="button" data-fl="type" data-val="${esc(t)}" style="animation-delay:${i * 30}ms">${esc(t)}</button>`).join('')}</div>`;
     case 'day':
-      return `<h2 class="e-q">Quel jour ?${F.type === 'sess' && kind !== 'indoor' ? '<small>La pastille donne la météo du meilleur moment.</small>' : ''}</h2>
+      return `<h2 class="e-q">${F.type === 'events' ? 'Quel jour commence-t-il ?' : 'Quel jour ?'}${F.type === 'sess' && kind !== 'indoor' ? '<small>La pastille donne la météo du meilleur moment.</small>' : ''}</h2>
         ${F.type === 'task' ? `<div class="e-opts e-opts--2" style="margin-bottom:14px"><button type="button" data-fl="day" data-val="">Sans date</button><button type="button" data-fl="day" data-val="${todayKey()}">Aujourd’hui</button></div>` : ''}
-        <div class="e-days">${days.map((k, i) => { const x = fromKey(k); const b = F.type === 'sess' && kind !== 'indoor' ? bestSlot(kind, k) : null; return `<button type="button" data-fl="day" data-val="${k}" style="animation-delay:${i * 18}ms"><small>${i ? WD[x.getDay()] : 'auj'}</small><b>${x.getDate()}</b><i class="${b ? `q-${level(score(kind, slotsOn(k)[b]))}` : ''}"></i></button>`; }).join('')}</div>`;
+        <div class="e-days">${days.map((k, i) => { const x = fromKey(k); const b = F.type === 'sess' && kind !== 'indoor' ? bestSlot(kind, k) : null; return `<button type="button" data-fl="day" data-val="${k}" style="animation-delay:${i * 18}ms"><small>${i ? WD[x.getDay()] : 'auj'}</small><b>${x.getDate()}</b><i class="${b ? `q-${level(score(kind, slotsOn(k)[b]))}` : ''}"></i></button>`; }).join('')}</div>
+        <p class="e-lab">Ou n’importe quelle date</p><form class="e-big" data-fl="date" autocomplete="off"><input type="date" min="${todayKey()}" value="${esc(d.day || '')}" aria-label="Choisir une date"><button type="submit" aria-label="Valider la date">${I.go}</button></form>`;
+    case 'end': {
+      const next = Array.from({ length: 7 }, (_, i) => dateKey(addDays(fromKey(d.day), i + 1)));
+      return `<h2 class="e-q">Jusqu’à quand ?<small>Il commence ${esc(dateWord(d.day))}.</small></h2>
+        <div class="e-opts" style="margin-bottom:14px"><button type="button" data-fl="end" data-val="">Seulement ce jour-là</button></div>
+        <p class="e-lab">Dernier jour</p><div class="e-days">${next.map((k, i) => { const x = fromKey(k); return `<button type="button" data-fl="end" data-val="${k}" style="animation-delay:${i * 18}ms"><small>${WD[x.getDay()]}</small><b>${x.getDate()}</b><i></i></button>`; }).join('')}</div>
+        <p class="e-lab">Ou une autre date de fin</p><form class="e-big" data-fl="enddate" autocomplete="off"><input type="date" min="${dateKey(addDays(fromKey(d.day), 1))}" value="${esc(d.end || '')}" aria-label="Date de fin"><button type="submit" aria-label="Valider la date de fin">${I.go}</button></form>`;
+    }
     case 'time':
       return `<h2 class="e-q">À quelle heure, ${dayWord(d.day)} ?</h2><div class="e-opts e-opts--5">${Array.from({ length: 16 }, (_, i) => i + 7).map((h, i) => `<button type="button" data-fl="hour" data-val="${h}" aria-pressed="${d.h === h}" style="animation-delay:${i * 15}ms">${h} h</button>`).join('')}</div>
-        <p class="e-lab">Minutes</p><div class="e-opts e-opts--4">${['00', '15', '30', '45'].map(m => `<button type="button" data-fl="min" data-val="${m}" aria-pressed="${(d.m || '00') === m}">${m}</button>`).join('')}</div><button type="button" class="e-btn" data-fl="timeok" ${d.h ? '' : 'disabled'}>Ajouter</button>`;
+        <p class="e-lab">Minutes</p><div class="e-opts e-opts--4">${['00', '15', '30', '45'].map(m => `<button type="button" data-fl="min" data-val="${m}" aria-pressed="${(d.m || '00') === m}">${m}</button>`).join('')}</div>
+        <p class="e-lab">Durée</p><div class="e-opts e-opts--4">${[[30, '30 min'], [60, '1 h'], [120, '2 h'], [180, '3 h']].map(([m, l]) => `<button type="button" data-fl="dur" data-val="${m}" aria-pressed="${(d.dur || 60) === m}">${l}</button>`).join('')}</div><button type="button" class="e-btn" data-fl="timeok" ${d.h ? '' : 'disabled'}>Ajouter</button>`;
     case 'slot': {
       const ws = slotsOn(d.day);
       const b = kind !== 'indoor' ? bestSlot(kind, d.day) : null;
       return `<h2 class="e-q">À quel moment, ${dayWord(d.day)} ?${b ? `<small>Carnet conseille ${SLOTS[b].toLowerCase()}.</small>` : ''}</h2><div class="e-slotpick">${SLOT_IDS.map((sl, i) => { const w = ws?.[sl]; const p = slotPast(d.day, sl); return `<button type="button" class="${p || !w || kind === 'indoor' ? '' : `q-${level(score(kind, w))}`}" data-fl="slot" data-val="${sl}" ${p ? 'disabled' : ''} style="animation-delay:${i * 60}ms">${w ? skyOf(w) : ''}<b>${SLOTS[sl]}${sl === b ? ' · conseillé' : ''}</b><span>${w ? `${w.t}° · pluie ${w.rain} % · vent ${w.wind}` : ''}</span></button>`; }).join('')}</div>`;
     }
     case 'done':
-      return `<div class="e-stamp"><i>${I.check}</i><b>Ajouté</b><span class="e-row__s">${esc(F.type === 'sess' ? `${d.type}, ${dayWord(d.day)} ${SLOTS[d.slot].toLowerCase()}` : `${d.title}${d.day ? `, ${dayWord(d.day)}` : ''}`)}</span></div>`;
+      return `<div class="e-stamp"><i>${I.check}</i><b>Ajouté</b><span class="e-row__s">${esc(F.type === 'sess' ? `${d.type}, ${dateWord(d.day)} ${SLOTS[d.slot].toLowerCase()}` : `${d.title}${d.end ? `, ${span({ date: d.day, endDate: d.end })}` : d.day ? `, ${dateWord(d.day)}` : ''}`)}</span></div>`;
   }
   return '';
 }
@@ -1132,12 +1408,27 @@ function saveFlow() {
     focusDay = d.day;
     target = 'weekView';
   } else {
-    state.dashboard[F.type].push({ id, title: d.title, date: d.day, time: F.type === 'appointments' ? `${pad(d.h)}:${d.m || '00'}` : '', note: '' });
+    const item = { id, title: d.title, date: d.day, time: '', note: '' };
+    if (F.type === 'appointments') {
+      const a = d.h * 60 + Number(d.m || 0);
+      const b = a + (d.dur || 60);
+      item.time = `${pad(d.h)}:${d.m || '00'}`;
+      if (b < 24 * 60) item.endTime = `${pad(Math.floor(b / 60))}:${pad(b % 60)}`;
+    }
+    if (F.type === 'events' && d.end > d.day) item.endDate = d.end;
+    state.dashboard[F.type].push(item);
     commit('dashboard');
-    const pos = upcoming().findIndex(x => x.id === id);
-    more = Math.max(more, pos + 1);
+    // Le mois de l'élément ajouté est affiché dans « Mois ».
+    const now = new Date();
+    const m = fromKey(d.day);
+    monthsShown = Math.max(monthsShown, (m.getFullYear() - now.getFullYear()) * 12 + m.getMonth() - now.getMonth() + 1);
     daySel = null;
     target = 'agendaView';
+  }
+  // Ajouté depuis « Ma semaine » : on y reste, sur la semaine du jour choisi.
+  if (F.from === 'planView') {
+    if (d.day) planStart = dateKey(mondayOf(fromKey(d.day)));
+    target = 'planView';
   }
   flash = id;
   buzz(12);
@@ -1164,13 +1455,13 @@ function onFlowClick(e) {
     F.i--;
     if (!F.i) {
       F.type = null;
-      F.d = {};
+      F.d = F.d.fixedDay ? { day: F.d.day, fixedDay: true } : {};
     }
     return showStep('back');
   }
   if (a === 'kind') {
     F.type = v;
-    F.d = {};
+    F.d = F.d.fixedDay ? { day: F.d.day, fixedDay: true } : {};
     if (v === 'sess') loadWx();
     return nextStep();
   }
@@ -1178,13 +1469,14 @@ function onFlowClick(e) {
     d.family = v;
     return nextStep();
   }
-  if (a === 'type' || a === 'day') {
+  if (a === 'type' || a === 'day' || a === 'end') {
     d[a] = v;
     b.classList.add('is-picked');
     return setTimeout(nextStep, 160);
   }
-  if (a === 'hour' || a === 'min') {
+  if (a === 'hour' || a === 'min' || a === 'dur') {
     if (a === 'hour') d.h = Number(v);
+    else if (a === 'dur') d.dur = Number(v);
     else d.m = v;
     b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
     flowEl().querySelector('[data-fl="timeok"]').disabled = !d.h;
@@ -1203,6 +1495,13 @@ function onFlowSubmit(e) {
     const v = e.target.querySelector('input').value.trim();
     if (!v) return;
     F.d.title = v;
+    return nextStep();
+  }
+  if (f === 'date' || f === 'enddate') {
+    const v = e.target.querySelector('input').value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+    if (f === 'enddate' && v <= F.d.day) return toastError('La fin doit être après le début.');
+    F.d[f === 'date' ? 'day' : 'end'] = v;
     return nextStep();
   }
   if (f === 'quick') {
@@ -1235,6 +1534,7 @@ function done(host) {
 }
 function renderCurrent() {
   if (current === 'todayView') renderTodayView();
+  else if (current === 'planView') renderPlanView();
   else if (current === 'agendaView') renderAgendaView();
   else if (current === 'todoView') renderTodoView();
   else if (current === 'weekView') renderWeekView();
@@ -1254,8 +1554,18 @@ export function showVivant(id) {
     land = focusDay || todayKey();
     focusDay = null;
   }
+  // Ma semaine : la semaine en cours (le dimanche soir, la suivante), placée sur aujourd'hui.
+  if (arriving && id === 'planView') {
+    planStart = planFocus || defaultPlanStart();
+    planFocus = null;
+  }
+  if (arriving && id === 'todoView') {
+    if (!assignKeep) assign = false;
+    assignKeep = false;
+  }
   renderCurrent();
   if (land && !flash) scrollToDay(land);
+  if (arriving && id === 'planView' && !flash && planStart === dateKey(mondayOf(new Date()))) scrollToId(`wday-${todayKey()}`);
   if (pendingEdit && id === 'weekView') {
     const pe = pendingEdit;
     pendingEdit = null;
@@ -1294,9 +1604,55 @@ function onClick(e) {
       delete t.doneAt;
       return commit('dashboard');
     }
-    case 'more':
-      more += 8;
+    case 'mmore':
+      monthsShown += 1;
       return renderAgendaView();
+    case 'pweek':
+      planStart = dateKey(addDays(fromKey(planStart), Number(b.dataset.step) * 7));
+      entering = true;
+      renderPlanView();
+      return window.scrollTo({ top: 0, behavior: reduced() ? 'auto' : 'smooth' });
+    case 'ptoday':
+      planStart = dateKey(mondayOf(new Date()));
+      entering = true;
+      renderPlanView();
+      return scrollToId(`wday-${todayKey()}`);
+    case 'pedit':
+      return openEdit(day, id);
+    case 'pslot':
+      return setSessionSlot(day, id, b.dataset.slot);
+    case 'phome':
+      return sessionAtHome(day, id);
+    case 'wadd':
+      loadWx();
+      return openFlow({ d: { day, fixedDay: true } });
+    case 'wtdone': {
+      if (toggleTask(id)) {
+        const r = b.getBoundingClientRect();
+        burst(r.left + r.width / 2, r.top + r.height / 2, 14);
+      }
+      return;
+    }
+    case 'tedit':
+      return openEditor('tasks', id);
+    case 'race':
+      return window.open(ALLURE_URL, '_self');
+    case 'toassign':
+      assign = true;
+      assignKeep = true;
+      assignStart = planStart;
+      return goto('todoView');
+    case 'assign':
+      assign = !assign;
+      if (assign) assignStart = defaultPlanStart();
+      entering = true;
+      renderTodoView();
+      return window.scrollTo({ top: 0, behavior: reduced() ? 'auto' : 'smooth' });
+    case 'aweek':
+      assignStart = dateKey(addDays(mondayOf(new Date()), Number(b.dataset.off) * 7));
+      return renderTodoView();
+    case 'aday':
+      return assignDay(id, day);
     case 'mo':
       monthOff = Math.max(0, monthOff + Number(b.dataset.step));
       return renderAgendaView();
@@ -1346,7 +1702,7 @@ function onClick(e) {
 
 export function initVivant({ go }) {
   goto = go;
-  ['#todayView', '#agendaView', '#todoView', '#weekView'].forEach(sel => $(sel).addEventListener('click', onClick));
+  ['#todayView', '#planView', '#agendaView', '#todoView', '#weekView'].forEach(sel => $(sel).addEventListener('click', onClick));
   // Une ligne de séance est un bouton (role) : Entrée l'ouvre aussi.
   ['#todayView', '#weekView'].forEach(sel => $(sel).addEventListener('keydown', e => e.key === 'Enter' && e.target.matches('.e-row[role="button"][data-v]') && e.target.click()));
   // Phase Cadence : dépliée ou non, gardé d'un rendu à l'autre.
