@@ -25,7 +25,8 @@ const ALL = ['dashboard', 'notes', 'races', 'plans', 'families', 'objectives'];
 const vivant = id => ({ show: () => showVivant(id), render: () => showVivant(id), slices: ALL });
 const VIEWS = {
   todayView: { title: 'Accueil', ...vivant('todayView') },
-  agendaView: { title: 'Agenda', ...vivant('agendaView') },
+  planView: { title: 'Ma semaine', ...vivant('planView'), keepScroll: true },
+  agendaView: { title: 'Mois', ...vivant('agendaView') },
   todoView: { title: 'Tâches', ...vivant('todoView') },
   weekView: { title: 'Sport', ...vivant('weekView'), keepScroll: true }
 };

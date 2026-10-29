@@ -8,9 +8,9 @@
 /* Le + est partout. */
 body[data-screen="todoView"] .k-fab { display: grid; }
 body[data-screen="todoView"] .tabbar { left: max(14px, 50% - 250px); transform: none; width: min(420px, calc(100% - 98px)); }
-.tabbar, :root[data-theme="light"] .tabbar { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
-.tabbar__item, .tabbar__item.is-active { padding: 0 4px; font-size: 13px; }
-@media (min-width: 960px) { .tabbar { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.tabbar, :root[data-theme="light"] .tabbar { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; }
+.tabbar__item, .tabbar__item.is-active { padding: 0 2px; font-size: 12.5px; letter-spacing: -.01em; }
+@media (min-width: 960px) { .tabbar { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 
 /* ---------- Cartes et lignes ---------- */
 .v-view .card { padding: 0; border: 0; border-radius: 22px; background: var(--surface); box-shadow: var(--k-shadow); -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -433,3 +433,77 @@ span.s-free { cursor: default; }
 }
 .e-slotpick button.q-good svg { color: var(--ok); } .e-slotpick button.q-ok svg { color: var(--soon); } .e-slotpick button.q-bad svg { color: var(--late); }
 .e-slotpick button.q-good { box-shadow: inset 0 0 0 2px var(--ok-bg), var(--k-shadow); } .e-slotpick button.q-bad { box-shadow: inset 0 0 0 2px var(--late-bg), var(--k-shadow); }
+
+/* =========================================================
+   Ma semaine (planView) : un jour = une carte, heure à gauche ; Répartir les tâches ; Mois.
+   ========================================================= */
+.w-sum { padding: 14px 16px !important; }
+.w-sum.is-ritual { box-shadow: inset 3px 0 0 var(--accent), var(--k-shadow) !important; }
+.w-sum__k { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--accent); }
+.w-sum__n { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--text-2); }
+.w-sum__n b { font-size: 20px; font-weight: 700; color: var(--text); margin-right: 3px; }
+.w-sum__l { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.4; color: var(--text-2); }
+.w-sum__l li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.w-sum__l li.is-warn { color: var(--late); }
+.w-sum__l .k-lnk { min-height: 0; font-size: 13.5px; }
+#planView .s-prog { margin-top: 12px; }
+.w-day { margin-top: 12px; padding: 4px 0 6px !important; overflow: hidden; }
+.w-day.is-today { box-shadow: inset 0 0 0 2px var(--accent), var(--k-shadow) !important; }
+.w-day.is-past { opacity: .62; }
+.w-day__h { display: flex; align-items: center; gap: 10px; padding: 10px 10px 6px 16px; }
+.w-day__h h2 { flex: 1; margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.02em; color: var(--text); }
+.w-day.is-today .w-day__h h2 { color: var(--accent); }
+.w-day__h h2 span { font-weight: 500; color: var(--text-3); }
+.w-wx { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
+.w-wx svg { width: 15px; height: 15px; }
+.w-add { width: 34px; height: 34px; font-size: 20px; font-weight: 500; background: var(--surface-2); box-shadow: none; color: var(--accent); }
+.w-none { margin: 0; padding: 2px 16px 10px; font-size: 13.5px; color: var(--text-3); }
+.w-list { display: grid; }
+.w-it { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 4px 10px 4px 16px; border-left: 3px solid transparent; }
+.w-it + .w-it { border-top: 1px solid var(--line, rgba(127, 127, 127, .12)); }
+.w-it.is-rdv { border-left-color: var(--rdv); }
+.w-it.is-task { border-left-color: var(--task); }
+.w-it.is-ses.k-run { border-left-color: var(--k-run); }
+.w-it.is-ses.k-bike { border-left-color: var(--k-bike); }
+.w-it.is-ses.k-gym { border-left-color: var(--k-gym); }
+.w-when { flex: none; width: 58px; font-size: 12.5px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.w-it.is-task .w-when, .w-it.is-ses .w-when { color: var(--text-3); font-weight: 500; }
+.w-it__m { flex: 1; min-width: 0; display: grid; gap: 1px; padding: 6px 0; border: 0; background: none; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.w-it__m b { font-weight: 600; overflow-wrap: anywhere; }
+.w-it__m span { font-size: 12.5px; line-height: 1.35; color: var(--text-2); }
+.w-it__m em { font-style: normal; }
+.w-it.is-done .w-it__m b { color: var(--text-2); text-decoration: line-through; }
+.w-it.is-miss .w-it__m span::after { content: ' · manquée'; color: var(--late); }
+.w-fix { margin: 6px 10px 4px; padding: 10px 12px; border-radius: 14px; background: var(--soon-bg); }
+.w-fix p { margin: 0; font-size: 13px; line-height: 1.4; color: var(--text); }
+.w-fix__b { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.w-fix__b button { min-height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--surface); box-shadow: var(--k-shadow); font: inherit; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
+.w-fix__b button:active { transform: scale(.95); }
+.w-free { display: flex; align-items: center; gap: 8px; width: calc(100% - 20px); margin: 6px 10px 4px; padding: 8px 12px; border: 1px dashed var(--surface-3); border-radius: 14px; background: none; font: inherit; font-size: 13px; color: var(--text-2); text-align: left; cursor: pointer; }
+.w-free svg { flex: none; width: 16px; height: 16px; color: var(--text-3); }
+.w-free span { flex: 1; }
+.w-free b { flex: none; color: var(--accent); font-weight: 700; }
+
+/* Tâches : répartir sur la semaine */
+.w-asbtn { font-size: 13.5px; }
+.w-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 16px; background: var(--surface); box-shadow: var(--k-shadow); }
+.w-seg button { min-height: 38px; border: 0; border-radius: 12px; background: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.w-seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.w-hint { margin-bottom: 10px; }
+.w-aslist { display: grid; }
+.w-as { padding: 10px 12px 12px; }
+.w-as + .w-as { border-top: 1px solid var(--line, rgba(127, 127, 127, .12)); }
+.w-as__t { display: grid; gap: 1px; width: 100%; padding: 2px 4px 8px; border: 0; background: none; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.w-as__t b { font-weight: 600; overflow-wrap: anywhere; }
+.w-as__t small { font-size: 12.5px; color: var(--text-3); }
+.w-as__d { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.w-as__d button { display: grid; justify-items: center; gap: 0; min-height: 44px; padding: 4px 0; border: 0; border-radius: 12px; background: var(--surface-2); font: inherit; font-size: 15px; font-weight: 700; color: var(--text); cursor: pointer; transition: background .2s, transform .4s var(--k-spring); }
+.w-as__d button small { font-size: 10.5px; font-weight: 600; color: var(--text-3); }
+.w-as__d button.is-past { opacity: .45; }
+.w-as__d button.is-today { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.w-as__d button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.w-as__d button[aria-pressed="true"] small { color: inherit; opacity: .8; }
+.w-as__d button:active { transform: scale(.92); }
+
+/* Formulaire : date libre */
+.e-big input[type="date"] { font-size: 17px; }

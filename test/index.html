@@ -64,7 +64,8 @@
 
   <nav class="tabbar" aria-label="Navigation principale">
     <button type="button" class="tabbar__item is-active" data-view="todayView" aria-current="page">Accueil</button>
-    <button type="button" class="tabbar__item" data-view="agendaView">Agenda</button>
+    <button type="button" class="tabbar__item" data-view="planView">Semaine</button>
+    <button type="button" class="tabbar__item" data-view="agendaView">Mois</button>
     <button type="button" class="tabbar__item" data-view="todoView">Tâches</button>
     <button type="button" class="tabbar__item" data-view="weekView">Sport</button>
   </nav>
@@ -74,7 +75,8 @@
 
     <!-- ================= ÉCRANS « VIVANT » (rendus par js/views/vivant.js) ================= -->
     <section id="todayView" class="view v-view" aria-label="Aujourd’hui"></section>
-    <section id="agendaView" class="view v-view" hidden aria-label="Agenda"></section>
+    <section id="planView" class="view v-view" hidden aria-label="Ma semaine"></section>
+    <section id="agendaView" class="view v-view" hidden aria-label="Mois"></section>
     <section id="todoView" class="view v-view" hidden aria-label="Tâches"></section>
     <section id="weekView" class="view v-view" hidden aria-label="Sport"></section>
 
@@ -233,6 +235,7 @@
         <div class="field"><label class="field__label" for="itemTitleInput">Titre</label><input class="input" id="itemTitleInput" name="title" maxlength="100" required autocomplete="off" enterkeyhint="next"></div>
         <div class="form-grid">
           <div class="field field--full"><label class="field__label" for="i-date" id="itemDateLabel">Date</label><input class="input" id="i-date" type="date" name="date"></div>
+          <div class="field field--full only-events"><label class="field__label" for="i-enddate">Fin <span class="field__opt">(si plusieurs jours)</span></label><input class="input" id="i-enddate" type="date" name="endDate"></div>
           <div class="field"><label class="field__label" for="i-time" id="itemTimeLabel">Début</label><input class="input" id="i-time" type="time" name="time"></div>
         </div>
         <details class="more-fields" id="itemMore"><summary>Plus d’options</summary><div class="more-fields__body"><div class="field only-timed"><label class="field__label" for="i-end">Fin <span class="field__opt">(facultatif)</span></label><input class="input" id="i-end" type="time" name="endTime"></div><div class="field"><label class="field__label" for="i-repeat">Répétition</label><select class="input select" id="i-repeat" name="repeat"><option value="">Jamais</option><option value="daily">Tous les jours</option><option value="weekly">Toutes les semaines</option><option value="monthly">Tous les mois</option><option value="yearly">Tous les ans</option></select><p class="field__help" id="itemRepeatHelp" hidden>Cochée, elle revient à sa prochaine échéance.</p></div><div class="field only-timed"><label class="field__label" for="i-location">Lieu <span class="field__opt">(facultatif)</span></label><input class="input" id="i-location" name="location" maxlength="120" placeholder="Ex. 12 rue de la Paix, Besançon" autocomplete="off"></div><div class="field"><label class="field__label" for="i-note">Note <span class="field__opt">(facultatif)</span></label><textarea class="input textarea" id="i-note" name="note" maxlength="500" rows="3" placeholder="Détails…"></textarea></div></div></details>
