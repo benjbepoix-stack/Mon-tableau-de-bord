@@ -21,7 +21,7 @@ import { isRestTraining } from '../core/schema.js';
 import { parseEntry } from '../core/parse.js';
 import { getPhases, phaseOn, PHASE_TYPES } from '../core/season.js';
 import { readJSON, write } from '../services/storage.js';
-import { fetchSlots, SLOT_HOURS } from '../services/weather.js';
+import { fetchSlots, SLOT_HOURS, getPlace, setPlace, searchPlaces, wxAt } from '../services/weather.js';
 import { toast, toastError } from '../ui/toast.js';
 import { burst, buzz } from '../ui/feedback.js';
 import { linkedItems, GARAGE_URL, MAISON_URL } from '../features/linked-apps.js';
@@ -109,11 +109,11 @@ function toggleDone(k, id) {
 }
 
 /* ---------- Météo par créneau ---------- */
-function loadWx() {
+function loadWx(force = false) {
   [...new Set([todayKey(), weekStart, planStart].filter(Boolean))].forEach(k => {
     if (wxAsked.has(k)) return;
     wxAsked.add(k);
-    fetchSlots(k, 8)
+    fetchSlots(k, 8, { force })
       .then(data => {
         wx = { ...wx, ...data };
         if (!Object.keys(data).length) return;
@@ -202,6 +202,7 @@ const I = {
   back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>',
   fwd: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>',
   x: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  pin: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>',
   go: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
   out: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>'
 };
@@ -371,65 +372,47 @@ const PHASE_GOALS = {
 };
 const nextRace = () => (state.races || []).filter(r => r.date >= todayKey()).sort((a, b) => a.date.localeCompare(b.date))[0];
 
-/* ---------- Accueil : la semaine en grandes cartes, une par jour ---------- */
+/* ---------- Accueil : la semaine en liste, puis les 30 prochains jours ---------- */
 /** Couleur d'un jour selon le ciel : beau (jaune), pluie (bleu), gris. */
 function toneOf(k) {
   const s = wx[k]?.sky;
   return s === 'sun' || s === 'part' ? 'sun' : ['rain', 'storm', 'snow'].includes(s) ? 'rain' : 'grey';
 }
-const SKY_WORD = { sun: 'Beau', part: 'Éclaircies', cloud: 'Gris', fog: 'Brouillard', rain: 'Pluie', storm: 'Orage', snow: 'Neige' };
-let rowWeek = '';
-/** Jour court d'une étiquette « à venir » : « Lun », « Sam – dim », « 18 nov ». */
-const shortDay = k => (dayDiff(k) >= 0 && dayDiff(k) <= 6 ? cap(WD[fromKey(k).getDay()]) : formatKey(k, { day: 'numeric', month: 'short' }));
-const chipDay = x => (x.endDate ? `${shortDay(x.date < todayKey() ? todayKey() : x.date)} – ${shortDay(x.endDate).toLowerCase()}` : shortDay(x.date));
-function dayCard(k, all) {
+/** Un jour de la semaine, en liste : jour et météo à gauche, tout ce qui est prévu à droite. */
+function dayRow(k, all) {
   const d = fromKey(k);
   const today = todayKey();
   const list = entriesOn(k, all);
   const w = k >= today ? dayWx(k) : null;
   const sport = list.some(x => x.cls.startsWith('c-ses') || x.cls === 'c-race');
-  return `<article class="j-day t-${toneOf(k)} ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}" ${k === today ? 'aria-current="date"' : ''}>
-    <header><b>${k === today ? 'Aujourd’hui' : cap(WD_FULL[d.getDay()])}<small>${d.getDate()} ${MONTHS[d.getMonth()]}</small></b>${w ? `<span class="j-wx">${w.sky}${w.max}°</span>` : ''}</header>
-    ${list.map(x => `<button type="button" class="j-it ${x.cls} ${x.done ? 'is-done' : ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}
-    ${sport ? '' : `<p class="j-rest">${isRestDay(k) || k >= today ? 'Repos' : ''}</p>`}
-  </article>`;
+  return `<div class="j-ld ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}" ${k === today ? 'aria-current="date"' : ''}>
+    <div class="j-ld__d t-${k < today ? 'grey' : toneOf(k)}"><b>${cap(WD[d.getDay()])}</b><span>${d.getDate()}</span>${w ? `<small>${w.sky}${w.max}°</small>` : ''}</div>
+    <div class="j-ld__b">${list.map(x => `<button type="button" class="j-ln ${x.cls} ${x.done ? 'is-done' : ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><i>${esc(x.tag)}</i><span>${esc(x.title)}${x.sub ? ` <small>${esc(x.sub)}</small>` : ''}</span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${sport || k < today ? '' : '<span class="j-ln is-rest">Repos</span>'}</div>
+  </div>`;
 }
 export function renderTodayView() {
   const host = $('#todayView');
   if (!planStart) planStart = defaultPlanStart();
   const keys = keysOf(planStart);
   const today = todayKey();
-  const prevX = $('#jRow')?.scrollLeft || 0;
   const wi = Math.round((fromKey(planStart) - mondayOf(new Date())) / 6048e5);
   const all = doneMap();
-  // Bandeau « à venir » : rendez-vous et événements, puis la prochaine course de Cadence.
-  const race = nextRace();
-  const chips = [
-    ...upcoming().slice(0, 6).map(x => `<button type="button" class="j-chip" data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}">${esc(chipDay(x))} · ${esc(x.title)}${x.time && !x.endDate ? ` ${esc(hhmm(x.time))}` : ''}</button>`),
-    race ? `<button type="button" class="j-chip is-race" data-v="race">J-${dayDiff(race.date)} · ${esc(race.name)}</button>` : ''
-  ].join('');
+  // Dans les 30 jours : rendez-vous, événements et courses de Cadence, en liste.
+  const limit = dateKey(addDays(new Date(), 30));
+  const races = (state.races || []).filter(r => r.date >= today && r.date <= limit).map(r => ({ id: r.id, title: r.name, date: r.date, time: r.time, place: r.location || '', kind: 'race' }));
+  const soon = [...upcoming().filter(x => x.date <= limit), ...races].sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
+  const soonRow = x => `<button type="button" class="j-sr ${x.kind === 'race' ? 'is-race' : ''}" ${x.kind === 'race' ? 'data-v="race"' : `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"`}>
+    <span class="j-sr__d"><b>${x.date <= today ? 'Auj.' : esc(cap(formatKey(x.date, { weekday: 'short' })))}</b><small>${fromKey(x.date < today ? today : x.date).getDate()} ${esc(formatKey(x.date < today ? today : x.date, { month: 'short' }))}</small></span>
+    <span class="j-sr__t"><b>${x.kind === 'race' ? '🏁 ' : ''}${esc(x.title)}</b><small>${esc([x.endDate ? span(x) : x.time ? hours(x) : 'journée', x.kind === 'race' ? 'course · Cadence' : x.kind === 'events' ? 'événement' : '', x.place].filter(Boolean).join(' · '))}</small></span>
+    <span class="j-sr__j">${dayDiff(x.date) <= 0 ? 'auj.' : `J-${dayDiff(x.date)}`}</span></button>`;
 
   host.innerHTML = `
-    <header class="j-hd"><p class="k-kicker">${esc(weekRange(planStart))}</p><h1>${wi === 0 ? 'Ma<br>semaine' : wi === 1 ? 'Semaine<br>prochaine' : esc(weekLabel(planStart).split(' · ')[0])}</h1></header>
-    ${chips ? `<div class="j-tick" aria-label="À venir">${chips}</div>` : ''}
-    <div class="j-row" id="jRow">${keys.map(k => dayCard(k, all)).join('')}</div>
-    <div class="j-dots" aria-hidden="true">${keys.map(() => '<i></i>').join('')}</div>
-    <button type="button" class="j-cta" data-v="planify">Planifier jour par jour</button>`;
-  // Les cartes s'ouvrent sur aujourd'hui (ou lundi) ; un nouveau rendu garde la position.
-  const row = $('#jRow');
-  if (rowWeek === planStart && !entering) row.scrollLeft = prevX;
-  else requestAnimationFrame(() => {
-    const t = row.querySelector('.is-today');
-    row.scrollLeft = t ? t.getBoundingClientRect().left - row.firstElementChild.getBoundingClientRect().left : 0;
-  });
-  rowWeek = planStart;
-  // Points sous les cartes : le jour affiché.
-  const dots = () => {
-    const i = Math.round(row.scrollLeft / (row.firstElementChild.getBoundingClientRect().width + 12));
-    host.querySelectorAll('.j-dots i').forEach((d, j) => d.classList.toggle('is-on', j === i));
-  };
-  row.addEventListener('scroll', dots, { passive: true });
-  requestAnimationFrame(() => requestAnimationFrame(dots));
+    <header class="j-hd"><p class="k-kicker">${esc(weekRange(planStart))}</p><h1>${wi === 0 ? 'Ma semaine' : wi === 1 ? 'Semaine prochaine' : esc(weekLabel(planStart).split(' · ')[0])}</h1></header>
+    <button type="button" class="j-cta" data-v="planify">Planifier ${wi ? 'cette semaine-là' : 'ma semaine'}</button>
+    <section class="j-wl">${keys.map(k => dayRow(k, all)).join('')}</section>
+    <div class="j-nav"><button type="button" data-v="pweek" data-step="-1">${I.back} Semaine d’avant</button><button type="button" data-v="pweek" data-step="1">Semaine d’après ${I.fwd}</button></div>
+    <div class="e-sec"><h2>Dans les 30 jours</h2><small>${soon.length}</small></div>
+    <section class="j-soon">${soon.map(soonRow).join('') || '<p class="j-none">Rien de prévu dans les 30 jours.</p>'}</section>`;
   done(host);
 }
 
@@ -662,12 +645,11 @@ const weekLabel = start => {
 };
 
 /* ---------- « Planifier » : un jour après l'autre, les tâches puis la séance ---------- */
-let W = null; // { i: jour affiché (0 = lundi), part: 't' tâches | 's' sport, sel: id de la séance choisie }
+let W = null; // { part: 'w' météo | 't' tâches | 's' sport }
 const wEl = () => $('#wPlan');
-const firstDay = keys => Math.max(0, keys.findIndex(k => k >= todayKey()));
 function openPlanner() {
   planStart = defaultPlanStart();
-  W = { i: firstDay(keysOf(planStart)), part: 'w', sel: null };
+  W = { part: 'w' };
   loadWx();
   const el = wEl();
   el.hidden = false;
@@ -684,44 +666,88 @@ function closePlanner() {
   renderCurrent();
 }
 const box = (title, body) => `<section class="j-box"><h3>${title}</h3>${body}</section>`;
-function jTasks(keys, k) {
-  // Tâches sans jour, en retard ou de cette semaine : touche = ce jour-là (encore = sans jour).
-  const tasks = openTasks().filter(t => !isRepeat(t.repeat) && (!t.date || t.date <= keys[6]));
-  const chip = t => {
-    const other = t.date && t.date !== k;
-    const where = other ? (isLate(t) ? 'en retard' : WD[fromKey(t.date).getDay()]) : '';
-    return `<button type="button" class="j-chipb ${flash === t.id ? 'e-flash' : ''} ${other ? 'is-else' : ''}" data-w="tday" data-id="${esc(t.id)}" data-day="${k}" aria-pressed="${t.date === k}">${esc(t.title)}${where ? ` <small>${esc(where)}</small>` : ''}</button>`;
-  };
-  return `<div class="j-chips">${tasks.map(chip).join('') || '<span class="j-none">Aucune tâche à placer.</span>'}</div>
-    <form class="j-add" data-w="addtask" autocomplete="off"><input placeholder="Nouvelle tâche pour ce jour" aria-label="Nouvelle tâche" maxlength="100"><button type="submit" aria-label="Ajouter">+</button></form>`;
+/* Météo : actualisation à la main, heure de mise à jour et lieu. */
+let placeOpen = false;
+let placeHits = [];
+function wxBar() {
+  const at = wxAt();
+  return `<div class="j-wxbar"><span>${I.pin}<b>${esc(getPlace().name)}</b> · ${at ? `mise à jour à ${pad(at.getHours())} h ${pad(at.getMinutes())}` : 'pas encore chargée'}</span>
+    <span class="j-wxbar__a"><button type="button" data-wx="refresh">Actualiser</button><button type="button" data-wx="place" aria-expanded="${placeOpen}">Lieu</button></span></div>
+    ${placeOpen ? `<form class="j-add j-place" data-wx="search" autocomplete="off"><input placeholder="Ville (ex. Pontarlier)" aria-label="Chercher une ville" maxlength="80"><button type="submit" aria-label="Chercher">${I.go}</button></form>
+      ${placeHits.length ? `<div class="j-hits">${placeHits.map((p, i) => `<button type="button" data-wx="pick" data-i="${i}"><b>${esc(p.name)}</b> <small>${esc([p.admin1, p.country].filter(Boolean).join(', '))}</small></button>`).join('')}</div>` : ''}` : ''}`;
 }
-function jSport(keys, k) {
+function refreshWx() {
+  wx = {};
+  wxAsked.clear();
+  loadWx(true);
+  toast('Météo en cours d’actualisation…');
+}
+function onWxClick(e) {
+  const b = e.target.closest('[data-wx]');
+  if (!b || b.tagName === 'FORM') return;
+  const a = b.dataset.wx;
+  if (a === 'refresh') return refreshWx();
+  if (a === 'place') { placeOpen = !placeOpen; placeHits = []; renderCurrent(); return setTimeout(() => $('.j-place input')?.focus(), 30); }
+  if (a === 'pick') {
+    const p = placeHits[Number(b.dataset.i)];
+    if (!p) return;
+    setPlace({ name: p.name, lat: p.lat, lon: p.lon });
+    placeOpen = false;
+    placeHits = [];
+    toast(`Météo : ${p.name}`);
+    return refreshWx();
+  }
+}
+function onWxSubmit(e) {
+  if (e.target.dataset?.wx !== 'search') return;
+  e.preventDefault();
+  e.stopPropagation();
+  const q = e.target.querySelector('input').value;
+  searchPlaces(q).then(list => {
+    placeHits = list;
+    if (!list.length) toast('Aucune ville trouvée');
+    renderCurrent();
+  }).catch(() => toastError('Recherche de ville impossible (hors ligne ?)'));
+}
+/** Petite bande des 7 jours : beau, gris ou pluie (pour placer les tâches). */
+const wxHead = keys => `<div class="j-th"><span></span>${keys.map(k => { const d = fromKey(k); const w = wx[k]; return `<span class="t-${toneOf(k)} ${k < todayKey() ? 'is-past' : ''}"><small>${cap(WD[d.getDay()]).slice(0, 3)}</small><b>${d.getDate()}</b>${w ? SKY[w.sky] || SKY.cloud : ''}</span>`; }).join('')}</div>`;
+function jTasks(keys) {
   const today = todayKey();
-  const ss = sessionsOn(k);
-  const sel = ss.find(s => s.id === W.sel) || ss[0];
-  const ph = phaseOn(k, getPhases());
+  const tasks = openTasks().filter(t => !isRepeat(t.repeat) && (!t.date || t.date <= keys[6]));
+  const row = t => `<div class="j-tr ${flash === t.id ? 'e-flash' : ''}"><span class="j-tr__t"><b>${esc(t.title)}</b>${isLate(t) ? '<small class="is-late">en retard</small>' : !t.date ? '<small>pas de jour</small>' : ''}</span>
+    ${keys.map(k => `<button type="button" data-w="tday" data-id="${esc(t.id)}" data-day="${k}" aria-pressed="${t.date === k}" ${k < today ? 'disabled' : ''} aria-label="${esc(formatKey(k, { weekday: 'long', day: 'numeric' }))}"></button>`).join('')}</div>`;
+  return `${wxHead(keys)}<div class="j-tl">${tasks.map(row).join('') || '<p class="j-none">Aucune tâche à placer.</p>'}</div>
+    <form class="j-add" data-w="addtask" autocomplete="off"><input placeholder="Nouvelle tâche" aria-label="Nouvelle tâche" maxlength="100"><button type="submit" aria-label="Ajouter">+</button></form>
+    <p class="j-sub">Touche la case d’un jour pour y mettre la tâche, encore une fois pour l’enlever.</p>`;
+}
+function jSport(keys) {
+  const today = todayKey();
+  const ph = phaseOn(keys[3], getPhases()) || phaseOn(keys[0], getPhases());
   const race = nextRace();
   const nWeek = keys.reduce((n, x) => n + sessionsOn(x).length, 0);
-  const phase = `<p class="j-phase">${ph ? `Cadence : <b>${esc(PHASE_TYPES[ph.type].short)}</b>. ` : ''}${race ? `🏁 ${esc(race.name)} dans ${dayDiff(race.date)} jours. ` : ''}Cette semaine : ${nWeek} séance${nWeek > 1 ? 's' : ''}.</p>`;
-  // Matin, après-midi, soir : ce qui prend le créneau, sinon le vent et la température.
-  const slots = `<div class="j-slots">${SLOT_IDS.map(sl => {
-    const w = slotsOn(k)?.[sl];
-    const past = slotPast(k, sl);
-    const f = freeIn(k, sl);
-    const busy = !past && f.gap < 60 ? f.by : null;
-    return `<button type="button" class="j-slot ${busy ? 'is-busy' : ''}" data-w="slot" data-slot="${sl}" aria-pressed="${Boolean(sel) && planSlot(sel, k) === sl}" ${!sel || past ? 'disabled' : ''}><small>${SLOT_WHEN[sl] === 'ap.-midi' ? 'Ap.-midi' : SLOTS[sl]}</small>${past ? '<b>passé</b>' : busy ? `<b>${esc(busy.title)}</b><span>${busy.time ? `jusqu'à ${esc(hhmm(busy.endTime || busy.time))}` : 'pris'}</span>` : w ? `<b>${w.wind} km/h</b><span>${skyOf(w)}${w.t}°</span>` : '<b>libre</b><span>météo à venir</span>'}</button>`;
-  }).join('')}</div>`;
-  // Les séances du jour, puis celles prévues un autre jour qu'un toucher amène ici.
-  const mine = ss.map(s => {
-    const is = issueOf(s, k);
-    const on = sel && sel.id === s.id;
-    return `<div class="j-opt ${on ? 'is-on' : ''} ${landed === s.id || flash === s.id ? 'e-flash' : ''}"><button type="button" class="j-opt__m" data-w="sel" data-id="${esc(s.id)}"><b>${esc(s.training || familyOf(s)?.name || 'Séance')}</b><small>${esc([familyOf(s)?.name, s.distance ? km(s.distance) : '', durLabel(durMin(s.time))].filter(Boolean).join(' · '))}</small>${is ? `<em>${esc(is.reason)}</em>` : ''}</button>
-      ${on ? `<div class="j-opt__a">${kindOf(s) !== 'indoor' && homeFamily() ? `<button type="button" data-w="home" data-id="${esc(s.id)}">À la maison</button>` : ''}<button type="button" data-w="del" data-id="${esc(s.id)}">Enlever</button></div>` : ''}</div>`;
+  const opt = (v, l, on) => `<option value="${esc(v)}"${on ? ' selected' : ''}>${esc(l)}</option>`;
+  const phase = `<p class="j-phase">${ph ? `Cadence : <b>${esc(PHASE_TYPES[ph.type].short)}</b>. ` : ''}${race ? `🏁 ${esc(race.name)} dans ${dayDiff(race.date)} jours. ` : ''}${nWeek} séance${nWeek > 1 ? 's' : ''} cette semaine.</p>`;
+  const days = keys.filter(k => k >= today).map(k => {
+    const d = fromKey(k);
+    const ss = sessionsOn(k);
+    const busy = itemsOn(k).map(x => `${x.title}${x.time && (!x.endDate || x.date === k) ? ` ${hours(x)}` : ''}`);
+    const cells = SLOT_IDS.map(sl => {
+      const w = slotsOn(k)?.[sl];
+      const past = slotPast(k, sl);
+      const f = freeIn(k, sl);
+      const by = !past && f.gap < 60 ? f.by : null;
+      return `<span class="j-wc ${past ? 'is-past' : by ? 'is-busy' : w ? `q-${level(score('run', w))}` : ''}"><small>${SLOT_WHEN[sl]}</small>${past ? '—' : by ? `<b class="j-wc__by">${esc(by.title)}</b>` : w ? `${skyOf(w)}<b>${w.wind}</b><small>raf. ${w.gust} · ${w.t}°</small>` : '·'}</span>`;
+    }).join('');
+    const rows = ss.map(s => {
+      const is = issueOf(s, k);
+      return `<div class="j-sp ${landed === s.id || flash === s.id ? 'e-flash' : ''}"><button type="button" class="j-sp__t" data-w="sedit" data-day="${k}" data-id="${esc(s.id)}"><b>${esc(s.training || familyOf(s)?.name || 'Séance')}</b><small>${esc([familyOf(s)?.name, s.distance ? km(s.distance) : '', durLabel(durMin(s.time))].filter(Boolean).join(' · '))}</small>${is ? `<em>${esc(is.reason)}</em>` : ''}</button>
+        <div class="j-sp__s"><select data-w="sday" data-day="${k}" data-id="${esc(s.id)}" aria-label="Jour">${keys.filter(x => x >= today).map(x => opt(x, cap(formatKey(x, { weekday: 'short', day: 'numeric' })), x === k)).join('')}</select>
+        <select data-w="sslot" data-day="${k}" data-id="${esc(s.id)}" aria-label="Moment">${SLOT_IDS.map(sl => opt(sl, SLOTS[sl], planSlot(s, k) === sl)).join('')}</select></div></div>`;
+    }).join('');
+    return `<section class="j-sd"><header><b>${k === today ? 'Aujourd’hui' : cap(WD_FULL[d.getDay()])} ${d.getDate()}</b>${busy.length ? `<small>${esc(busy.join(' · '))}</small>` : ''}</header>
+      <div class="j-sd__w">${cells}</div>${rows || '<p class="j-rest-s">Repos</p>'}<button type="button" class="j-plus" data-w="add" data-day="${k}">+ Séance</button></section>`;
   }).join('');
-  const others = keys.filter(x => x !== k && x >= today).flatMap(x => sessionsOn(x).map(s => ({ s, x })));
-  const move = others.map(({ s, x }) => `<button type="button" class="j-opt is-else" data-w="here" data-from="${x}" data-id="${esc(s.id)}"><span class="j-opt__m"><b>${esc(s.training || familyOf(s)?.name || 'Séance')}</b><small>${esc([durLabel(durMin(s.time)), `prévue ${dayWord(x)}`].filter(Boolean).join(' · '))} · toucher pour la mettre ici</small></span></button>`).join('');
-  return `${phase}${slots}
-    ${box('Quelle séance ?', `${mine}${move}${mine || move ? '' : '<p class="j-none">Aucune séance prévue cette semaine.</p>'}<button type="button" class="j-plus" data-w="add">+ Autre séance</button>`)}`;
+  return `${phase}${days}`;
 }
 /** La météo de toute la semaine sur une page : ciel, températures, puis vent et rafales matin / ap.-midi / soir. */
 function jWeek(keys) {
@@ -730,96 +756,64 @@ function jWeek(keys) {
     const w = slotsOn(k)?.[sl];
     if (k < today || slotPast(k, sl)) return '<span class="j-wc is-past">—</span>';
     if (!w) return '<span class="j-wc">·</span>';
-    const q = level(score('run', w));
-    return `<span class="j-wc q-${q}">${skyOf(w)}<b>${w.wind}</b><small>raf. ${w.gust}</small>${w.rain >= 40 ? `<em>${w.rain} %</em>` : ''}</span>`;
+    return `<span class="j-wc q-${level(score('run', w))}">${skyOf(w)}<b>${w.wind}</b><small>raf. ${w.gust}</small>${w.rain >= 40 ? `<em>${w.rain} %</em>` : ''}</span>`;
   };
-  const rows = keys.map((k, j) => {
+  const rows = keys.filter(k => k >= today).map(k => {
     const d = fromKey(k);
     const w = dayWx(k);
-    const n = entriesOn(k).filter(x => !x.cls.startsWith('c-task')).length;
-    return `<button type="button" class="j-wr t-${k < today ? 'grey' : toneOf(k)} ${k === today ? 'is-today' : ''}" data-w="day" data-i="${j}" ${k < today ? 'disabled' : ''}>
-      <span class="j-wr__d"><b>${cap(WD[d.getDay()])} ${d.getDate()}</b>${w ? `<small>${w.sky}${w.min}°/${w.max}°</small>` : '<small>météo à venir</small>'}</span>
-      ${SLOT_IDS.map(sl => cell(k, sl)).join('')}</button>`;
+    return `<div class="j-wr t-${k < today ? 'grey' : toneOf(k)} ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}">
+      <span class="j-wr__d"><b>${cap(WD[d.getDay()])} ${d.getDate()}</b>${w ? `<small>${w.sky}${w.min}°/${w.max}°</small>` : '<small>—</small>'}</span>
+      ${SLOT_IDS.map(sl => cell(k, sl)).join('')}</div>`;
   }).join('');
-  return `<div class="j-wgrid"><span></span><small>Matin</small><small>Ap.-midi</small><small>Soir</small></div>${rows}
-    <p class="j-sub">Vent et rafales en km/h. Vert : bon pour sortir, orange : moyen, rouge : à éviter. Touche un jour pour le planifier.</p>`;
+  return `${wxBar()}<div class="j-wgrid"><span></span><small>Matin</small><small>Ap.-midi</small><small>Soir</small></div>${rows}
+    <p class="j-sub">Vent et rafales en km/h. Vert : bon pour sortir, orange : moyen, rouge : à éviter.</p>`;
 }
+const PL_STEPS = [['w', 'Météo'], ['t', 'Tâches'], ['s', 'Sport']];
 function renderPlanner() {
   if (!W) return;
   const el = wEl();
   const keys = keysOf(planStart);
-  const k = keys[W.i];
-  const d = fromKey(k);
-  const w = dayWx(k);
-  const first = firstDay(keys);
   const thisMon = dateKey(mondayOf(new Date()));
-  const sport = W.part === 's';
-  const over = W.part === 'w';
-  const dayName = WD_FULL[d.getDay()];
-  const nextName = W.i < 6 ? WD_FULL[fromKey(keys[W.i + 1]).getDay()] : '';
-  const fixed = [...itemsOn(k).map(x => `<p class="j-fix"><b>${esc(x.title)}</b> <small>${esc(x.endDate ? span(x) : hours(x) || 'journée')}</small></p>`), ...(state.races || []).filter(r => r.date === k).map(r => `<p class="j-fix"><b>🏁 ${esc(r.name)}</b> <small>course${r.time ? ` · ${esc(r.time)}` : ''}</small></p>`)];
-  const has = sessionsOn(k).length > 0;
+  const i = PL_STEPS.findIndex(x => x[0] === W.part);
   const y = el.querySelector('.pl-b')?.scrollTop || 0;
-  el.dataset.tone = over ? 'grey' : toneOf(k);
-  const body = over
-    ? `<p class="j-k">Planifier · ${esc(weekRange(planStart))}<button type="button" class="j-wk-sw" data-w="wk" data-off="${planStart === thisMon ? 1 : 0}">${planStart === thisMon ? 'Semaine prochaine →' : '← Cette semaine'}</button></p><h2 class="j-h">La météo</h2>${jWeek(keys)}`
-    : sport
-    ? `<p class="j-k">Sport · ${dayName} ${d.getDate()}</p><h2 class="j-h">Quand ?</h2>${jSport(keys, k)}`
-    : `<p class="j-k">Planifier · ${W.i + 1 - first} sur ${7 - first}<button type="button" class="j-wk-sw" data-w="wk" data-off="${planStart === thisMon ? 1 : 0}">${planStart === thisMon ? 'Semaine prochaine →' : '← Cette semaine'}</button></p>
-      <h2 class="j-h">${cap(dayName)} ${d.getDate()}</h2>
-      <span class="j-pill">${w ? `${w.sky}${SKY_WORD[wx[k].sky] || 'Gris'} · ${w.max}°${w.wind >= 25 ? ` · vent ${w.wind} km/h` : ' · peu de vent'}` : 'Météo pas encore connue'}</span>
-      ${fixed.length ? box('Déjà ce jour-là', fixed.join('')) : ''}
-      ${box(`Quelles tâches ${dayName} ?`, jTasks(keys, k))}
-      ${box('Et le sport ?', `<div class="j-chips"><button type="button" class="j-chipb" data-w="part" aria-pressed="${has}">Séance</button><button type="button" class="j-chipb" data-w="rest" aria-pressed="${!has}">Repos</button></div>`)}`;
-  el.innerHTML = `<div class="pl-h j-ph"><div class="j-steps"><button type="button" class="j-steps__wx" data-w="over" aria-pressed="${over}" aria-label="Météo de la semaine">${SKY.sun}</button>${keys.map((x, j) => `<button type="button" data-w="day" data-i="${j}" aria-pressed="${!over && j === W.i}" ${x < todayKey() ? 'disabled' : ''}>${cap(WD[fromKey(x).getDay()])}</button>`).join('')}</div><button type="button" class="k-round" data-w="close" aria-label="Fermer">${I.x}</button></div>
-    <div class="pl-b">${body}</div>
-    <div class="pl-f j-foot">${over
-      ? `<button type="button" data-w="close">Fermer</button><button type="button" class="is-go" data-w="day" data-i="${first}">Commencer par ${WD_FULL[fromKey(keys[first]).getDay()]}</button>`
-      : `<button type="button" data-w="prev">Retour</button><button type="button" class="is-go" data-w="${sport || !has ? 'next' : 'part'}">${!sport && has ? 'Choisir la séance' : nextName ? `Passer à ${nextName}` : 'Terminé'}</button>`}</div>`;
+  el.dataset.tone = 'grey';
+  const title = { w: 'La météo', t: 'Les tâches', s: 'Le sport' }[W.part];
+  const body = { w: jWeek, t: jTasks, s: jSport }[W.part](keys);
+  el.innerHTML = `<div class="pl-h j-ph"><div class="j-steps j-steps--3">${PL_STEPS.map(([p, l], j) => `<button type="button" data-w="go" data-p="${p}" aria-pressed="${p === W.part}">${j + 1}. ${l}</button>`).join('')}</div><button type="button" class="k-round" data-w="close" aria-label="Fermer">${I.x}</button></div>
+    <div class="pl-b"><p class="j-k">Planifier · ${esc(weekRange(planStart))}<button type="button" class="j-wk-sw" data-w="wk" data-off="${planStart === thisMon ? 1 : 0}">${planStart === thisMon ? 'Semaine prochaine →' : '← Cette semaine'}</button></p>
+      <h2 class="j-h">${title}</h2>${body}</div>
+    <div class="pl-f j-foot"><button type="button" data-w="${i ? 'go' : 'close'}" data-p="${i ? PL_STEPS[i - 1][0] : ''}">${i ? 'Retour' : 'Fermer'}</button><button type="button" class="is-go" data-w="${i < 2 ? 'go' : 'end'}" data-p="${i < 2 ? PL_STEPS[i + 1][0] : ''}">${i === 0 ? 'Placer les tâches' : i === 1 ? 'Passer au sport' : 'Terminé'}</button></div>`;
   if (W.keepScroll) el.querySelector('.pl-b').scrollTop = y;
   W.keepScroll = false;
 }
 function onPlannerClick(e) {
   const b = e.target.closest('[data-w]');
-  if (!b || b.disabled || b.tagName === 'FORM') return;
+  if (!b || b.disabled || b.tagName === 'FORM' || b.tagName === 'SELECT') return;
   const a = b.dataset.w;
-  const { id } = b.dataset;
-  const keys = keysOf(planStart);
-  const k = keys[W.i];
-  const stay = () => (W.keepScroll = true);
-  const toDay = (i, part = 't') => { W.i = i; W.part = part; W.sel = null; renderPlanner(); };
+  const { id, day } = b.dataset;
   if (a === 'close') return closePlanner();
-  if (a === 'day') return toDay(Number(b.dataset.i));
-  if (a === 'part') return toDay(W.i, 's');
-  if (a === 'over') return toDay(W.i, 'w');
-  if (a === 'prev') {
-    if (W.part === 's') return toDay(W.i);
-    return W.i > firstDay(keys) ? toDay(W.i - 1, sessionsOn(keys[W.i - 1]).length ? 's' : 't') : toDay(W.i, 'w');
-  }
-  if (a === 'next' || a === 'rest') {
-    if (W.i < 6) return toDay(W.i + 1);
-    closePlanner();
-    return goto('todayView');
-  }
+  if (a === 'end') { closePlanner(); return goto('todayView'); }
+  if (a === 'go') { W.part = b.dataset.p; return renderPlanner(); }
   if (a === 'wk') {
     planStart = dateKey(addDays(mondayOf(new Date()), Number(b.dataset.off) * 7));
     loadWx();
-    return toDay(firstDay(keysOf(planStart)), W.part === 'w' ? 'w' : 't');
+    return renderPlanner();
   }
-  stay();
-  if (a === 'tday') return assignDay(id, k);
-  if (a === 'add') { loadWx(); return openFlow({ type: 'sess', i: 1, d: { day: k, fixedDay: true }, from: 'planner' }); }
-  if (a === 'sel') { W.sel = id; return renderPlanner(); }
-  if (a === 'slot') { const s = sessionsOn(k).find(x => x.id === W.sel) || sessionsOn(k)[0]; return s && setSessionSlot(k, s.id, b.dataset.slot); }
-  if (a === 'home') return sessionAtHome(k, id);
-  if (a === 'del') { W.sel = null; return deleteSession(k, id); }
-  if (a === 'here') {
-    const s = plansOn(b.dataset.from).find(x => x.id === id);
-    if (!s) return;
-    const open = SLOT_IDS.filter(sl => okSlot(s, k, sl));
-    const sl = open.sort((p, q) => wxScore(s, k, q) - wxScore(s, k, p))[0] || 'aprem';
-    W.sel = id;
-    return moveSession(id, b.dataset.from, k, sl);
+  W.keepScroll = true;
+  if (a === 'tday') return assignDay(id, day);
+  if (a === 'add') { loadWx(); return newSession(day); }
+  if (a === 'sedit') return openEdit(day, id);
+}
+function onPlannerChange(e) {
+  const t = e.target;
+  const { w, day, id } = t.dataset;
+  if (!W || !id) return;
+  W.keepScroll = true;
+  if (w === 'sslot') return setSessionSlot(day, id, t.value);
+  if (w === 'sday') {
+    const s = plansOn(day).find(x => x.id === id);
+    const open = s ? SLOT_IDS.filter(sl => okSlot(s, t.value, sl)) : [];
+    return moveSession(id, day, t.value, (s?.slot && open.includes(s.slot) ? s.slot : open.sort((p, q) => wxScore(s, t.value, q) - wxScore(s, t.value, p))[0]) || 'aprem');
   }
 }
 function onPlannerSubmit(e) {
@@ -829,7 +823,7 @@ function onPlannerSubmit(e) {
   const title = inp.value.trim().slice(0, 100);
   if (!title) return;
   const id = uid();
-  state.dashboard.tasks.push({ id, title, date: keysOf(planStart)[W.i], time: '', note: '', done: false });
+  state.dashboard.tasks.push({ id, title, date: '', time: '', note: '', done: false });
   flash = id;
   W.keepScroll = true;
   commit('dashboard');
@@ -879,8 +873,11 @@ function editorHTML(s, k) {
   const f = familyOf(s);
   const opt = (v, l, on) => `<option value="${esc(v)}"${on ? ' selected' : ''}>${esc(l)}</option>`;
   const types = (f?.types || []).filter(t => !isRestTraining(t));
+  const days = Array.from({ length: 21 }, (_, i) => dateKey(addDays(new Date(), i)));
+  if (!days.includes(k)) days.unshift(k);
   return `<div class="e-ed" data-day="${k}" data-sid="${esc(s.id)}">
     <div class="e-ed__g">
+      <label class="e-ed__f is-wide"><span>Jour</span><select data-ed="day">${days.map(x => opt(x, cap(formatKey(x, { weekday: 'long', day: 'numeric', month: 'long' })), x === k)).join('')}</select></label>
       <label class="e-ed__f is-wide"><span>Sport</span><select data-ed="family">${(state.families || []).map(x => opt(x.id, x.name, x.id === s.family)).join('')}</select></label>
       <label class="e-ed__f is-wide"><span>Séance</span><select data-ed="training">${opt('', '— Choisir —', !s.training)}${types.map(t => opt(t, t, t === s.training)).join('')}${s.training && !types.includes(s.training) ? opt(s.training, s.training, true) : ''}</select></label>
       <label class="e-ed__f"><span>km</span><input data-ed="distance" type="text" inputmode="decimal" value="${esc(s.distance || '')}" placeholder="0" autocomplete="off"></label>
@@ -888,7 +885,7 @@ function editorHTML(s, k) {
       <label class="e-ed__f"><span>D+ m</span><input data-ed="elevation" type="text" inputmode="numeric" value="${esc(s.elevation || '')}" placeholder="0" autocomplete="off"></label>
       <label class="e-ed__f"><span>Moment</span><select data-ed="slot">${opt('', 'Au mieux', !s.slot)}${SLOT_IDS.map(sl => opt(sl, SLOTS[sl], s.slot === sl)).join('')}</select></label>
     </div>
-    <div class="e-ed__a"><button type="button" class="k-lnk is-danger" data-v="sdel" data-day="${k}" data-id="${esc(s.id)}">Supprimer</button><button type="button" class="k-lnk" data-v="sports">Gérer les sports</button><button type="button" class="e-ed__ok" data-v="sclose">OK</button></div>
+    <div class="e-ed__a"><button type="button" class="k-lnk is-danger" data-v="sdel" data-day="${k}" data-id="${esc(s.id)}">${edit?.isNew ? 'Annuler' : 'Supprimer'}</button><button type="button" class="k-lnk" data-v="sports">Gérer les sports</button><button type="button" class="e-ed__ok" data-v="sclose">OK</button></div>
   </div>`;
 }
 
@@ -947,7 +944,8 @@ export function renderWeekView() {
   host.innerHTML = `
     ${head(`${label} · ${esc(range)}`, 'Sport', `<div class="k-nav">${wi ? `<button type="button" class="k-lnk e-today-lnk" data-v="wtoday">Aujourd’hui</button>` : ''}<button type="button" class="k-round" data-v="week" data-step="-1" aria-label="Semaine précédente">${I.back}</button><button type="button" class="k-round" data-v="week" data-step="1" aria-label="Semaine suivante">${I.fwd}</button></div>`)}
     ${season}
-    ${keys[6] >= today ? '<button type="button" class="j-cta" data-v="planify">Planifier jour par jour</button>' : ''}
+    ${wxBar()}
+    ${keys[6] >= today ? '<button type="button" class="j-cta" data-v="planify">Planifier ma semaine</button>' : ''}
     <section class="card s-week">${keys.map(k => {
       const d = fromKey(k);
       const ss = sessionsOn(k);
@@ -981,11 +979,20 @@ function renderEdit() {
   const ws = slotsOn(edit.k);
   const kind = kindOf(s);
   const best = kind !== 'indoor' ? bestSlot(kind, edit.k) : null;
-  editEl().querySelector('h2').textContent = `${s.training || familyOf(s)?.name || 'Séance'} · ${dayTitle(edit.k).toLowerCase()}`;
+  editEl().querySelector('h2').textContent = edit.isNew ? 'Nouvelle séance' : `${s.training || familyOf(s)?.name || 'Séance'} · ${dayTitle(edit.k).toLowerCase()}`;
   editEl().querySelector('.e-pm__b').innerHTML = `${ws && kind !== 'indoor' ? `<div class="e-slots s-slots">${SLOT_IDS.map(sl => { const w = ws[sl]; if (!w) return '<div class="e-slot is-past"></div>'; const p = slotPast(edit.k, sl); return `<div class="e-slot ${p ? 'is-past' : `q-${level(score(kind, w))}`}"><small>${SLOTS[sl]}${sl === best ? ' ★' : ''}</small><b>${skyOf(w)}${w.t}°</b><span>pluie ${w.rain} % · vent ${w.wind}</span></div>`; }).join('')}</div>` : ''}${editorHTML(s, edit.k)}`;
 }
-function openEdit(k, id) {
-  edit = { k, id };
+/** Nouvelle séance : créée sur le jour choisi, puis réglée dans la fiche à listes déroulantes. */
+function newSession(k) {
+  const recent = Object.keys(state.plans || {}).sort().reverse().flatMap(x => sessionsOn(x))[0];
+  const fam = (recent && familyOf(recent)) || (state.families || [])[0];
+  const s = { id: uid(), family: fam?.id || '', training: '', distance: '', time: '', elevation: '', slot: '' };
+  state.plans[k] = [...plansOn(k).filter(x => x.family || x.training || x.distance || x.time || x.elevation), s];
+  commit('plans');
+  openEdit(k, s.id, true);
+}
+function openEdit(k, id, isNew = false) {
+  edit = { k, id, isNew };
   const el = editEl();
   el.hidden = false;
   document.body.classList.add('e-flow-on');
@@ -1035,6 +1042,14 @@ function onEditChange(e) {
       return;
     }
     v = String(Math.round(n * 10) / 10);
+  }
+  if (f === 'day') {
+    // Changer de jour : la séance passe sur ce jour (créneau gardé).
+    state.plans[box.dataset.day] = plansOn(box.dataset.day).filter(x => x.id !== s.id);
+    state.plans[v] = [...plansOn(v).filter(x => x.family || x.training || x.distance || x.time || x.elevation), s];
+    edit.k = v;
+    commit('plans');
+    return renderEdit();
   }
   if (f === 'family') {
     s.family = v;
@@ -1603,7 +1618,13 @@ function onFlowClick(e) {
   if (a === 'kind') {
     F.type = v;
     F.d = F.d.fixedDay ? { day: F.d.day, fixedDay: true } : {};
-    if (v === 'sess') loadWx();
+    if (v === 'sess') {
+      // Séance : une fiche à listes déroulantes plutôt que des questions.
+      const day = F.d.day || todayKey();
+      closeFlow();
+      loadWx();
+      return setTimeout(() => newSession(day), reduced() ? 0 : 200);
+    }
     return nextStep();
   }
   if (a === 'family') {
@@ -1808,7 +1829,7 @@ function onClick(e) {
       return moveSession(id, day, b.dataset.to, b.dataset.slot);
     case 'addsess':
       loadWx();
-      return openFlow({ type: 'sess', i: 1, d: { day, fixedDay: true } });
+      return newSession(day);
     case 'sedit':
       if (current !== 'weekView') {
         // Depuis l'accueil : Sport s'ouvre sur le jour de la séance, puis sa fiche.
@@ -1882,6 +1903,10 @@ export function initVivant({ go }) {
   document.body.appendChild(wp);
   wp.addEventListener('click', onPlannerClick);
   wp.addEventListener('submit', onPlannerSubmit);
+  wp.addEventListener('change', onPlannerChange);
+  // Météo : Actualiser / Lieu, dans Planifier comme dans Sport.
+  document.addEventListener('click', onWxClick);
+  document.addEventListener('submit', onWxSubmit, true);
   document.addEventListener('keydown', e => e.key === 'Escape' && !wp.hidden && $('#eFlow')?.hidden && $('#eEdit')?.hidden && closePlanner());
   // Fiche d'une séance : feuille par-dessus Sport.
   const ed = document.createElement('section');
