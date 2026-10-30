@@ -379,6 +379,9 @@ function toneOf(k) {
 }
 const SKY_WORD = { sun: 'Beau', part: 'Éclaircies', cloud: 'Gris', fog: 'Brouillard', rain: 'Pluie', storm: 'Orage', snow: 'Neige' };
 let rowWeek = '';
+/** Jour court d'une étiquette « à venir » : « Lun », « Sam – dim », « 18 nov ». */
+const shortDay = k => (dayDiff(k) >= 0 && dayDiff(k) <= 6 ? cap(WD[fromKey(k).getDay()]) : formatKey(k, { day: 'numeric', month: 'short' }));
+const chipDay = x => (x.endDate ? `${shortDay(x.date < todayKey() ? todayKey() : x.date)} – ${shortDay(x.endDate).toLowerCase()}` : shortDay(x.date));
 function dayCard(k, all) {
   const d = fromKey(k);
   const today = todayKey();
@@ -396,26 +399,22 @@ export function renderTodayView() {
   if (!planStart) planStart = defaultPlanStart();
   const keys = keysOf(planStart);
   const today = todayKey();
-  const note = document.activeElement?.id === 'vNote' ? document.activeElement : null;
-  const keep = note ? { value: note.value, a: note.selectionStart, b: note.selectionEnd } : null;
   const prevX = $('#jRow')?.scrollLeft || 0;
   const wi = Math.round((fromKey(planStart) - mondayOf(new Date())) / 6048e5);
   const all = doneMap();
   // Bandeau « à venir » : rendez-vous et événements, puis la prochaine course de Cadence.
   const race = nextRace();
   const chips = [
-    ...upcoming().slice(0, 6).map(x => `<button type="button" class="j-chip" data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}">${esc(cap(x.endDate ? span(x) : dateWord(x.date)))}${x.time && !x.endDate ? ` ${esc(hhmm(x.time))}` : ''} · ${esc(x.title)}</button>`),
+    ...upcoming().slice(0, 6).map(x => `<button type="button" class="j-chip" data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}">${esc(chipDay(x))} · ${esc(x.title)}${x.time && !x.endDate ? ` ${esc(hhmm(x.time))}` : ''}</button>`),
     race ? `<button type="button" class="j-chip is-race" data-v="race">J-${dayDiff(race.date)} · ${esc(race.name)}</button>` : ''
   ].join('');
 
   host.innerHTML = `
-    <header class="j-hd"><div><p class="k-kicker">${esc(weekLabel(planStart).split(' · ')[1])}</p><h1>${wi === 0 ? 'Ma semaine' : esc(weekLabel(planStart).split(' · ')[0])}</h1></div>
-      <div class="k-nav"><button type="button" class="k-round" data-v="pweek" data-step="-1" aria-label="Semaine précédente">${I.back}</button><button type="button" class="k-round" data-v="pweek" data-step="1" aria-label="Semaine suivante">${I.fwd}</button></div></header>
+    <header class="j-hd"><p class="k-kicker">${esc(weekRange(planStart))}</p><h1>${wi === 0 ? 'Ma<br>semaine' : wi === 1 ? 'Semaine<br>prochaine' : esc(weekLabel(planStart).split(' · ')[0])}</h1></header>
     ${chips ? `<div class="j-tick" aria-label="À venir">${chips}</div>` : ''}
     <div class="j-row" id="jRow">${keys.map(k => dayCard(k, all)).join('')}</div>
-    <button type="button" class="j-cta" data-v="planify">Planifier jour par jour</button>
-    <section class="k-blk"><div class="k-blk-h"><h2><label for="vNote">Note</label></h2><span class="k-save" id="vNoteState" aria-live="polite"></span></div>
-      <div class="k-card k-note"><textarea id="vNote" placeholder="Écrire…" maxlength="20000">${esc(keep ? keep.value : state.notes)}</textarea></div></section>`;
+    <div class="j-dots" aria-hidden="true">${keys.map(() => '<i></i>').join('')}</div>
+    <button type="button" class="j-cta" data-v="planify">Planifier jour par jour</button>`;
   // Les cartes s'ouvrent sur aujourd'hui (ou lundi) ; un nouveau rendu garde la position.
   const row = $('#jRow');
   if (rowWeek === planStart && !entering) row.scrollLeft = prevX;
@@ -424,11 +423,13 @@ export function renderTodayView() {
     row.scrollLeft = t ? t.getBoundingClientRect().left - row.firstElementChild.getBoundingClientRect().left : 0;
   });
   rowWeek = planStart;
-  if (keep) {
-    const t = $('#vNote');
-    t.focus({ preventScroll: true });
-    t.setSelectionRange(keep.a, keep.b);
-  }
+  // Points sous les cartes : le jour affiché.
+  const dots = () => {
+    const i = Math.round(row.scrollLeft / (row.firstElementChild.getBoundingClientRect().width + 12));
+    host.querySelectorAll('.j-dots i').forEach((d, j) => d.classList.toggle('is-on', j === i));
+  };
+  row.addEventListener('scroll', dots, { passive: true });
+  requestAnimationFrame(() => requestAnimationFrame(dots));
   done(host);
 }
 
@@ -459,7 +460,7 @@ export function renderAgendaView() {
     weeks += `<section class="j-wk t-${tone}"><div class="j-wk__n">${s === thisMon ? 'cette sem.' : 'sem.'}<b>${a.getDate()}–${b.getDate()}</b></div><div class="j-wk__b">${items.join('') || '<span class="j-none">Rien de prévu</span>'}</div></section>`;
   }
   host.innerHTML = `
-    ${head(`${up.length} rendez-vous et événement${up.length > 1 ? 's' : ''} à venir`, cap(MONTHS[base.getMonth()]))}
+    <header class="j-hd"><p class="k-kicker">Ce qui arrive</p><h1>${cap(MONTHS[base.getMonth()])}</h1></header>
     <div class="j-months" role="group" aria-label="Mois">${[0, 1, 2, 3].map(i => { const m = new Date(now.getFullYear(), now.getMonth() + i, 1); return `<button type="button" data-v="mo" data-to="${i}" aria-pressed="${monthOff === i}">${cap(MONTHS[m.getMonth()])}</button>`; }).join('')}</div>
     ${weeks}`;
   done(host);
@@ -474,6 +475,8 @@ export function renderTodoView() {
   const tomorrow = dateKey(addDays(new Date(), 1));
   const doneToday = state.dashboard.tasks.filter(t => t.done && (!t.doneAt || t.doneAt === today));
   const apps = appTasks();
+  const note = document.activeElement?.id === 'vNote' ? document.activeElement : null;
+  const keep = note ? { value: note.value, a: note.selectionStart, b: note.selectionEnd } : null;
   const groups = [
     ['En retard', tasks.filter(isLate), 'is-late'],
     ['Aujourd’hui', tasks.filter(t => t.date === today)],
@@ -483,11 +486,18 @@ export function renderTodoView() {
     ['Sans date', tasks.filter(t => !t.date)]
   ].filter(g => g[1].length);
   host.innerHTML = `
-    ${head(`${tasks.length} tâche${tasks.length > 1 ? 's' : ''}${apps.length ? ` · ${apps.length} de tes apps` : ''}`, 'Tâches', tasks.length ? '<button type="button" class="k-lnk w-asbtn" data-v="assign">Répartir sur la semaine</button>' : '')}
+    <header class="j-hd"><p class="k-kicker">${tasks.length} à faire${apps.length ? ` · ${apps.length} de tes apps` : ''}</p><h1>Tâches</h1></header>
     ${groups.map(([label, list, cls]) => `<div class="e-sec ${cls || ''}"><h2>${label}</h2><small>${list.length}</small></div><div class="card e-list">${list.map(taskRow).join('')}</div>`).join('') || '<div class="card e-empty">Rien à faire. Belle journée.</div>'}
     ${apps.length ? `<div class="e-sec"><h2>Depuis tes apps</h2><small>${apps.length}</small></div><div class="card e-list">${apps.map(appRow).join('')}</div>` : ''}
     ${doneToday.length ? `<div class="e-sec"><h2>Faites aujourd’hui</h2><small>${doneToday.length}</small></div><div class="card e-list">${doneToday.map(t => `<button type="button" class="e-row is-done" data-v="undo" data-id="${esc(t.id)}"><span class="e-check is-on"><i>${I.check}</i></span><span class="e-row__b"><span class="e-row__t">${esc(t.title)}</span><span class="e-row__s">${isRepeat(t.repeat) ? esc(REPEATS[t.repeat].label.toLowerCase()) : 'disparaît demain · touche pour annuler'}</span></span></button>`).join('')}</div>` : ''}
-    ${tasks.length ? '<p class="k-hint">→ fait · ← demain · touche pour modifier</p>' : ''}`;
+    ${tasks.length ? '<p class="k-hint">→ fait · ← demain · touche pour modifier</p>' : ''}
+    <section class="k-blk"><div class="k-blk-h"><h2><label for="vNote">Note</label></h2><span class="k-save" id="vNoteState" aria-live="polite"></span></div>
+      <div class="k-card k-note"><textarea id="vNote" placeholder="Écrire…" maxlength="20000">${esc(keep ? keep.value : state.notes)}</textarea></div></section>`;
+  if (keep) {
+    const t = $('#vNote');
+    t.focus({ preventScroll: true });
+    t.setSelectionRange(keep.a, keep.b);
+  }
   bindRows(host);
   done(host);
 }
@@ -639,6 +649,11 @@ function dayWx(k) {
 }
 const isSundayEve = () => new Date().getDay() === 0 && new Date().getHours() >= 15;
 const defaultPlanStart = () => dateKey(addDays(mondayOf(new Date()), isSundayEve() ? 7 : 0));
+const weekRange = start => {
+  const a = fromKey(start);
+  const b = addDays(a, 6);
+  return `${a.getDate()}${a.getMonth() !== b.getMonth() ? ` ${MONTHS[a.getMonth()]}` : ''} – ${b.getDate()} ${MONTHS[b.getMonth()]}`;
+};
 const weekLabel = start => {
   const wi = Math.round((fromKey(start) - mondayOf(new Date())) / 6048e5);
   const end = addDays(fromKey(start), 6);
@@ -647,12 +662,12 @@ const weekLabel = start => {
 };
 
 /* ---------- « Planifier » : un jour après l'autre, les tâches puis la séance ---------- */
-let W = null; // { i: jour affiché (0 = lundi), sel: id de la séance choisie }
+let W = null; // { i: jour affiché (0 = lundi), part: 't' tâches | 's' sport, sel: id de la séance choisie }
 const wEl = () => $('#wPlan');
 const firstDay = keys => Math.max(0, keys.findIndex(k => k >= todayKey()));
 function openPlanner() {
   planStart = defaultPlanStart();
-  W = { i: firstDay(keysOf(planStart)), sel: null };
+  W = { i: firstDay(keysOf(planStart)), part: 't', sel: null };
   loadWx();
   const el = wEl();
   el.hidden = false;
@@ -686,57 +701,55 @@ function jSport(keys, k) {
   const sel = ss.find(s => s.id === W.sel) || ss[0];
   const ph = phaseOn(k, getPhases());
   const race = nextRace();
-  const phase = ph || race ? `<p class="j-phase">${ph ? `Cadence : <b>${esc(PHASE_TYPES[ph.type].short)}</b>` : ''}${ph && race ? ' · ' : ''}${race ? `🏁 ${esc(race.name)} J-${dayDiff(race.date)}` : ''}</p>` : '';
-  // Matin, après-midi, soir : vent, température, et ce qui prend le créneau.
+  const nWeek = keys.reduce((n, x) => n + sessionsOn(x).length, 0);
+  const phase = `<p class="j-phase">${ph ? `Cadence : <b>${esc(PHASE_TYPES[ph.type].short)}</b>. ` : ''}${race ? `🏁 ${esc(race.name)} dans ${dayDiff(race.date)} jours. ` : ''}Cette semaine : ${nWeek} séance${nWeek > 1 ? 's' : ''}.</p>`;
+  // Matin, après-midi, soir : ce qui prend le créneau, sinon le vent et la température.
   const slots = `<div class="j-slots">${SLOT_IDS.map(sl => {
     const w = slotsOn(k)?.[sl];
     const past = slotPast(k, sl);
     const f = freeIn(k, sl);
     const busy = !past && f.gap < 60 ? f.by : null;
-    const kind = sel ? kindOf(sel) : 'run';
-    const q = w && !past && kind !== 'indoor' ? `q-${level(score(kind, w))}` : '';
-    return `<button type="button" class="j-slot ${q} ${busy ? 'is-busy' : ''}" data-w="slot" data-slot="${sl}" aria-pressed="${Boolean(sel) && planSlot(sel, k) === sl}" ${!sel || past ? 'disabled' : ''}><small>${SLOTS[sl]}</small>${past ? '<b>passé</b>' : busy ? `<b>${esc(busy.title)}</b><span>${busy.time ? esc(hhmm(busy.time)) : 'pris'}</span>` : w ? `<b>${w.wind} km/h</b><span>${skyOf(w)}${w.t}°${w.gust >= 45 ? ` · raf. ${w.gust}` : ''}</span>` : '<b>—</b><span>météo à venir</span>'}</button>`;
+    return `<button type="button" class="j-slot ${busy ? 'is-busy' : ''}" data-w="slot" data-slot="${sl}" aria-pressed="${Boolean(sel) && planSlot(sel, k) === sl}" ${!sel || past ? 'disabled' : ''}><small>${SLOT_WHEN[sl] === 'ap.-midi' ? 'Ap.-midi' : SLOTS[sl]}</small>${past ? '<b>passé</b>' : busy ? `<b>${esc(busy.title)}</b><span>${busy.time ? `jusqu'à ${esc(hhmm(busy.endTime || busy.time))}` : 'pris'}</span>` : w ? `<b>${w.wind} km/h</b><span>${skyOf(w)}${w.t}°</span>` : '<b>libre</b><span>météo à venir</span>'}</button>`;
   }).join('')}</div>`;
-  const list = ss.map(s => {
+  // Les séances du jour, puis celles prévues un autre jour qu'un toucher amène ici.
+  const mine = ss.map(s => {
     const is = issueOf(s, k);
     const on = sel && sel.id === s.id;
-    return `<div class="j-opt ${on ? 'is-on' : ''} ${landed === s.id || flash === s.id ? 'e-flash' : ''}"><button type="button" class="j-opt__m" data-w="sel" data-id="${esc(s.id)}"><b>${esc(s.training || familyOf(s)?.name || 'Séance')}</b><small>${esc([familyOf(s)?.name, s.distance ? km(s.distance) : '', durLabel(durMin(s.time)), SLOTS[planSlot(s, k)]?.toLowerCase()].filter(Boolean).join(' · '))}</small>${is ? `<em>${esc(is.reason)}</em>` : ''}</button>
+    return `<div class="j-opt ${on ? 'is-on' : ''} ${landed === s.id || flash === s.id ? 'e-flash' : ''}"><button type="button" class="j-opt__m" data-w="sel" data-id="${esc(s.id)}"><b>${esc(s.training || familyOf(s)?.name || 'Séance')}</b><small>${esc([familyOf(s)?.name, s.distance ? km(s.distance) : '', durLabel(durMin(s.time))].filter(Boolean).join(' · '))}</small>${is ? `<em>${esc(is.reason)}</em>` : ''}</button>
       ${on ? `<div class="j-opt__a">${kindOf(s) !== 'indoor' && homeFamily() ? `<button type="button" data-w="home" data-id="${esc(s.id)}">À la maison</button>` : ''}<button type="button" data-w="del" data-id="${esc(s.id)}">Enlever</button></div>` : ''}</div>`;
   }).join('');
-  // Séances prévues un autre jour de la semaine : un toucher les met ici.
   const others = keys.filter(x => x !== k && x >= today).flatMap(x => sessionsOn(x).map(s => ({ s, x })));
-  const move = others.length ? `<p class="j-sub">Prévues un autre jour, à mettre ici :</p><div class="j-chips">${others.map(({ s, x }) => `<button type="button" class="j-chipb is-else" data-w="here" data-from="${x}" data-id="${esc(s.id)}">${esc(s.training || familyOf(s)?.name || 'Séance')} <small>${WD[fromKey(x).getDay()]}</small></button>`).join('')}</div>` : '';
+  const move = others.map(({ s, x }) => `<button type="button" class="j-opt is-else" data-w="here" data-from="${x}" data-id="${esc(s.id)}"><span class="j-opt__m"><b>${esc(s.training || familyOf(s)?.name || 'Séance')}</b><small>${esc([durLabel(durMin(s.time)), `prévue ${dayWord(x)}`].filter(Boolean).join(' · '))} · toucher pour la mettre ici</small></span></button>`).join('');
   return `${phase}${slots}
-    ${list || `<p class="j-restbig">${isRestDay(k) ? 'Repos' : 'Repos ?'}</p>`}
-    ${ss.length ? '<p class="j-sub">Touche un créneau pour y mettre la séance.</p>' : ''}
-    ${move}
-    <button type="button" class="j-plus" data-w="add" data-day="${k}">+ Ajouter une séance</button>`;
+    ${box('Quelle séance ?', `${mine}${move}${mine || move ? '' : '<p class="j-none">Aucune séance prévue cette semaine.</p>'}<button type="button" class="j-plus" data-w="add">+ Autre séance</button>`)}`;
 }
 function renderPlanner() {
   if (!W) return;
   const el = wEl();
   const keys = keysOf(planStart);
-  const today = todayKey();
   const k = keys[W.i];
   const d = fromKey(k);
   const w = dayWx(k);
   const first = firstDay(keys);
   const thisMon = dateKey(mondayOf(new Date()));
+  const sport = W.part === 's';
+  const dayName = WD_FULL[d.getDay()];
+  const nextName = W.i < 6 ? WD_FULL[fromKey(keys[W.i + 1]).getDay()] : '';
   const fixed = [...itemsOn(k).map(x => `<p class="j-fix"><b>${esc(x.title)}</b> <small>${esc(x.endDate ? span(x) : hours(x) || 'journée')}</small></p>`), ...(state.races || []).filter(r => r.date === k).map(r => `<p class="j-fix"><b>🏁 ${esc(r.name)}</b> <small>course${r.time ? ` · ${esc(r.time)}` : ''}</small></p>`)];
+  const has = sessionsOn(k).length > 0;
   const y = el.querySelector('.pl-b')?.scrollTop || 0;
   el.dataset.tone = toneOf(k);
-  el.innerHTML = `<div class="pl-h j-ph"><button type="button" class="k-round" data-w="close" aria-label="Fermer">${I.x}</button>
-      <div class="j-steps">${keys.map((x, j) => `<button type="button" data-w="day" data-i="${j}" aria-pressed="${j === W.i}" ${x < today ? 'disabled' : ''}>${cap(WD[fromKey(x).getDay()])}</button>`).join('')}</div></div>
-    <div class="pl-b">
-      <div class="w-seg j-seg" role="group" aria-label="Semaine">${[[0, 'Cette semaine'], [1, 'Semaine prochaine']].map(([o, l]) => `<button type="button" data-w="wk" data-off="${o}" aria-pressed="${(planStart === thisMon ? 0 : 1) === o}">${l}</button>`).join('')}</div>
-      <p class="j-k">Planifier · ${W.i + 1 - first} sur ${7 - first}</p>
-      <h2 class="j-h">${cap(WD_FULL[d.getDay()])} ${d.getDate()}</h2>
-      <span class="j-pill">${w ? `${w.sky}${SKY_WORD[wx[k].sky] || 'Gris'} · ${w.min}° / ${w.max}° · vent ${w.wind} km/h${w.rain >= 50 ? ` · pluie ${w.rain} %` : ''}` : 'Météo pas encore connue'}</span>
+  const body = sport
+    ? `<p class="j-k">Sport · ${dayName} ${d.getDate()}</p><h2 class="j-h">Quand ?</h2>${jSport(keys, k)}`
+    : `<p class="j-k">Planifier · ${W.i + 1 - first} sur ${7 - first}<button type="button" class="j-wk-sw" data-w="wk" data-off="${planStart === thisMon ? 1 : 0}">${planStart === thisMon ? 'Semaine prochaine →' : '← Cette semaine'}</button></p>
+      <h2 class="j-h">${cap(dayName)} ${d.getDate()}</h2>
+      <span class="j-pill">${w ? `${w.sky}${SKY_WORD[wx[k].sky] || 'Gris'} · ${w.max}°${w.wind >= 25 ? ` · vent ${w.wind} km/h` : ' · peu de vent'}` : 'Météo pas encore connue'}</span>
       ${fixed.length ? box('Déjà ce jour-là', fixed.join('')) : ''}
-      ${box(`Quelles tâches ${W.i === 6 ? 'dimanche' : WD_FULL[d.getDay()]} ?`, jTasks(keys, k))}
-      ${box('Et le sport ?', jSport(keys, k))}
-    </div>
-    <div class="pl-f j-foot"><button type="button" data-w="prev">${W.i > first ? 'Retour' : 'Fermer'}</button><button type="button" class="is-go" data-w="next">${W.i < 6 ? `Passer à ${WD_FULL[fromKey(keys[W.i + 1]).getDay()]}` : 'Terminé'}</button></div>`;
+      ${box(`Quelles tâches ${dayName} ?`, jTasks(keys, k))}
+      ${box('Et le sport ?', `<div class="j-chips"><button type="button" class="j-chipb" data-w="part" aria-pressed="${has}">Séance</button><button type="button" class="j-chipb" data-w="rest" aria-pressed="${!has}">Repos</button></div>`)}`;
+  el.innerHTML = `<div class="pl-h j-ph"><div class="j-steps">${keys.map((x, j) => `<button type="button" data-w="day" data-i="${j}" aria-pressed="${j === W.i}" ${x < todayKey() ? 'disabled' : ''}>${cap(WD[fromKey(x).getDay()])}</button>`).join('')}</div><button type="button" class="k-round" data-w="close" aria-label="Fermer">${I.x}</button></div>
+    <div class="pl-b">${body}</div>
+    <div class="pl-f j-foot"><button type="button" data-w="prev">${sport || W.i > first ? 'Retour' : 'Fermer'}</button><button type="button" class="is-go" data-w="${sport || !has ? 'next' : 'part'}">${!sport && has ? 'Choisir la séance' : nextName ? `Passer à ${nextName}` : 'Terminé'}</button></div>`;
   if (W.keepScroll) el.querySelector('.pl-b').scrollTop = y;
   W.keepScroll = false;
 }
@@ -748,11 +761,15 @@ function onPlannerClick(e) {
   const keys = keysOf(planStart);
   const k = keys[W.i];
   const stay = () => (W.keepScroll = true);
-  const toDay = i => { W.i = i; W.sel = null; renderPlanner(); };
+  const toDay = (i, part = 't') => { W.i = i; W.part = part; W.sel = null; renderPlanner(); };
   if (a === 'close') return closePlanner();
   if (a === 'day') return toDay(Number(b.dataset.i));
-  if (a === 'prev') return W.i > firstDay(keys) ? toDay(W.i - 1) : closePlanner();
-  if (a === 'next') {
+  if (a === 'part') return toDay(W.i, 's');
+  if (a === 'prev') {
+    if (W.part === 's') return toDay(W.i);
+    return W.i > firstDay(keys) ? toDay(W.i - 1, sessionsOn(keys[W.i - 1]).length ? 's' : 't') : closePlanner();
+  }
+  if (a === 'next' || a === 'rest') {
     if (W.i < 6) return toDay(W.i + 1);
     closePlanner();
     return goto('todayView');
@@ -903,7 +920,7 @@ export function renderWeekView() {
   host.innerHTML = `
     ${head(`${label} · ${esc(range)}`, 'Sport', `<div class="k-nav">${wi ? `<button type="button" class="k-lnk e-today-lnk" data-v="wtoday">Aujourd’hui</button>` : ''}<button type="button" class="k-round" data-v="week" data-step="-1" aria-label="Semaine précédente">${I.back}</button><button type="button" class="k-round" data-v="week" data-step="1" aria-label="Semaine suivante">${I.fwd}</button></div>`)}
     ${season}
-    ${keys[6] >= today ? `<button type="button" class="s-prog" data-v="program">${I.star}Programmer ma semaine</button>` : ''}
+    ${keys[6] >= today ? '<button type="button" class="j-cta" data-v="planify">Planifier jour par jour</button>' : ''}
     <section class="card s-week">${keys.map(k => {
       const d = fromKey(k);
       const ss = sessionsOn(k);
@@ -1792,7 +1809,7 @@ export function initVivant({ go }) {
   $('#weekView').addEventListener('toggle', e => e.target.matches?.('.s-phase') && (phaseOpen = e.target.open), true);
   // Note : on enregistre sans jamais réécrire le champ (le curseur reste où on tape).
   let noteTimer;
-  $('#todayView').addEventListener('input', e => {
+  $('#todoView').addEventListener('input', e => {
     if (e.target.id !== 'vNote') return;
     state.notes = e.target.value.slice(0, 20000);
     commit('notes');
@@ -1850,5 +1867,5 @@ export function initVivant({ go }) {
   ed.addEventListener('change', onEditChange);
   document.addEventListener('keydown', e => e.key === 'Escape' && !ed.hidden && closeEdit());
   // L'anneau du prochain rendez-vous reste juste si l'app reste ouverte.
-  setInterval(() => current === 'todayView' && !document.hidden && document.activeElement?.id !== 'vNote' && !document.querySelector('.k-sw [style*="translateX"]') && renderTodayView(), 60000);
+  setInterval(() => current === 'todayView' && !document.hidden && renderTodayView(), 60000);
 }
