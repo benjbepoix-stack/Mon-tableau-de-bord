@@ -667,7 +667,7 @@ const wEl = () => $('#wPlan');
 const firstDay = keys => Math.max(0, keys.findIndex(k => k >= todayKey()));
 function openPlanner() {
   planStart = defaultPlanStart();
-  W = { i: firstDay(keysOf(planStart)), part: 't', sel: null };
+  W = { i: firstDay(keysOf(planStart)), part: 'w', sel: null };
   loadWx();
   const el = wEl();
   el.hidden = false;
@@ -723,6 +723,27 @@ function jSport(keys, k) {
   return `${phase}${slots}
     ${box('Quelle séance ?', `${mine}${move}${mine || move ? '' : '<p class="j-none">Aucune séance prévue cette semaine.</p>'}<button type="button" class="j-plus" data-w="add">+ Autre séance</button>`)}`;
 }
+/** La météo de toute la semaine sur une page : ciel, températures, puis vent et rafales matin / ap.-midi / soir. */
+function jWeek(keys) {
+  const today = todayKey();
+  const cell = (k, sl) => {
+    const w = slotsOn(k)?.[sl];
+    if (k < today || slotPast(k, sl)) return '<span class="j-wc is-past">—</span>';
+    if (!w) return '<span class="j-wc">·</span>';
+    const q = level(score('run', w));
+    return `<span class="j-wc q-${q}">${skyOf(w)}<b>${w.wind}</b><small>raf. ${w.gust}</small>${w.rain >= 40 ? `<em>${w.rain} %</em>` : ''}</span>`;
+  };
+  const rows = keys.map((k, j) => {
+    const d = fromKey(k);
+    const w = dayWx(k);
+    const n = entriesOn(k).filter(x => !x.cls.startsWith('c-task')).length;
+    return `<button type="button" class="j-wr t-${k < today ? 'grey' : toneOf(k)} ${k === today ? 'is-today' : ''}" data-w="day" data-i="${j}" ${k < today ? 'disabled' : ''}>
+      <span class="j-wr__d"><b>${cap(WD[d.getDay()])} ${d.getDate()}</b>${w ? `<small>${w.sky}${w.min}°/${w.max}°</small>` : '<small>météo à venir</small>'}</span>
+      ${SLOT_IDS.map(sl => cell(k, sl)).join('')}</button>`;
+  }).join('');
+  return `<div class="j-wgrid"><span></span><small>Matin</small><small>Ap.-midi</small><small>Soir</small></div>${rows}
+    <p class="j-sub">Vent et rafales en km/h. Vert : bon pour sortir, orange : moyen, rouge : à éviter. Touche un jour pour le planifier.</p>`;
+}
 function renderPlanner() {
   if (!W) return;
   const el = wEl();
@@ -733,13 +754,16 @@ function renderPlanner() {
   const first = firstDay(keys);
   const thisMon = dateKey(mondayOf(new Date()));
   const sport = W.part === 's';
+  const over = W.part === 'w';
   const dayName = WD_FULL[d.getDay()];
   const nextName = W.i < 6 ? WD_FULL[fromKey(keys[W.i + 1]).getDay()] : '';
   const fixed = [...itemsOn(k).map(x => `<p class="j-fix"><b>${esc(x.title)}</b> <small>${esc(x.endDate ? span(x) : hours(x) || 'journée')}</small></p>`), ...(state.races || []).filter(r => r.date === k).map(r => `<p class="j-fix"><b>🏁 ${esc(r.name)}</b> <small>course${r.time ? ` · ${esc(r.time)}` : ''}</small></p>`)];
   const has = sessionsOn(k).length > 0;
   const y = el.querySelector('.pl-b')?.scrollTop || 0;
-  el.dataset.tone = toneOf(k);
-  const body = sport
+  el.dataset.tone = over ? 'grey' : toneOf(k);
+  const body = over
+    ? `<p class="j-k">Planifier · ${esc(weekRange(planStart))}<button type="button" class="j-wk-sw" data-w="wk" data-off="${planStart === thisMon ? 1 : 0}">${planStart === thisMon ? 'Semaine prochaine →' : '← Cette semaine'}</button></p><h2 class="j-h">La météo</h2>${jWeek(keys)}`
+    : sport
     ? `<p class="j-k">Sport · ${dayName} ${d.getDate()}</p><h2 class="j-h">Quand ?</h2>${jSport(keys, k)}`
     : `<p class="j-k">Planifier · ${W.i + 1 - first} sur ${7 - first}<button type="button" class="j-wk-sw" data-w="wk" data-off="${planStart === thisMon ? 1 : 0}">${planStart === thisMon ? 'Semaine prochaine →' : '← Cette semaine'}</button></p>
       <h2 class="j-h">${cap(dayName)} ${d.getDate()}</h2>
@@ -747,9 +771,11 @@ function renderPlanner() {
       ${fixed.length ? box('Déjà ce jour-là', fixed.join('')) : ''}
       ${box(`Quelles tâches ${dayName} ?`, jTasks(keys, k))}
       ${box('Et le sport ?', `<div class="j-chips"><button type="button" class="j-chipb" data-w="part" aria-pressed="${has}">Séance</button><button type="button" class="j-chipb" data-w="rest" aria-pressed="${!has}">Repos</button></div>`)}`;
-  el.innerHTML = `<div class="pl-h j-ph"><div class="j-steps">${keys.map((x, j) => `<button type="button" data-w="day" data-i="${j}" aria-pressed="${j === W.i}" ${x < todayKey() ? 'disabled' : ''}>${cap(WD[fromKey(x).getDay()])}</button>`).join('')}</div><button type="button" class="k-round" data-w="close" aria-label="Fermer">${I.x}</button></div>
+  el.innerHTML = `<div class="pl-h j-ph"><div class="j-steps"><button type="button" class="j-steps__wx" data-w="over" aria-pressed="${over}" aria-label="Météo de la semaine">${SKY.sun}</button>${keys.map((x, j) => `<button type="button" data-w="day" data-i="${j}" aria-pressed="${!over && j === W.i}" ${x < todayKey() ? 'disabled' : ''}>${cap(WD[fromKey(x).getDay()])}</button>`).join('')}</div><button type="button" class="k-round" data-w="close" aria-label="Fermer">${I.x}</button></div>
     <div class="pl-b">${body}</div>
-    <div class="pl-f j-foot"><button type="button" data-w="prev">${sport || W.i > first ? 'Retour' : 'Fermer'}</button><button type="button" class="is-go" data-w="${sport || !has ? 'next' : 'part'}">${!sport && has ? 'Choisir la séance' : nextName ? `Passer à ${nextName}` : 'Terminé'}</button></div>`;
+    <div class="pl-f j-foot">${over
+      ? `<button type="button" data-w="close">Fermer</button><button type="button" class="is-go" data-w="day" data-i="${first}">Commencer par ${WD_FULL[fromKey(keys[first]).getDay()]}</button>`
+      : `<button type="button" data-w="prev">Retour</button><button type="button" class="is-go" data-w="${sport || !has ? 'next' : 'part'}">${!sport && has ? 'Choisir la séance' : nextName ? `Passer à ${nextName}` : 'Terminé'}</button>`}</div>`;
   if (W.keepScroll) el.querySelector('.pl-b').scrollTop = y;
   W.keepScroll = false;
 }
@@ -765,9 +791,10 @@ function onPlannerClick(e) {
   if (a === 'close') return closePlanner();
   if (a === 'day') return toDay(Number(b.dataset.i));
   if (a === 'part') return toDay(W.i, 's');
+  if (a === 'over') return toDay(W.i, 'w');
   if (a === 'prev') {
     if (W.part === 's') return toDay(W.i);
-    return W.i > firstDay(keys) ? toDay(W.i - 1, sessionsOn(keys[W.i - 1]).length ? 's' : 't') : closePlanner();
+    return W.i > firstDay(keys) ? toDay(W.i - 1, sessionsOn(keys[W.i - 1]).length ? 's' : 't') : toDay(W.i, 'w');
   }
   if (a === 'next' || a === 'rest') {
     if (W.i < 6) return toDay(W.i + 1);
@@ -777,7 +804,7 @@ function onPlannerClick(e) {
   if (a === 'wk') {
     planStart = dateKey(addDays(mondayOf(new Date()), Number(b.dataset.off) * 7));
     loadWx();
-    return toDay(firstDay(keysOf(planStart)));
+    return toDay(firstDay(keysOf(planStart)), W.part === 'w' ? 'w' : 't');
   }
   stay();
   if (a === 'tday') return assignDay(id, k);
