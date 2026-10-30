@@ -15,6 +15,7 @@ export function getPlace() {
 export function setPlace(place) {
   write(PLACE_KEY, place);
   cache.clear();
+  slotCache.clear();
 }
 
 export const isDefaultPlace = () => !readJSON(PLACE_KEY, null);
@@ -119,6 +120,9 @@ export async function fetchWeek(weekStart, { force = false } = {}) {
 export const SLOT_HOURS = { matin: [7, 8, 9, 10, 11], aprem: [12, 13, 14, 15, 16, 17], soir: [18, 19, 20, 21] };
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
 const slotCache = new Map();
+let lastAt = null;
+/** Heure du dernier chargement réussi des prévisions par créneau (null si aucun). */
+export const wxAt = () => lastAt;
 
 /** Famille d'icône d'un code WMO. */
 const skyOf = code => (code >= 95 ? 'storm' : code >= 71 && code <= 77 ? 'snow' : code === 85 || code === 86 ? 'snow' : code >= 51 ? 'rain' : code >= 45 ? 'fog' : code === 3 ? 'cloud' : code === 2 ? 'part' : 'sun');
@@ -128,7 +132,7 @@ const skyOf = code => (code >= 95 ? 'storm' : code >= 71 && code <= 77 ? 'snow' 
  * (dans la fenêtre de prévision : aujourd'hui + 15 jours).
  * @returns {Promise<Record<string, {min,max,sky,label,sunrise,sunset,slots:Record<string,{t,rain,mm,wind,gust,dir,deg,sky,label}>}>>}
  */
-export async function fetchSlots(fromKey, days = 7) {
+export async function fetchSlots(fromKey, days = 7, { force = false } = {}) {
   const today = new Date();
   const first = new Date(`${fromKey}T12:00:00`);
   const start = first < today ? today : first;
@@ -140,7 +144,7 @@ export async function fetchSlots(fromKey, days = 7) {
   const place = getPlace();
   const key = `${place.lat},${place.lon}_${dateKey(start)}_${dateKey(end)}`;
   const hit = slotCache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL) return hit.data;
+  if (!force && hit && Date.now() - hit.at < CACHE_TTL) return hit.data;
 
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   Object.entries({
@@ -200,6 +204,7 @@ export async function fetchSlots(fromKey, days = 7) {
       };
     });
     slotCache.set(key, { at: Date.now(), data });
+    lastAt = new Date();
     return data;
   } finally {
     clearTimeout(timer);
