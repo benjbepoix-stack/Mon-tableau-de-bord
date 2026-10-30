@@ -165,3 +165,65 @@ body { background: var(--bg); }
 :root[data-theme] .s-day.is-today .s-day__d small, :root[data-theme] .s-day.is-today .s-day__d b { color: #111; }
 :root[data-theme] .s-day.is-today .e-check:not(.is-on) i { box-shadow: inset 0 0 0 2px rgba(17, 17, 17, .35); }
 .s-day__d b { font-size: 22px; font-weight: 800; }
+
+/* ---------- Planifier : la météo de la semaine sur une page ---------- */
+.j-steps { grid-template-columns: auto repeat(7, minmax(0, 1fr)); }
+.j-steps__wx { display: grid; place-items: center; width: 34px; padding: 0 !important; }
+.j-steps__wx svg { width: 18px; height: 18px; }
+.j-wgrid, .j-wr { display: grid; grid-template-columns: 74px repeat(3, minmax(0, 1fr)); gap: 6px; align-items: center; }
+.j-wgrid { margin: 4px 0 6px; }
+.j-wgrid small { text-align: center; font-size: 12.5px; font-weight: 700; color: var(--j-bg-ink-2); }
+.j-wr { width: 100%; margin-top: 6px; padding: 8px; border: 0; border-radius: 18px; color: var(--j-bg-ink); text-align: left; font: inherit; cursor: pointer; }
+.j-wr:disabled { opacity: .45; cursor: default; }
+.j-wr.is-today { box-shadow: inset 0 0 0 3px var(--j-bg-ink); }
+.j-wr__d { display: grid; gap: 2px; padding-left: 4px; }
+.j-wr__d b { font-size: 16px; font-weight: 800; }
+.j-wr__d small { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; color: var(--j-bg-ink-2); }
+.j-wr__d svg { width: 15px; height: 15px; }
+.j-wc { display: grid; justify-items: center; gap: 0; min-height: 62px; align-content: center; padding: 5px 2px; border-radius: 13px; background: var(--j-bg-it); line-height: 1.15; }
+.j-wc svg { width: 17px; height: 17px; }
+.j-wc b { font-size: 18px; font-weight: 800; }
+.j-wc small { font-size: 11.5px; font-weight: 600; color: var(--j-bg-ink-2); }
+.j-wc em { font-style: normal; font-size: 11px; font-weight: 700; color: #2f5fb3; }
+.j-wc.q-good b { color: #1f8a4c; } .j-wc.q-ok b { color: #c27700; } .j-wc.q-bad b { color: #d23a17; }
+.j-wc.is-past { color: var(--j-bg-ink-2); }
+:root[data-theme="dark"] .t-grey .j-wc.q-good b { color: #5fd38d; } :root[data-theme="dark"] .t-grey .j-wc.q-ok b { color: #ffc24d; } :root[data-theme="dark"] .t-grey .j-wc.q-bad b { color: #ff7a5c; }
+:root[data-theme="dark"] .pl[data-tone="grey"] .j-wr.t-sun, :root[data-theme="dark"] .pl[data-tone="grey"] .j-wr.t-rain { --j-bg-ink: #111; --j-bg-ink-2: rgba(17, 17, 17, .62); --j-bg-it: rgba(255, 255, 255, .7); }
+
+/* ---------- Formulaires : le + et les fiches ---------- */
+.e-flow { background: var(--bg); }
+.e-fdots i.is-on, .e-fdots i.is-past { background: var(--text); }
+.e-q { font-size: 36px; font-weight: 800; letter-spacing: -.04em; line-height: 1; }
+.e-q small { margin-top: 10px; font-size: 15px; letter-spacing: 0; line-height: 1.35; }
+.e-lab { font-size: 14px; font-weight: 700; color: var(--text-2); }
+.e-kind, .e-opts button, .e-days button, .e-slotpick button { border-radius: 20px; background: var(--surface-2); box-shadow: none; }
+:root[data-theme="light"] :is(.e-kind, .e-opts button, .e-days button, .e-slotpick button) { background: #f1f1f1; }
+.e-kind { padding: 18px; }
+.e-kind b { font-size: 18px; font-weight: 800; }
+.e-opts button { min-height: 56px; font-size: 16px; font-weight: 700; }
+:root[data-theme] :is(.e-opts button[aria-pressed="true"], .e-opts button.is-picked, .e-days button.is-picked) { background: var(--text); color: var(--bg); }
+.e-big input, :root[data-theme="light"] .e-big input { min-height: 60px; border-radius: 18px; background: var(--surface-2); box-shadow: none; font-size: 19px; font-weight: 700; }
+:root[data-theme="light"] .e-big input { background: #f1f1f1; }
+.e-big input:focus { box-shadow: inset 0 0 0 2px var(--text); }
+.e-big button, .e-btn, .e-ed__ok { background: var(--text); color: var(--bg); }
+.e-btn { min-height: 60px; border-radius: 20px; font-size: 17px; }
+.e-btn--ghost { background: var(--surface-2); color: var(--text); box-shadow: none; }
+.e-stamp i { background: var(--j-sun); color: #111; }
+.e-ed { background: var(--surface-2); }
+.e-ed__f select, .e-ed__f input { background-color: var(--bg); box-shadow: none; font-weight: 600; }
+.e-ed__f select:focus, .e-ed__f input:focus { box-shadow: inset 0 0 0 2px var(--text); }
+.e-pm__card { background: var(--bg); border-radius: 28px 28px 0 0; }
+.e-pm__h h2 { font-size: 28px; font-weight: 800; letter-spacing: -.04em; }
+.e-pm__f { border-top: 0; }
+/* Fiches tâche / rendez-vous / événement et réglages */
+.sheet { background: var(--bg); border-radius: 28px 28px 0 0; box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, .4); }
+.sheet__title { font-size: 28px; font-weight: 800; letter-spacing: -.04em; }
+.field__label { font-size: 13.5px; font-weight: 700; color: var(--text-2); }
+.input, .select, .textarea { border: 0; border-radius: 16px; background-color: var(--surface-2); font-size: 16px; font-weight: 600; }
+:root[data-theme="light"] :is(.input, .select, .textarea) { background-color: #f1f1f1; }
+.input:hover { border-color: transparent; }
+.input:focus { box-shadow: inset 0 0 0 2px var(--text); }
+.btn { border-radius: 18px; min-height: 52px; font-weight: 700; }
+.btn--primary, .btn--primary:hover:not(:disabled) { background: var(--text); color: var(--bg); box-shadow: none; }
+.btn--ghost { background: var(--surface-2); border: 0; color: var(--text); }
+.more-fields summary { font-weight: 700; color: var(--text); }
