@@ -6,7 +6,7 @@
    À l'installation, l'app-shell (HTML/CSS/JS/icônes) est aussi pré-mis en cache :
    un tout premier lancement hors ligne (avant toute visite en ligne réussie)
    affiche donc l'app au lieu d'un écran blanc. */
-const CACHE = 'carnet-test-v8';
+const CACHE = 'carnet-test-v9';
 
 const PRECACHE_URLS = [
   './',
@@ -20,6 +20,7 @@ const PRECACHE_URLS = [
   './css/vivant.css',
   './css/carnet2.css',
   './css/espaces.css',
+  './css/jour.css',
   './fonts/geist-mono-latin.woff2',
   './js/core/parse.js',
   './js/features/briefing.js',
