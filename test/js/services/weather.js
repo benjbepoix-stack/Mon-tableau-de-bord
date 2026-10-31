@@ -192,8 +192,26 @@ export async function fetchSlots(fromKey, days = 7, { force = false } = {}) {
           label: (WMO[code] || ['', 'Conditions météo'])[1]
         };
       }
+      // Heure par heure, de 6 h à 22 h : pour la vue détaillée d'un jour.
+      const hours = [];
+      for (let x = 6; x <= 22; x++) {
+        const i = byHour[`${day}T${String(x).padStart(2, '0')}:00`];
+        if (i === undefined || h.temperature_2m[i] == null) continue;
+        hours.push({
+          h: x,
+          t: Math.round(h.temperature_2m[i]),
+          rain: h.precipitation_probability[i] ?? 0,
+          mm: Math.round((h.precipitation[i] ?? 0) * 10) / 10,
+          wind: Math.round(h.wind_speed_10m[i] ?? 0),
+          gust: Math.round(h.wind_gusts_10m[i] ?? 0),
+          dir: COMPASS[Math.round((h.wind_direction_10m[i] ?? 0) / 45) % 8],
+          sky: skyOf(h.weather_code[i] ?? 0),
+          label: (WMO[h.weather_code[i]] || ['', 'Conditions météo'])[1]
+        });
+      }
       const code = json.daily.weather_code[di];
       data[day] = {
+        hours,
         min: Math.round(json.daily.temperature_2m_min[di]),
         max: Math.round(json.daily.temperature_2m_max[di]),
         sky: skyOf(code),
