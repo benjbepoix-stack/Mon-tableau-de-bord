@@ -258,3 +258,20 @@ body, .pl, .e-flow, .e-pm, .tabbar, button, input, textarea, select { font-famil
 button.j-wr__d { display: grid; gap: 2px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .j-wr__more { font-size: 11px !important; font-weight: 600; color: var(--d-rose) !important; }
 @media (prefers-reduced-motion: reduce) { .dw, .dw-sc { transition: none; } }
+
+/* ---------- Sport : la planification de la semaine ---------- */
+.s-plan { display: grid; gap: 12px; margin-top: 12px; }
+.s-plan .j-sd { margin-top: 0; }
+.s-plan .d-past { margin: 0; }
+.j-sd header { position: relative; }
+.j-sd.is-today { box-shadow: var(--d-sh), 0 0 0 2px var(--d-rose); }
+.j-sd.is-past { opacity: .6; }
+.j-sd__hr { position: absolute; top: 0; right: 0; display: inline-flex; align-items: center; gap: 2px; padding: 4px 4px 4px 10px; border: 0; border-radius: 999px; background: var(--d-soft); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.j-sd__hr svg { width: 14px; height: 14px; }
+.j-race { display: block; margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: #FFF1D6; color: #9A5B00; font-size: 14px; text-decoration: none; }
+:root[data-theme="dark"] .j-race { background: rgba(245, 181, 49, .16); color: #F5C25A; }
+#weekView .d-wx { margin-top: 12px; }
+#weekView .s-phase { margin-top: 4px; }
+.d-sec > span .d-today-btn { margin: 0 6px 0 0; align-self: center; }
+#weekView .s-phase { border-radius: 18px; color: #fff; }
+#weekView .s-phase__r { color: #fff; font-weight: 600; }
