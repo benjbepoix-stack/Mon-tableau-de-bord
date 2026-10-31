@@ -894,7 +894,7 @@ function editorHTML(s, k) {
   return `<div class="e-ed" data-day="${k}" data-sid="${esc(s.id)}">
     <div class="e-ed__g">
       <label class="e-ed__f is-wide"><span>Jour</span><select data-ed="day">${days.map(x => opt(x, cap(formatKey(x, { weekday: 'long', day: 'numeric', month: 'long' })), x === k)).join('')}</select></label>
-      <label class="e-ed__f is-wide"><span>Sport</span><select data-ed="family">${(state.families || []).map(x => opt(x.id, x.name, x.id === s.family)).join('')}</select></label>
+      <label class="e-ed__f is-wide"><span>Sport</span><select data-ed="family">${opt('', '— Choisir —', !s.family)}${(state.families || []).map(x => opt(x.id, x.name, x.id === s.family)).join('')}</select></label>
       <label class="e-ed__f is-wide"><span>Séance</span><select data-ed="training">${opt('', '— Choisir —', !s.training)}${types.map(t => opt(t, t, t === s.training)).join('')}${s.training && !types.includes(s.training) ? opt(s.training, s.training, true) : ''}</select></label>
       <label class="e-ed__f"><span>km</span><input data-ed="distance" type="text" inputmode="decimal" value="${esc(s.distance || '')}" placeholder="0" autocomplete="off"></label>
       <label class="e-ed__f"><span>Durée</span><input data-ed="time" type="time" step="60" value="${esc(s.time || '00:00')}"></label>
@@ -947,10 +947,11 @@ export function renderWeekView() {
   host.innerHTML = `
     <div class="d-sec d-sec--top"><h2>Sport<small>${esc(label)} · ${esc(range)}</small></h2><span>${wi ? '<button type="button" class="d-today-btn" data-v="wtoday">Aujourd’hui</button>' : ''}<button type="button" class="d-arr" data-v="week" data-step="-1" aria-label="Semaine précédente">${I.back}</button><button type="button" class="d-arr" data-v="week" data-step="1" aria-label="Semaine suivante">${I.fwd}</button></span></div>
     ${season}
-    <button type="button" class="rt-entry" data-v="routines"><span class="rt-entry__i">${ILL.yoga}</span><span><b>Routines</b><small>Étirements, gainage, mobilité… avec chrono</small></span><span class="rt-entry__go">${I.fwd}</span></button>
-    ${keys[6] >= today ? `${wxChart(keys)}${wxBar()}` : ''}
     <div class="s-plan">${jSport(keys)}</div>
-    <p class="e-wkline">${esc(recap)}</p>`;
+    <p class="e-wkline">${esc(recap)}</p>
+    <button type="button" class="rt-entry" data-v="routines"><span class="rt-entry__i">${ILL.yoga}</span><span><b>Routines</b><small>Étirements, gainage, mobilité… avec chrono</small></span><span class="rt-entry__go">${I.fwd}</span></button>
+    ${keys[6] >= today ? `<div class="s-wx">${wxChart(keys)}${wxBar()}</div>` : ''}
+`;
   done(host);
 }
 
@@ -969,9 +970,8 @@ function renderEdit() {
 }
 /** Nouvelle séance : créée sur le jour choisi, puis réglée dans la fiche à listes déroulantes. */
 function newSession(k) {
-  const recent = Object.keys(state.plans || {}).sort().reverse().flatMap(x => sessionsOn(x))[0];
-  const fam = (recent && familyOf(recent)) || (state.families || [])[0];
-  const s = { id: uid(), family: fam?.id || '', training: '', distance: '', time: '', elevation: '', slot: '' };
+  // Rien de choisi par défaut : c'est toi qui choisis le sport.
+  const s = { id: uid(), family: '', training: '', distance: '', time: '', elevation: '', slot: '' };
   state.plans[k] = [...plansOn(k).filter(x => x.family || x.training || x.distance || x.time || x.elevation), s];
   commit('plans');
   openEdit(k, s.id, true);
@@ -987,6 +987,12 @@ function openEdit(k, id, isNew = false) {
 function closeEdit() {
   const el = editEl();
   if (el.hidden) return;
+  // Nouvelle séance fermée sans « OK » (croix, fond, Échap, Annuler) : elle n'est pas gardée.
+  if (edit?.isNew && !edit.ok) {
+    const { k, id } = edit;
+    state.plans[k] = plansOn(k).filter(x => x.id !== id);
+    commit('plans');
+  }
   el.classList.remove('is-open');
   document.body.classList.remove('e-flow-on');
   edit = null;
@@ -997,7 +1003,14 @@ function onEditClick(e) {
   const b = e.target.closest('[data-v], [data-pm]');
   if (!b) return;
   const v = b.dataset.v || b.dataset.pm;
-  if (v === 'close' || v === 'sclose') return closeEdit();
+  if (v === 'sclose') {
+    // OK : la nouvelle séance est gardée si un sport ou une séance a été choisi.
+    const s = edit && plansOn(edit.k).find(x => x.id === edit.id);
+    if (edit) edit.ok = Boolean(s && (s.family || s.training || s.distance || s.time || s.elevation));
+    return closeEdit();
+  }
+  if (v === 'close') return closeEdit();
+  if (v === 'sdel' && edit?.isNew) return closeEdit();
   if (v === 'sdel') {
     const { k, id } = edit;
     closeEdit();
