@@ -562,3 +562,43 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .j-wxbar__a button[aria-expanded="true"] { background: var(--text); color: var(--bg); box-shadow: none; }
 /* Connexion : logo arrondi comme sur l'iPhone */
 .auth__logo { border-radius: 12px; box-shadow: 0 6px 16px -8px rgba(224, 49, 91, .6); }
+
+/* =========================================================
+   Accueil : bascule Liste / Cartes, et le mode cartes (une grande carte par jour, swipe)
+   ========================================================= */
+.d-mode { display: flex; gap: 6px; margin: 0 0 14px; padding: 4px; border-radius: 999px; background: var(--d-soft); }
+.d-mode button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; border: 0; border-radius: 999px; background: none; color: var(--text-2); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s, color .2s; }
+.d-mode button svg { width: 18px; height: 18px; }
+.d-mode button[aria-checked="true"] { background: var(--d-card); color: var(--text); box-shadow: 0 1px 6px rgba(0, 0, 0, .12); }
+.d-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 12px; }
+.d-strip button { position: relative; display: grid; justify-items: center; gap: 1px; padding: 7px 0 9px; border: 0; border-radius: 14px; background: none; color: var(--text); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; }
+.d-strip button small { font-size: 11.5px; font-weight: 600; color: var(--text-3); }
+.d-strip button.has::after { content: ""; position: absolute; bottom: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--d-rose); }
+.d-strip button.is-today { color: var(--d-rose); }
+.d-strip button.is-on { background: var(--text); color: var(--bg); }
+.d-strip button.is-on small { color: inherit; opacity: .7; }
+.d-strip button.is-on.has::after { background: var(--bg); }
+.d-cards { display: flex; gap: 12px; margin: 0 -16px; padding: 4px 28px 18px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.d-cards::-webkit-scrollbar { display: none; }
+.d-card { flex: 0 0 calc(100% - 8px); scroll-snap-align: center; scroll-snap-stop: always; display: flex; flex-direction: column; min-height: 58vh; padding: 18px 16px 16px; border-radius: 28px; background: var(--d-card); box-shadow: var(--d-sh-2), 0 0 0 1px var(--d-line); }
+.d-card.is-today { box-shadow: var(--d-sh-2), 0 0 0 2px var(--d-rose); }
+.d-card.is-past { opacity: .7; }
+.d-card__h { display: flex; align-items: center; gap: 12px; }
+.d-card__n { display: grid; place-items: center; flex: none; width: 58px; height: 58px; border-radius: 18px; background: var(--d-soft); font-size: 28px; font-weight: 700; letter-spacing: -.04em; }
+.d-card.is-today .d-card__n { background: var(--d-rose); color: #fff; }
+.d-card__d { flex: 1; min-width: 0; }
+.d-card__d b { display: block; font-size: 24px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.d-card__d small { font-size: 14px; color: var(--text-2); }
+.d-card__wx { display: flex; align-items: center; gap: 6px; padding: 6px 12px 6px 6px; border: 0; border-radius: 16px; background: var(--d-soft); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.d-card__wi { width: 36px; height: 36px; flex: none; }
+.d-card__wx b { display: block; font-size: 13.5px; font-weight: 700; line-height: 1.1; }
+.d-card__wx small { font-size: 12.5px; color: var(--text-2); }
+.d-card__sum { margin: 14px 2px 10px; font-size: 14px; font-weight: 600; color: var(--text-2); }
+.d-card__c { display: grid; gap: 10px; align-content: start; flex: 1; }
+.d-card .d-it { box-shadow: none; background: var(--d-soft); }
+.d-card .d-it.is-soon, .d-card .d-it.is-now { background: color-mix(in srgb, var(--d-rose) 10%, var(--d-card)); }
+.d-card .d-it .d-th { background: var(--d-card); }
+.d-card__empty { display: grid; justify-items: center; align-content: center; gap: 8px; height: 100%; min-height: 180px; color: var(--text-2); font-size: 15px; }
+.d-card__empty span { width: 84px; height: 84px; opacity: .85; }
+.d-card__add { margin-top: 14px; min-height: 52px; border: 0; border-radius: 16px; background: var(--d-rose); color: #fff; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+.d-card__add:active { transform: scale(.98); }
