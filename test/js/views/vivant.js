@@ -28,6 +28,7 @@ import { linkedItems, GARAGE_URL, MAISON_URL } from '../features/linked-apps.js'
 import { sportTasks } from '../features/sport-tasks.js';
 import { openEditor, ALLURE_URL } from './dashboard.js';
 import { openSportManager } from './training.js';
+import { openRoutines, initRoutines } from './routines.js';
 
 const DONE_KEY = 'carnet_sessions_done';
 const WD = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
@@ -383,10 +384,10 @@ function toneOf(k) {
 }
 /* ---------- Style « doux » : illustrations et courbes de vent ---------- */
 const ILL = Object.fromEntries(['cal', 'clip', 'watch', 'flag', 'sun', 'sunc', 'rain', 'cloud', 'run', 'trail', 'bike', 'mtb', 'xc', 'roll', 'racket', 'swim', 'gym', 'climb', 'hike', 'yoga', 'star'].map(n => [n, `<svg class="d-ill" viewBox="0 0 64 64" aria-hidden="true"><use href="#d-${n}"/></svg>`]));
-const ILL_OF = cls => (cls.startsWith('c-ses') ? ILL.watch : cls === 'c-task' ? ILL.clip : cls === 'c-race' ? ILL.flag : cls === 'c-ev' ? ILL.star : ILL.cal);
+const ILL_OF = cls => (cls.startsWith('c-ses') ? ILL.watch : cls === 'c-task' ? ILL.clip : cls === 'c-race' ? ILL.flag : ILL.cal);
 /** Une illustration par sport, d'après le nom du sport (le chronomètre si on ne reconnaît pas). */
 const SPORT_ILL = [
-  [/ski[- ]?roue|roller|rollski/, 'roll'], [/ski|fond|skating|biathlon/, 'xc'], [/vtt|gravel|cross[- ]?country|enduro/, 'mtb'],
+  [/ski[- ]?roue|roller|rollski/, 'xc'], [/ski|fond|skating|biathlon/, 'xc'], [/vtt|gravel|cross[- ]?country|enduro/, 'mtb'],
   [/cycl|vélo|velo|route|home[- ]?trainer/, 'bike'], [/trail|montagne|alpi/, 'trail'], [/rando|marche|hike/, 'hike'],
   [/tennis|badminton|squash|padel|ping|raquette|pickle/, 'racket'], [/natation|nage|piscine|swim|eau libre/, 'swim'],
   [/muscu|renfo|gainage|force|crossfit|salle|gym/, 'gym'], [/escalade|grimpe|bloc/, 'climb'], [/yoga|pilates|mobilit|étirement|stretch/, 'yoga'],
@@ -945,6 +946,7 @@ export function renderWeekView() {
   host.innerHTML = `
     <div class="d-sec d-sec--top"><h2>Sport<small>${esc(label)} · ${esc(range)}</small></h2><span>${wi ? '<button type="button" class="d-today-btn" data-v="wtoday">Aujourd’hui</button>' : ''}<button type="button" class="d-arr" data-v="week" data-step="-1" aria-label="Semaine précédente">${I.back}</button><button type="button" class="d-arr" data-v="week" data-step="1" aria-label="Semaine suivante">${I.fwd}</button></span></div>
     ${season}
+    <button type="button" class="rt-entry" data-v="routines"><span class="rt-entry__i">${ILL.yoga}</span><span><b>Routines</b><small>Étirements, gainage, mobilité… avec chrono</small></span><span class="rt-entry__go">${I.fwd}</span></button>
     ${keys[6] >= today ? `${wxChart(keys)}${wxBar()}` : ''}
     <div class="s-plan">${jSport(keys)}</div>
     <p class="e-wkline">${esc(recap)}</p>`;
@@ -1496,7 +1498,7 @@ function stepHTML(st) {
   const days = Array.from({ length: 14 }, (_, i) => dateKey(addDays(new Date(), i)));
   switch (st) {
     case 'kind':
-      return `<h2 class="e-q">Qu’est-ce que tu ajoutes${d.fixedDay ? `, ${dateWord(d.day)}` : ''} ?</h2><div class="e-kinds">${[['task', 'Tâche', 'Avec ou sans date', ILL.clip], ['appointments', 'Rendez-vous', 'Un jour, une heure', ILL.cal], ['events', 'Événement', 'Un ou plusieurs jours', ILL.star], ['sess', 'Séance', 'Placée avec la météo', ILL.run]].map(([k, b, s, ic], i) => `<button type="button" class="e-kind" data-fl="kind" data-val="${k}" style="animation-delay:${i * 50}ms"><span class="d-th e-kind__i">${ic}</span><b>${b}</b><span>${s}</span></button>`).join('')}</div>
+      return `<h2 class="e-q">Qu’est-ce que tu ajoutes${d.fixedDay ? `, ${dateWord(d.day)}` : ''} ?</h2><div class="e-kinds">${[['task', 'Tâche', 'Avec ou sans date', ILL.clip], ['appointments', 'Rendez-vous', 'Un jour, une heure', ILL.cal], ['events', 'Événement', 'Un ou plusieurs jours', ILL.cal], ['sess', 'Séance', 'Placée avec la météo', ILL.run]].map(([k, b, s, ic], i) => `<button type="button" class="e-kind" data-fl="kind" data-val="${k}" style="animation-delay:${i * 50}ms"><span class="d-th e-kind__i">${ic}</span><b>${b}</b><span>${s}</span></button>`).join('')}</div>
         <p class="e-lab">Ou écris tout d’un coup</p><form class="e-big" data-fl="quick" autocomplete="off"><input id="eQuick" placeholder="dentiste jeudi 17h30" aria-label="Écrire en une phrase" maxlength="120"><button type="submit" aria-label="Valider">${I.go}</button></form><div id="eQuickChip"></div>`;
     case 'title':
       return `<h2 class="e-q">${F.type === 'task' ? 'Qu’y a-t-il à faire ?' : F.type === 'appointments' ? 'Quel rendez-vous ?' : 'Quel événement ?'}</h2><form class="e-big" data-fl="title" autocomplete="off"><input value="${esc(d.title || '')}" placeholder="${F.type === 'task' ? 'Payer la cantine' : F.type === 'appointments' ? 'Dentiste' : 'Anniversaire'}" aria-label="Titre" maxlength="100"><button type="submit" aria-label="Continuer">${I.go}</button></form>`;
@@ -1744,6 +1746,8 @@ function onClick(e) {
     case 'pweek':
       planStart = dateKey(addDays(fromKey(planStart), Number(b.dataset.step) * 7));
       return renderTodayView();
+    case 'routines':
+      return openRoutines();
     case 'past':
       showPast = !showPast;
       return renderTodayView();
@@ -1994,6 +1998,7 @@ export function initVivant({ go }) {
   goto = go;
   injectIllustrations();
   initDayWx();
+  initRoutines();
   ['#todayView', '#agendaView', '#todoView', '#weekView'].forEach(sel => $(sel).addEventListener('click', onClick));
   // Une ligne de séance est un bouton (role) : Entrée l'ouvre aussi.
   ['#todayView', '#weekView'].forEach(sel => $(sel).addEventListener('keydown', e => e.key === 'Enter' && e.target.matches('.e-row[role="button"][data-v]') && e.target.click()));
