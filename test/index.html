@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Tableau de bord personnel : agenda, tâches, entraînements, courses et mesures.">
-  <meta name="theme-color" content="#0b0e17">
+  <meta name="theme-color" content="#ffffff">
   <meta name="color-scheme" content="dark light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -25,7 +25,7 @@
       var t = localStorage.getItem('dashboard_theme');
       if ((t !== 'light' && t !== 'dark') || (t === 'dark' && !localStorage.getItem('dashboard_theme_auto_v1'))) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.dataset.theme = t;
-      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#f4f5fa' : '#0b0e17');
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#ffffff' : '#121315');
     } catch (e) {}
   </script>
 

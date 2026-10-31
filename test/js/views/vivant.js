@@ -302,7 +302,12 @@ function prox(x) {
 }
 /** Jour proche (« demain », « jeu. 5 ») ou lointain (« jeu. 5 déc. »). */
 const dateWord = k => (Math.abs(dayDiff(k)) <= 6 ? dayWord(k) : formatKey(k, { weekday: 'short', day: 'numeric', month: 'short' }));
-const span = x => `du ${dateWord(x.date)} au ${dateWord(x.endDate)}`;
+const REL = /^(aujourd’hui|demain|hier|après-demain)$/;
+const span = x => {
+  const a = dateWord(x.date);
+  const b = dateWord(x.endDate);
+  return `${REL.test(a) ? (a === 'aujourd’hui' ? 'd’aujourd’hui' : `de ${a}`) : `du ${a}`} ${REL.test(b) ? `à ${b}` : `au ${b}`}`;
+};
 const hours = x => (x.time ? `${hhmm(x.time)}${x.endTime ? ` – ${hhmm(x.endTime)}` : ''}` : '');
 const whenOf = x => (x.endDate ? span(x) : `${dateWord(x.date)}${x.time ? ` · ${hours(x)}` : ' · journée'}`);
 const openTasks = () => state.dashboard.tasks.filter(t => !t.done).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || (a.time || '99').localeCompare(b.time || '99'));
@@ -579,7 +584,7 @@ export function renderTodoView() {
     ['Sans date', tasks.filter(t => !t.date)]
   ].filter(g => g[1].length);
   host.innerHTML = `
-    <header class="j-hd"><p class="k-kicker">${tasks.length} à faire${apps.length ? ` · ${apps.length} de tes apps` : ''}</p><h1>Tâches</h1></header>
+    <div class="d-sec d-sec--top"><h2>Tâches<small>${tasks.length ? `${tasks.length} à faire` : 'Tout est fait'}${apps.length ? ` · ${apps.length} de tes apps` : ''}</small></h2>${tasks.some(t => !isRepeat(t.repeat)) ? '<span><button type="button" class="d-today-btn" data-v="assign">Répartir sur la semaine</button></span>' : ''}</div>
     ${groups.map(([label, list, cls]) => `<div class="e-sec ${cls || ''}"><h2>${label}</h2><small>${list.length}</small></div><div class="card e-list">${list.map(taskRow).join('')}</div>`).join('') || '<div class="card e-empty">Rien à faire. Belle journée.</div>'}
     ${apps.length ? `<div class="e-sec"><h2>Depuis tes apps</h2><small>${apps.length}</small></div><div class="card e-list">${apps.map(appRow).join('')}</div>` : ''}
     ${doneToday.length ? `<div class="e-sec"><h2>Faites aujourd’hui</h2><small>${doneToday.length}</small></div><div class="card e-list">${doneToday.map(t => `<button type="button" class="e-row is-done" data-v="undo" data-id="${esc(t.id)}"><span class="e-check is-on"><i>${I.check}</i></span><span class="e-row__b"><span class="e-row__t">${esc(t.title)}</span><span class="e-row__s">${isRepeat(t.repeat) ? esc(REPEATS[t.repeat].label.toLowerCase()) : 'disparaît demain · touche pour annuler'}</span></span></button>`).join('')}</div>` : ''}
@@ -810,11 +815,12 @@ function jSport(keys) {
     const d = fromKey(k);
     const ss = sessionsOn(k);
     const busy = itemsOn(k).map(x => `${x.title}${x.time && (!x.endDate || x.date === k) ? ` ${hours(x)}` : ''}`);
+    const all = doneMap();
     const rows = ss.map(s => {
-      const is = issueOf(s, k);
-      return `<div class="j-sp ${landed === s.id || flash === s.id ? 'e-flash' : ''}"><button type="button" class="j-sp__t" data-w="sedit" data-day="${k}" data-id="${esc(s.id)}"><span class="j-sp__i">${sportIll(familyOf(s)?.name || s.training)}</span><b>${esc(familyOf(s)?.name || s.training || 'Séance')}</b><small>${esc([s.training, s.distance ? km(s.distance) : '', durLabel(durMin(s.time))].filter(Boolean).join(' · '))}</small>${is ? `<em>${esc(is.reason)}</em>` : ''}</button>
-        <div class="j-sp__s"><select data-w="sday" data-day="${k}" data-id="${esc(s.id)}" aria-label="Jour">${keys.filter(x => x >= today || x === k).map(x => opt(x, cap(formatKey(x, { weekday: 'short', day: 'numeric' })), x === k)).join('')}</select>
-        <select data-w="sslot" data-day="${k}" data-id="${esc(s.id)}" aria-label="Moment">${SLOT_IDS.map(sl => opt(sl, SLOTS[sl], planSlot(s, k) === sl)).join('')}</select></div></div>`;
+      const dn = isDone(k, s, all);
+      const is = !dn && issueOf(s, k);
+      return `<div class="j-sp ${dn ? 'is-done' : ''} ${landed === s.id || flash === s.id ? 'e-flash' : ''}"><button type="button" class="j-sp__t" data-w="sedit" data-day="${k}" data-id="${esc(s.id)}"><span class="j-sp__i">${sportIll(familyOf(s)?.name || s.training)}</span><b>${esc(familyOf(s)?.name || s.training || 'Séance')}</b><small>${esc([s.training, s.distance ? km(s.distance) : '', durLabel(durMin(s.time)), planSlot(s, k) ? SLOT_WHEN[planSlot(s, k)] : ''].filter(Boolean).join(' · '))}</small>${is ? `<em>${esc(is.reason)}</em>` : ''}</button>
+        <button type="button" class="j-done ${dn ? 'is-on' : ''}" data-v="session" data-day="${k}" data-id="${esc(s.id)}" aria-pressed="${dn}" aria-label="${dn ? 'Séance faite, décocher' : 'Cocher la séance comme faite'}">${I.check}</button></div>`;
     }).join('');
     const races = (state.races || []).filter(r => r.date === k).map(r => `<a class="j-race" href="${ALLURE_URL}">🏁 <b>${esc(r.name)}</b>${r.distance ? ` · ${esc(r.distance)} km` : ''}</a>`).join('');
     const past = k < today;
@@ -928,7 +934,7 @@ function editorHTML(s, k) {
   if (!days.includes(k)) days.unshift(k);
   return `<div class="e-ed" data-day="${k}" data-sid="${esc(s.id)}">
     <div class="e-ed__g">
-      <label class="e-ed__f is-wide"><span>Jour</span><select data-ed="day">${days.map(x => opt(x, cap(formatKey(x, { weekday: 'long', day: 'numeric', month: 'long' })), x === k)).join('')}</select></label>
+      <label class="e-ed__f is-wide"><span>Jour</span><select data-ed="day">${days.map(x => opt(x, cap(formatKey(x, { weekday: 'short', day: 'numeric', month: 'short' })), x === k)).join('')}</select></label>
       <label class="e-ed__f is-wide"><span>Sport</span><select data-ed="family">${opt('', '— Choisir —', !s.family)}${(state.families || []).map(x => opt(x.id, x.name, x.id === s.family)).join('')}</select></label>
       <label class="e-ed__f is-wide"><span>Séance</span><select data-ed="training">${opt('', '— Choisir —', !s.training)}${types.map(t => opt(t, t, t === s.training)).join('')}${s.training && !types.includes(s.training) ? opt(s.training, s.training, true) : ''}</select></label>
       <label class="e-ed__f"><span>km</span><input data-ed="distance" type="text" inputmode="decimal" value="${esc(s.distance || '')}" placeholder="0" autocomplete="off"></label>
