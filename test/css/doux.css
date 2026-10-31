@@ -421,3 +421,38 @@ button.j-wr__d { display: grid; gap: 2px; padding: 0; border: 0; background: non
 .d-day__add:hover, .d-day__add:focus-visible { border-color: var(--d-rose); background: var(--d-rose); color: #fff; }
 .d-day__c { display: grid; gap: 10px; }
 .d-day .d-rest { padding: 12px 14px; font-weight: 500; cursor: default; }
+
+/* Sport : deux blocs (Planifier, Météo) puis Routines */
+#weekView .s-h { margin: 22px 0 10px; }
+.s-wk { padding: 6px 12px 10px; border-radius: 20px; background: var(--d-card); box-shadow: var(--d-sh), 0 0 0 1px var(--d-line); }
+.s-wk__r { display: grid; grid-template-columns: 48px 66px repeat(3, 1fr); align-items: center; gap: 4px; width: 100%; padding: 8px 0; border: 0; border-top: 1px solid var(--d-line); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.s-wk__hd { border-top: 0; padding: 4px 0 6px; cursor: default; font-size: 11.5px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.s-wk__hd span:nth-child(n+3) { text-align: center; }
+.s-wk__r.is-today .s-wk__d b { color: var(--d-rose); }
+.s-wk__r.is-off { cursor: default; grid-template-columns: 48px 1fr; opacity: .55; }
+.s-wk__d b { display: block; font-size: 14px; font-weight: 700; }
+.s-wk__d small { font-size: 12px; color: var(--text-2); }
+.s-wk__na { font-size: 12.5px; color: var(--text-2); }
+.s-wk__t { display: flex; align-items: center; gap: 4px; }
+.s-wk__i { width: 26px; height: 26px; flex: none; }
+.s-wk__i svg { width: 100%; height: 100%; }
+.s-wk__t b { display: block; font-size: 14px; font-weight: 700; line-height: 1.1; }
+.s-wk__t small { font-size: 12px; color: var(--text-2); }
+.s-wk__c { display: flex; flex-direction: column; align-items: center; padding: 4px 0; border-radius: 10px; background: var(--d-soft); line-height: 1.15; }
+.s-wk__c b { font-size: 15px; font-weight: 700; }
+.s-wk__c small { font-size: 11.5px; color: var(--text-2); }
+.s-wk__c.is-mid { background: #FBEBD9; }
+.s-wk__c.is-hi { background: #F8D9DA; }
+.s-wk__c.is-off { opacity: .4; }
+.s-wk__l { margin: 8px 0 0; font-size: 12px; color: var(--text-2); }
+.s-wk__l b { color: var(--text); }
+#weekView .s-wx .j-wxbar { margin-top: 10px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .s-wk__c.is-mid { background: rgba(240,160,80,.22); } :root:not([data-theme="light"]) .s-wk__c.is-hi { background: rgba(230,90,100,.25); } }
+:root[data-theme="dark"] .s-wk__c.is-mid { background: rgba(240,160,80,.22); }
+:root[data-theme="dark"] .s-wk__c.is-hi { background: rgba(230,90,100,.25); }
+
+/* RDV et événements tout proches : teinte + étiquette */
+.d-it.is-soon, .d-it.is-now { box-shadow: var(--d-sh), 0 0 0 1.5px color-mix(in srgb, var(--d-rose) 45%, transparent); background: color-mix(in srgb, var(--d-rose) 7%, var(--d-card)); }
+.d-it.is-now { box-shadow: var(--d-sh), 0 0 0 2px var(--d-rose); background: color-mix(in srgb, var(--d-rose) 12%, var(--d-card)); }
+.d-near { flex: none; margin: 0 6px 0 auto; padding: 4px 9px; border-radius: 999px; background: var(--d-rose-soft) !important; color: var(--d-rose) !important; font-style: normal; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.d-it.is-now .d-near { background: var(--d-rose) !important; color: #fff !important; }

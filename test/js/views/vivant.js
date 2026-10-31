@@ -223,6 +223,22 @@ function dayWord(k) {
 }
 const dayTitle = k => (dayDiff(k) === 0 ? 'Aujourd’hui' : dayDiff(k) === 1 ? 'Demain' : cap(formatKey(k, { weekday: 'long', day: 'numeric' })));
 const hhmm = t => t.replace(':', ' h ');
+/** RDV ou événement tout proche : une étiquette (« Dans 2 h », « Demain »…) et un ton (is-now aujourd'hui, is-soon d'ici 3 jours). */
+function soonOf(k, time, endDate) {
+  const d = dayDiff(k);
+  if (d < 0) return endDate && endDate >= todayKey() ? { cls: 'is-now', label: 'En cours' } : null;
+  if (d === 0 && time) {
+    const [h, m] = time.split(':').map(Number);
+    const now = new Date();
+    const mins = h * 60 + m - (now.getHours() * 60 + now.getMinutes());
+    if (mins < -90) return null;
+    if (mins <= 0) return { cls: 'is-now', label: 'En cours' };
+    return { cls: 'is-now', label: mins < 60 ? `Dans ${mins} min` : `Dans ${Math.round(mins / 60)} h` };
+  }
+  if (d === 0) return { cls: 'is-now', label: 'Aujourd’hui' };
+  if (d > 3) return null;
+  return { cls: 'is-soon', label: d === 1 ? 'Demain' : d === 2 ? 'Après-demain' : 'Dans 3 jours' };
+}
 
 /** Nombre de jours après le premier pour un événement sur plusieurs jours (0 sinon). */
 const spanDays = x => (x.endDate && x.date && x.endDate > x.date ? Math.round((fromKey(x.endDate) - fromKey(x.date)) / 86400000) : 0);
@@ -425,7 +441,7 @@ function dayRow(k, all) {
     <header class="d-day__h"><span class="d-day__d"><b>${d.getDate()}</b><span>${k === today ? 'Aujourd’hui' : dayDiff(k) === 1 ? 'Demain' : cap(WD_FULL[d.getDay()])}<small>${k === today || dayDiff(k) === 1 ? `${cap(WD_FULL[d.getDay()])} ${d.getDate()} ${MONTHS[d.getMonth()]}` : MONTHS[d.getMonth()]}</small></span></span>
       ${sky ? `<button type="button" class="d-day__wx" data-dwx="${k}" aria-label="Météo : ${SKY_WORD[sky] || 'Nuageux'}">${illOfSky(sky)}<span>${SKY_WORD[sky] || 'Nuageux'}</span></button>` : ''}
       <button type="button" class="d-day__add" data-v="wadd" data-day="${k}" aria-label="Ajouter quelque chose ${esc(label)}">+</button></header>
-    <div class="d-day__c">${list.map(x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><span class="d-th">${x.ill || ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${list.length || k < today ? '' : '<p class="d-rest">Rien de prévu · repos</p>'}</div>
+    <div class="d-day__c">${list.map(x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''} ${x.soon?.cls || ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><span class="d-th">${x.ill || ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.soon ? `<i class="d-near">${x.soon.label}</i>` : ''}${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${list.length || k < today ? '' : '<p class="d-rest">Rien de prévu · repos</p>'}</div>
   </section>`;
 }
 /** Les illustrations, une seule fois dans la page. */
@@ -476,10 +492,10 @@ export function renderTodayView() {
   const limit = dateKey(addDays(new Date(), 30));
   const races = (state.races || []).filter(r => r.date >= today && r.date <= limit).map(r => ({ id: r.id, title: r.name, date: r.date, time: r.time, place: r.location || '', kind: 'race' }));
   const soon = [...upcoming().filter(x => x.date <= limit), ...races].sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
-  const soonRow = x => `<button type="button" class="d-it d-soon ${x.kind === 'race' ? 'is-race' : ''}" ${x.kind === 'race' ? 'data-v="race"' : `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"`}>
+  const soonRow = x => { const so = x.kind === 'race' ? null : soonOf(x.date, x.time, x.endDate); return `<button type="button" class="d-it d-soon ${x.kind === 'race' ? 'is-race' : ''} ${so?.cls || ''}" ${x.kind === 'race' ? 'data-v="race"' : `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"`}>
     <span class="d-th">${x.kind === 'race' ? ILL.flag : ILL.cal}</span>
     <span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.date <= today ? 'aujourd’hui' : formatKey(x.date, { weekday: 'short', day: 'numeric', month: 'short' }), x.endDate ? span(x) : x.time ? hours(x) : '', x.kind === 'race' ? 'Cadence' : x.kind === 'events' ? 'événement' : '', x.place].filter(Boolean).join(' · '))}</small></span>
-    <span class="d-j">${dayDiff(x.date) <= 0 ? 'auj.' : `J-${dayDiff(x.date)}`}</span></button>`;
+    ${so ? `<i class="d-near">${so.label}</i>` : `<span class="d-j">${dayDiff(x.date) <= 0 ? 'auj.' : `J-${dayDiff(x.date)}`}</span>`}</button>`; };
   const title = wi === 0 ? 'Cette semaine' : wi === 1 ? 'Semaine prochaine' : esc(weekLabel(planStart).split(' · ')[0]);
   const hidden = keys.filter(k => k < today);
 
@@ -693,7 +709,7 @@ function entriesOn(k, all = doneMap()) {
     const n = spanDays(x);
     const ev = x.kind === 'events';
     const at = x.time && (!x.endDate || x.date === k) ? x.time : '';
-    out.push({ id: x.id, at: at || '00:00', cls: ev ? 'c-ev' : 'c-rdv', tag: at ? hhmm(at) : ev ? 'Événement' : 'RDV', title: x.title, sub: n ? `jour ${dayDiff(k) - dayDiff(x.date) + 1}/${n + 1}` : '', act: `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"` });
+    out.push({ id: x.id, at: at || '00:00', cls: ev ? 'c-ev' : 'c-rdv', tag: at ? hhmm(at) : ev ? 'Événement' : 'RDV', title: x.title, sub: n ? `jour ${dayDiff(k) - dayDiff(x.date) + 1}/${n + 1}` : '', soon: soonOf(k, at), act: `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"` });
   });
   (state.races || []).filter(r => r.date === k).forEach(r => out.push({ id: r.id, at: r.time || '00:01', cls: 'c-race', tag: 'Course', title: r.name, act: 'data-v="race"' }));
   sessionsOn(k).forEach(s => {
@@ -790,17 +806,10 @@ function onWxSubmit(e) {
 function jSport(keys) {
   const today = todayKey();
   const opt = (v, l, on) => `<option value="${esc(v)}"${on ? ' selected' : ''}>${esc(l)}</option>`;
-  const days = keys.filter(k => k >= today || sportPast).map(k => {
+  const days = keys.map(k => {
     const d = fromKey(k);
     const ss = sessionsOn(k);
     const busy = itemsOn(k).map(x => `${x.title}${x.time && (!x.endDate || x.date === k) ? ` ${hours(x)}` : ''}`);
-    const cells = SLOT_IDS.map(sl => {
-      const w = slotsOn(k)?.[sl];
-      const past = slotPast(k, sl);
-      const f = freeIn(k, sl);
-      const by = !past && f.gap < 60 ? f.by : null;
-      return `<span class="j-wc ${past ? 'is-past' : by ? 'is-busy' : w ? `q-${level(score('run', w))}` : ''}"><small>${SLOT_WHEN[sl]}</small>${past ? '—' : by ? `<b class="j-wc__by">${esc(by.title)}</b>` : w ? `${skyOf(w)}<b>${w.wind}</b><small>raf. ${w.gust} · ${w.t}°</small>` : '·'}</span>`;
-    }).join('');
     const rows = ss.map(s => {
       const is = issueOf(s, k);
       return `<div class="j-sp ${landed === s.id || flash === s.id ? 'e-flash' : ''}"><button type="button" class="j-sp__t" data-w="sedit" data-day="${k}" data-id="${esc(s.id)}"><span class="j-sp__i">${sportIll(familyOf(s)?.name || s.training)}</span><b>${esc(familyOf(s)?.name || s.training || 'Séance')}</b><small>${esc([s.training, s.distance ? km(s.distance) : '', durLabel(durMin(s.time))].filter(Boolean).join(' · '))}</small>${is ? `<em>${esc(is.reason)}</em>` : ''}</button>
@@ -809,12 +818,38 @@ function jSport(keys) {
     }).join('');
     const races = (state.races || []).filter(r => r.date === k).map(r => `<a class="j-race" href="${ALLURE_URL}">🏁 <b>${esc(r.name)}</b>${r.distance ? ` · ${esc(r.distance)} km` : ''}</a>`).join('');
     const past = k < today;
-    return `<section class="j-sd ${k === today ? 'is-today' : ''} ${past ? 'is-past' : ''}" id="pday-${k}"><header><b>${k === today ? 'Aujourd’hui' : cap(WD_FULL[d.getDay()])} ${d.getDate()}</b>${busy.length ? `<small>${esc(busy.join(' · '))}</small>` : ''}${!past && wx[k]?.hours?.length ? `<button type="button" class="j-sd__hr" data-dwx="${k}">Heure par heure ${I.fwd}</button>` : ''}</header>
-      ${past ? '' : `<div class="j-sd__w">${cells}</div>`}${races}${rows || `<p class="j-rest-s">${past ? 'Rien' : 'Repos'}</p>`}${past ? '' : `<button type="button" class="j-plus" data-w="add" data-day="${k}">+ Séance</button>`}</section>`;
+    return `<section class="j-sd ${k === today ? 'is-today' : ''} ${past ? 'is-past' : ''}" id="pday-${k}"><header><b>${k === today ? 'Aujourd’hui' : cap(WD_FULL[d.getDay()])} ${d.getDate()}</b>${busy.length ? `<small>${esc(busy.join(' · '))}</small>` : ''}</header>
+      ${races}${rows || `<p class="j-rest-s">${past ? 'Rien' : 'Repos'}</p>`}${past ? '' : `<button type="button" class="j-plus" data-w="add" data-day="${k}">+ Séance</button>`}</section>`;
   }).join('');
-  const hidden = keys.filter(k => k < today);
-  const toggle = hidden.length ? `<button type="button" class="d-past" data-v="spast" aria-expanded="${sportPast}">${sportPast ? 'Masquer le début de la semaine' : `Voir le début de la semaine <small>${cap(WD[fromKey(hidden[0]).getDay()])}. ${fromKey(hidden[0]).getDate()} – ${WD[fromKey(hidden.at(-1)).getDay()]}. ${fromKey(hidden.at(-1)).getDate()}</small>`}</button>` : '';
-  return `${toggle}${days}`;
+  return days;
+}
+/** Sport, bloc météo : pour chaque jour, températures min-max puis vent moyen et rafales
+ *  le matin, le midi et le soir. Toucher un jour ouvre la vue heure par heure. */
+function slotWind(k, sl) {
+  const w = wx[k];
+  const s = w?.slots?.[sl];
+  const hs = (w?.hours || []).filter(x => SLOT_HOURS[sl].includes(x.h));
+  if (hs.length) return { avg: Math.round(hs.reduce((a, x) => a + x.wind, 0) / hs.length), gust: Math.max(...hs.map(x => x.gust)) };
+  return s ? { avg: s.wind, gust: s.gust } : null;
+}
+function wxWeek(keys) {
+  const today = todayKey();
+  const head = { matin: 'Matin', aprem: 'Midi', soir: 'Soir' };
+  const rows = keys.filter(k => k >= today).map(k => {
+    const w = wx[k];
+    const d = fromKey(k);
+    const past = k < today;
+    const name = `<b>${k === today ? 'Auj.' : `${cap(WD[d.getDay()])}.`}</b><small>${d.getDate()}</small>`;
+    if (!w || past) return `<div class="s-wk__r is-off"><span class="s-wk__d">${name}</span><span class="s-wk__na">${past ? 'passé' : 'pas encore de prévision'}</span></div>`;
+    const cells = SLOT_IDS.map(sl => {
+      const v = slotWind(k, sl);
+      const off = slotPast(k, sl);
+      return `<span class="s-wk__c ${off ? 'is-off' : ''} ${v && v.gust >= 50 ? 'is-hi' : v && v.gust >= 35 ? 'is-mid' : ''}">${v ? `<b>${v.avg}</b><small>${v.gust}</small>` : '·'}</span>`;
+    }).join('');
+    return `<button type="button" class="s-wk__r ${k === today ? 'is-today' : ''}" data-dwx="${k}" aria-label="${esc(cap(WD_FULL[d.getDay()]))} : heure par heure"><span class="s-wk__d">${name}</span><span class="s-wk__t"><span class="s-wk__i">${skyIll(k)}</span><span><b>${w.max}°</b><small>${w.min}°</small></span></span>${cells}</button>`;
+  }).join('');
+  return `<section class="s-wk"><div class="s-wk__r s-wk__hd"><span></span><span>Min · max</span>${SLOT_IDS.map(sl => `<span>${head[sl]}</span>`).join('')}</div>${rows}
+    <p class="s-wk__l"><b>12</b> vent moyen · <small>30</small> rafales, en km/h · touche un jour pour le détail heure par heure</p></section>`;
 }
 /** La semaine en courbes (vent, rafales) sur fond bleu canard, comme une appli météo. */
 function wxChart(keys) {
@@ -947,10 +982,12 @@ export function renderWeekView() {
   host.innerHTML = `
     <div class="d-sec d-sec--top"><h2>Sport<small>${esc(label)} · ${esc(range)}</small></h2><span>${wi ? '<button type="button" class="d-today-btn" data-v="wtoday">Aujourd’hui</button>' : ''}<button type="button" class="d-arr" data-v="week" data-step="-1" aria-label="Semaine précédente">${I.back}</button><button type="button" class="d-arr" data-v="week" data-step="1" aria-label="Semaine suivante">${I.fwd}</button></span></div>
     ${season}
+    <div class="d-sec s-h"><h2>Planifier<small>${esc(recap)}</small></h2></div>
     <div class="s-plan">${jSport(keys)}</div>
-    <p class="e-wkline">${esc(recap)}</p>
+    ${keys[6] >= today ? `<div class="d-sec s-h"><h2>Météo<small>Températures, vent moyen et rafales</small></h2></div>
+    <div class="s-wx">${wxWeek(keys)}${wxBar()}</div>` : ''}
+    <div class="d-sec s-h"><h2>Routines</h2></div>
     <button type="button" class="rt-entry" data-v="routines"><span class="rt-entry__i">${ILL.yoga}</span><span><b>Routines</b><small>Étirements, gainage, mobilité… avec chrono</small></span><span class="rt-entry__go">${I.fwd}</span></button>
-    ${keys[6] >= today ? `<div class="s-wx">${wxChart(keys)}${wxBar()}</div>` : ''}
 `;
   done(host);
 }
