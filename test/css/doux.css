@@ -602,3 +602,62 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .d-card__empty span { width: 84px; height: 84px; opacity: .85; }
 .d-card__add { margin-top: 14px; min-height: 52px; border: 0; border-radius: 16px; background: var(--d-rose); color: #fff; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
 .d-card__add:active { transform: scale(.98); }
+
+/* =========================================================
+   Sport › Planifier (31/10 après-midi) : jours de même hauteur, petit +, séance du jour en couleur
+   ========================================================= */
+.s-days { display: grid; grid-auto-rows: 1fr; gap: 10px; }
+.s-days .j-sd { display: flex; flex-direction: column; margin: 0; padding: 14px 16px; }
+.j-sd__h { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.j-sd__h > span { display: grid; gap: 2px; min-width: 0; }
+.j-sd__h b { font-size: 17px; font-weight: 700; }
+.j-sd__h small { font-size: 13px; font-weight: 600; color: var(--d-rose); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.j-add { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--d-soft); color: var(--text); font: inherit; font-size: 20px; font-weight: 500; line-height: 1; cursor: pointer; transition: background .2s, transform .3s var(--k-spring); }
+.j-add:active { transform: scale(.88); }
+.j-sd.is-free .j-rest-s { flex: 1; display: grid; place-items: center; margin: 8px 0 0; border-radius: 14px; background: var(--d-soft); color: var(--text-3); font-size: 14px; font-weight: 600; }
+.s-days .j-sp { margin-top: 10px; }
+.s-days .j-sp:first-of-type { border-top: 0; }
+/* Séance du jour : encadré rose */
+.j-sd.is-today { background: linear-gradient(150deg, #FF6A8B, #E0315B) !important; color: #fff; box-shadow: 0 14px 30px -16px rgba(224, 49, 91, .7) !important; }
+.j-sd.is-today .j-sd__h b { color: #fff; }
+.j-sd.is-today .j-sd__h small { color: rgba(255, 255, 255, .85); }
+.j-sd.is-today .j-add { background: rgba(255, 255, 255, .22); color: #fff; }
+.j-sd.is-today .j-sp { padding: 10px; border: 0; border-radius: 16px; background: rgba(255, 255, 255, .16) !important; }
+.j-sd.is-today .j-sp__t b, .j-sd.is-today .j-sp__t small { color: #fff; }
+.j-sd.is-today .j-sp__t em { color: #fff; }
+.j-sd.is-today .j-sp__i { background: #fff; }
+.j-sd.is-today .j-done { border-color: rgba(255, 255, 255, .7); }
+.j-sd.is-today .j-done.is-on { border-color: #fff; background: #fff; color: var(--d-rose); }
+.j-sd.is-today .j-rest-s { background: rgba(255, 255, 255, .16); color: #fff; }
+.j-sd.is-today .j-race { color: #fff; }
+.j-sd.is-today .j-sd__h b::after { content: "Séance du jour"; display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, .25); font-size: 11.5px; font-weight: 700; vertical-align: 2px; }
+.j-sd.is-today.is-free .j-sd__h b::after { content: "Repos"; }
+
+/* =========================================================
+   Mois : calendrier plus visuel (étiquettes pleines, événements sur plusieurs jours en bandeau, week-ends teintés)
+   ========================================================= */
+.d-cal { padding: 12px 6px 12px; }
+.d-cal__g { gap: 4px 0; }
+.d-cal__c { min-height: 68px; padding: 4px 0; border-radius: 0; }
+.d-cal__c.is-we { background: color-mix(in srgb, var(--d-soft) 70%, transparent); }
+.d-cal__c.is-we:nth-child(7n + 6) { border-radius: 12px 0 0 12px; }
+.d-cal__c.is-we:nth-child(7n) { border-radius: 0 12px 12px 0; }
+.d-cal__c b { width: 30px; height: 30px; font-size: 15px; font-weight: 700; }
+.d-cal__c.has-ev:not(.is-today):not(.is-past) b { color: var(--text); }
+.d-cal__c.is-sel { border-radius: 12px; background: var(--d-rose-soft); box-shadow: inset 0 0 0 2px var(--d-rose); }
+.d-cal__c.is-sel b { color: var(--d-rose); }
+.d-cal__c.is-today.is-sel b { color: #fff; }
+.d-cal__l { margin: 0 2px; padding: 2px 4px; border-radius: 6px; font-size: 10.5px; font-weight: 700; color: #fff !important; }
+.d-cal__l.is-rdv { background: var(--d-rose); }
+.d-cal__l.is-ev { background: var(--d-teal-2); }
+.d-cal__l.is-race { background: #F0A01A; }
+.d-cal__l.is-span { margin: 0; border-radius: 0; }
+.d-cal__l.is-span:not(.is-a) { color: transparent !important; }
+.d-cal__l.is-span.is-a { margin-left: 2px; border-top-left-radius: 6px; border-bottom-left-radius: 6px; overflow: visible; position: relative; z-index: 1; }
+.d-cal__l.is-span.is-z { margin-right: 2px; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.d-cal__c.is-past .d-cal__l { opacity: .5; }
+.d-cal__dots i { width: 7px; height: 7px; }
+.d-cal__leg { font-size: 12.5px; }
+:root[data-theme="dark"] .d-cal__l.is-ev { background: #2C7A8C; }
+.s-days .j-sd > .j-sd__h { display: flex !important; flex-direction: row; align-items: flex-start; justify-content: space-between; margin: 0; padding: 0; }
+.d-cal__c.is-we { background: color-mix(in srgb, var(--d-soft) 45%, transparent); }
