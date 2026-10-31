@@ -403,3 +403,162 @@ button.j-wr__d { display: grid; gap: 2px; padding: 0; border: 0; background: non
 .rp-btn { min-width: 220px; min-height: 54px; border: 0; border-radius: 16px; background: #fff; color: var(--c1); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
 .rp-link { margin-top: 10px; padding: 8px; border: 0; background: none; color: #fff; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .rp, .rt, .rp-arc, .rp-bubble { transition: none; } .rp-s, .rp-medal, .rp-path i.is-cur { animation: none; } }
+
+/* ---------- Accueil : un bloc par jour, bien séparé ---------- */
+.d-week { gap: 0; }
+.d-day { padding: 16px 0 18px; border-top: 1px solid var(--d-edge); }
+.d-day:first-of-type { border-top: 0; padding-top: 4px; }
+.d-day.is-past { opacity: .55; }
+.d-day__h { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.d-day__d { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.d-day__d > b { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--d-soft); font-size: 18px; font-weight: 700; }
+.d-day.is-today .d-day__d > b { background: var(--d-rose); color: #fff; }
+.d-day__d > span { display: grid; font-size: 18px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+.d-day__d small { font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--text-2); }
+.d-day__wx { flex: none; display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 6px; border: 0; border-radius: 999px; background: var(--d-soft); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.d-day__wx .d-ill { width: 26px; height: 26px; }
+.d-day__add { flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--d-edge); border-radius: 50%; background: var(--d-card); color: var(--text); font: inherit; font-size: 20px; font-weight: 500; line-height: 1; cursor: pointer; }
+.d-day__add:hover, .d-day__add:focus-visible { border-color: var(--d-rose); background: var(--d-rose); color: #fff; }
+.d-day__c { display: grid; gap: 10px; }
+.d-day .d-rest { padding: 12px 14px; font-weight: 500; cursor: default; }
+
+/* Sport : deux blocs (Planifier, Météo) puis Routines */
+#weekView .s-h { margin: 22px 0 10px; }
+.s-wk { padding: 6px 12px 10px; border-radius: 20px; background: var(--d-card); box-shadow: var(--d-sh), 0 0 0 1px var(--d-line); }
+.s-wk__r { display: grid; grid-template-columns: 48px 66px repeat(3, 1fr); align-items: center; gap: 4px; width: 100%; padding: 8px 0; border: 0; border-top: 1px solid var(--d-line); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.s-wk__hd { border-top: 0; padding: 4px 0 6px; cursor: default; font-size: 11.5px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.s-wk__hd span:nth-child(n+3) { text-align: center; }
+.s-wk__r.is-today .s-wk__d b { color: var(--d-rose); }
+.s-wk__r.is-off { cursor: default; grid-template-columns: 48px 1fr; opacity: .55; }
+.s-wk__d b { display: block; font-size: 14px; font-weight: 700; }
+.s-wk__d small { font-size: 12px; color: var(--text-2); }
+.s-wk__na { font-size: 12.5px; color: var(--text-2); }
+.s-wk__t { display: flex; align-items: center; gap: 4px; }
+.s-wk__i { width: 26px; height: 26px; flex: none; }
+.s-wk__i svg { width: 100%; height: 100%; }
+.s-wk__t b { display: block; font-size: 14px; font-weight: 700; line-height: 1.1; }
+.s-wk__t small { font-size: 12px; color: var(--text-2); }
+.s-wk__c { display: flex; flex-direction: column; align-items: center; padding: 4px 0; border-radius: 10px; background: var(--d-soft); line-height: 1.15; }
+.s-wk__c b { font-size: 15px; font-weight: 700; }
+.s-wk__c small { font-size: 11.5px; color: var(--text-2); }
+.s-wk__c.is-mid { background: #FBEBD9; }
+.s-wk__c.is-hi { background: #F8D9DA; }
+.s-wk__c.is-off { opacity: .4; }
+.s-wk__l { margin: 8px 0 0; font-size: 12px; color: var(--text-2); }
+.s-wk__l b { color: var(--text); }
+#weekView .s-wx .j-wxbar { margin-top: 10px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .s-wk__c.is-mid { background: rgba(240,160,80,.22); } :root:not([data-theme="light"]) .s-wk__c.is-hi { background: rgba(230,90,100,.25); } }
+:root[data-theme="dark"] .s-wk__c.is-mid { background: rgba(240,160,80,.22); }
+:root[data-theme="dark"] .s-wk__c.is-hi { background: rgba(230,90,100,.25); }
+
+/* RDV et événements tout proches : teinte + étiquette */
+.d-it.is-soon, .d-it.is-now { box-shadow: var(--d-sh), 0 0 0 1.5px color-mix(in srgb, var(--d-rose) 45%, transparent); background: color-mix(in srgb, var(--d-rose) 7%, var(--d-card)); }
+.d-it.is-now { box-shadow: var(--d-sh), 0 0 0 2px var(--d-rose); background: color-mix(in srgb, var(--d-rose) 12%, var(--d-card)); }
+.d-near { flex: none; margin: 0 6px 0 auto; padding: 4px 9px; border-radius: 999px; background: var(--d-rose-soft) !important; color: var(--d-rose) !important; font-style: normal; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.d-it.is-now .d-near { background: var(--d-rose) !important; color: #fff !important; }
+
+/* Planifier : la séance + sa case « faite » */
+.j-sp { display: flex; align-items: center; gap: 10px; }
+.j-sp .j-sp__t { flex: 1; min-width: 0; }
+.j-done { flex: none; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 2px solid #C9C9C9; border-radius: 50%; background: none; color: transparent; cursor: pointer; transition: background .2s, border-color .2s, transform .4s var(--k-spring); }
+.j-done svg { width: 18px; height: 18px; }
+.j-done:active { transform: scale(.85); }
+.j-done.is-on { border-color: var(--d-teal); background: var(--d-teal); color: #fff; }
+.j-sp.is-done .j-sp__t b { text-decoration: line-through; text-decoration-color: var(--text-3); }
+.j-sp.is-done .j-sp__i { opacity: .55; }
+
+/* =========================================================
+   Harmonisation (31/10) : une seule palette pour toute l'app.
+   Rose = action principale et accent ; noir = choix sélectionné ; gris neutres (plus de bleu-lavande).
+   ========================================================= */
+:root[data-theme="light"] {
+  --bg: #fff; --bg-2: #fff; --surface: #fff; --surface-solid: #fff; --surface-2: #F2F2F2; --surface-3: #E4E4E4; --field: #F2F2F2;
+  --border: #EBEBEB; --border-strong: #DDDDDD;
+  --accent: #E0315B; --accent-2: #1C5B6B; --accent-ink: #fff; --accent-soft: #FFF0F3;
+  --gradient-accent: linear-gradient(135deg, #FF5A7E 0%, #E0315B 100%);
+  --pollen: #E0315B; --pollen-ink: #fff;
+  --late: #C2381F; --late-bg: #FDECE7; --danger: #C2381F; --danger-soft: #FDECE7;
+}
+:root[data-theme="dark"] {
+  --d-rose: #FF5C80;
+  --bg: #121315; --bg-2: #121315; --surface: #1C1D21; --surface-solid: #1C1D21; --surface-2: #26272B; --surface-3: #34353A; --field: #26272B;
+  --border: rgba(255, 255, 255, .08); --border-strong: rgba(255, 255, 255, .15);
+  --text: #F2F2F3; --text-2: #A8A8AE; --text-3: #7D7D84;
+  --accent: #FF5C80; --accent-2: #8CC3D0; --accent-ink: #fff; --accent-soft: rgba(255, 92, 128, .16);
+  --gradient-accent: linear-gradient(135deg, #FF7A97 0%, #E0315B 100%);
+  --pollen: #FF5C80; --pollen-ink: #fff;
+  --d-teal: #1C5B6B;
+}
+/* Actions principales : rose partout (OK, Enregistrer, flèche d'envoi, Continuer…) */
+.btn--primary, .btn--primary:hover:not(:disabled), .e-btn, .e-ed__ok, .e-big button, .j-cta, .d-next, .j-foot .is-go, .k-add button { background: var(--d-rose) !important; color: #fff !important; box-shadow: none; }
+.btn--primary:disabled, .e-big button:disabled, .e-btn:disabled { opacity: .45; }
+/* Action secondaire : contour */
+.j-wxbar__a button { background: none; color: var(--text); box-shadow: inset 0 0 0 1.5px var(--d-edge); }
+/* Liens : texte, pas d'accent ; danger en rouge */
+.k-lnk { color: var(--text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--d-edge); }
+.k-lnk.is-danger { color: var(--danger); text-decoration: none; }
+.link-btn { color: var(--text); }
+/* Feuilles : poignée grise, titres moins gros */
+.sheet { background: var(--d-card); }
+.sheet__grabber { background: var(--d-edge); }
+.sheet__title { font-size: 22px; line-height: 1.2; letter-spacing: -.03em; }
+.field__label { color: var(--text-2); font-weight: 600; letter-spacing: 0; text-transform: none; }
+.input, .select, .textarea { background: var(--d-soft); border-color: transparent; }
+.input:focus, .select:focus, .textarea:focus { box-shadow: 0 0 0 2px var(--d-rose); border-color: transparent; }
+/* Assistant + : points d'étape */
+.e-fdots i { background: var(--d-edge); }
+.e-fdots i.is-on, .e-fdots i.is-past { background: var(--text); }
+/* Cases à cocher (tâches, séances) : même rond partout */
+.k-chk, .k-ring { border-color: #C9C9C9; }
+:root[data-theme="dark"] :is(.k-chk, .k-ring, .j-done) { border-color: rgba(255, 255, 255, .28); }
+.k-chk.is-on, .k-ring.is-on { background: var(--d-teal); border-color: var(--d-teal); color: #fff; }
+/* Tâches : mêmes titres que les autres onglets, retard signalé par une pastille */
+.v-view .e-sec h2, .e-sec.is-late h2 { color: var(--text); }
+.e-sec.is-late small { padding: 2px 8px; border-radius: 999px; background: var(--late-bg); color: var(--late); }
+.e-check i { box-shadow: inset 0 0 0 2px #C9C9C9; }
+:root[data-theme="dark"] .e-check i { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .28); }
+.e-check.is-on i { background: var(--d-teal); box-shadow: none; color: #fff; }
+/* Fiche séance : même titre et mêmes étiquettes que les autres fiches */
+.e-pm__h h2 { font-size: 22px; font-weight: 700; line-height: 1.2; letter-spacing: -.03em; }
+.e-ed__f > span { font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-2); }
+.e-ed__f :is(select, input) { background: var(--d-soft); }
+/* Réglages : choix en pastilles, comme ailleurs */
+.segmented--flush { display: flex; gap: 6px; padding: 0; border: 0; background: none; }
+.segmented--flush button { flex: 1; min-height: 42px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--d-soft); color: var(--text); font: inherit; font-size: 14.5px; font-weight: 600; box-shadow: none; }
+.segmented--flush button::after { display: none; }
+.segmented--flush button[aria-checked="true"] { background: var(--text); color: var(--bg); }
+.account { padding: 14px 16px; border-radius: 16px; background: var(--d-soft); border: 0; }
+:root[data-theme="dark"] .rt-hero { background: linear-gradient(160deg, color-mix(in srgb, var(--c-main) 30%, transparent), transparent); }
+:root[data-theme="dark"] .rt-entry__i { background: var(--d-beige); }
+.j-wxbar__a button, .j-wxbar__a button[aria-expanded="true"] { border: 0; background: none; color: var(--text); box-shadow: inset 0 0 0 1.5px var(--d-edge); }
+.j-wxbar__a button[aria-expanded="true"] { background: var(--text); color: var(--bg); box-shadow: none; }
+/* Routines : formulaire aligné sur les autres fiches */
+.rt-f > span { font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.rt-f input:not([type=checkbox]), .rt-f select, .rt-er input:not([type=checkbox]), .rt-er select { border: 0; border-radius: 14px; background: var(--d-soft); appearance: none; -webkit-appearance: none; }
+.rt-f select, .rt-er select { padding-right: 30px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%238A8A8A' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+.rt-f input:focus, .rt-f select:focus, .rt-er input:focus, .rt-er select:focus { outline: 0; box-shadow: 0 0 0 2px var(--d-rose); }
+.rt-er input[type=checkbox], .rt-f input[type=checkbox], [class^="rt-"] input[type=checkbox] { width: 20px; min-height: 0; height: 20px; padding: 0; accent-color: var(--d-rose); appearance: auto; -webkit-appearance: checkbox; background: none; }
+.auth__error:not(:empty) ~ * .input:invalid { box-shadow: 0 0 0 2px var(--danger); }
+
+/* =========================================================
+   Lisibilité (31/10) : textes secondaires plus contrastés, tailles minimales relevées.
+   ========================================================= */
+:root[data-theme="light"] { --text-2: #5E5E5E; --text-3: #767676; }
+:root[data-theme="dark"] { --text-2: #B4B4BA; --text-3: #8E8E95; }
+body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+.d-it__b small, .j-sp__t small, .e-row__s, .s-wk__l, .rt-card small { font-size: 13.5px; line-height: 1.35; }
+.d-it__b b, .j-sp__t b { font-size: 16px; line-height: 1.25; }
+.s-wk__c small, .s-wk__d small, .s-wk__t small { font-size: 12.5px; }
+.s-wk__hd { font-size: 12px; }
+.d-sec h2 small, .e-wkline { font-size: 14px; }
+/* Sport : jours passés sans séance réduits à une ligne */
+.j-sd.is-mini { display: flex; align-items: baseline; gap: 10px; padding: 12px 16px; box-shadow: none; background: var(--d-soft); }
+.j-sd.is-mini b { font-size: 15px; font-weight: 600; }
+.j-sd.is-mini small { font-size: 13.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-plan { gap: 10px; }
+.s-plan .j-sd.is-mini + .j-sd.is-mini { margin-top: -4px; }
+/* Météo : boutons Actualiser / Lieu identiques */
+.j-wxbar__a button, .j-wxbar__a button + button { border: 0; border-radius: 999px; background: none; color: var(--text); box-shadow: inset 0 0 0 1.5px var(--d-edge); }
+.j-wxbar__a button[aria-expanded="true"] { background: var(--text); color: var(--bg); box-shadow: none; }
+/* Connexion : logo arrondi comme sur l'iPhone */
+.auth__logo { border-radius: 12px; box-shadow: 0 6px 16px -8px rgba(224, 49, 91, .6); }

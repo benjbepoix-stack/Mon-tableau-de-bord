@@ -53,6 +53,7 @@ export const toCalendarEvent = (item, type) => ({
   id: item.id,
   title: item.title,
   date: item.date,
+  endDate: item.endDate,
   time: item.time,
   endTime: item.endTime,
   location: item.location,
@@ -340,6 +341,12 @@ export function openEditor(type, id = null) {
   // Une répétition déjà choisie reste visible : le volet « Plus de détails » s'ouvre.
   $('#itemMore').open = Boolean(item && (item.repeat || item.note || item.endTime || item.location));
   $('#itemDelete').hidden = !item;
+  // Rendez-vous ou événement déjà enregistré : on peut l'envoyer au Calendrier de l'iPhone.
+  const cal = $('#itemCal');
+  if (cal) {
+    cal.hidden = !item || isTask || !item.date;
+    cal.onclick = () => { closeSheet('itemSheet'); offerCalendar(toCalendarEvent(item, type), { heading: 'Ajouter au calendrier ?' }); };
+  }
   openSheet('itemSheet');
 }
 
@@ -402,8 +409,8 @@ async function onSubmit(e) {
   submit.disabled = false;
   closeSheet('itemSheet');
 
-  if (type === 'appointments' && item.date) {
-    offerCalendar(toCalendarEvent(item, type), { heading: existing ? 'Rendez-vous modifié' : 'Rendez-vous enregistré', synced });
+  if (type !== 'tasks' && item.date) {
+    offerCalendar(toCalendarEvent(item, type), { heading: type === 'events' ? (existing ? 'Événement modifié' : 'Événement enregistré') : existing ? 'Rendez-vous modifié' : 'Rendez-vous enregistré', synced });
   } else {
     toast(existing ? 'Modifications enregistrées' : `${TYPES[type].one} ajouté${type === 'events' ? '' : type === 'tasks' ? 'e' : ''}`);
   }
