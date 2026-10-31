@@ -36,7 +36,7 @@ export function offerCalendar(event, { heading = 'Ajouter au calendrier ?', sync
     ${syncLine}
     <div class="cal-card">
       <div class="cal-card__title">${esc(event.title)}</div>
-      <div class="cal-card__row">${icon('calendar', 16)}<span>${esc(formatKey(event.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</span></div>
+      <div class="cal-card__row">${icon('calendar', 16)}<span>${esc(event.endDate && event.endDate > event.date ? `Du ${formatKey(event.date, { weekday: 'short', day: 'numeric', month: 'short' })} au ${formatKey(event.endDate, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}` : formatKey(event.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</span></div>
       <div class="cal-card__row">${icon('clock', 16)}<span>${esc(timeRange(event))}</span></div>
       ${isRepeat(event.repeat) ? `<div class="cal-card__row">${icon('repeat', 16)}<span>${REPEATS[event.repeat].label}</span></div>` : ''}
       ${event.location ? `<div class="cal-card__row">${icon('pin', 16)}<span>${esc(event.location)}</span></div>` : ''}
