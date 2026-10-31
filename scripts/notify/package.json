@@ -1,0 +1,11 @@
+{
+  "name": "carnet-notify",
+  "private": true,
+  "type": "module",
+  "description": "Envoi des notifications de Carnet (lancé par .github/workflows/notifications.yml).",
+  "scripts": { "start": "node send.mjs" },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "web-push": "^3.6.7"
+  }
+}
