@@ -9,7 +9,9 @@
  * puis envoie :
  *  - un rappel avant chaque rendez-vous / événement à heure fixe (délai `lead`, en minutes) ;
  *  - un rappel à l'heure des tâches qui en ont une ;
- *  - un résumé du matin à l'heure `morning` (séances, rendez-vous, tâches du jour et en retard).
+ *  - un résumé du matin à l'heure `morning` (séances, rendez-vous, tâches du jour et en retard,
+ *    échéances Garage / Maison) ;
+ *  - une notification quand Mon Garage ou Ma Maison publie une nouvelle tâche (`linked`).
  * Chaque envoi est noté dans users/<uid>/carnet_push/sent : jamais deux fois, même si
  * GitHub lance la tâche en retard. Un abonnement expiré (404/410) est supprimé.
  *
@@ -19,6 +21,7 @@
  *
  * `node send.mjs --dry` : affiche ce qui serait envoyé, sans rien envoyer ni noter.
  */
+import { createHash } from 'node:crypto';
 import { dateKey, addDays, combine, occurrencesBetween, nextTaskDate, isTime } from '../../js/core/dates.js';
 import { normalizeDashboard, normalizeFamilies, normalizePlans, isRestTraining } from '../../js/core/schema.js';
 
@@ -30,6 +33,9 @@ const MORNING_WINDOW_MS = 3 * 3600_000;
 /** Tâche à heure fixe : rappel jusqu'à 30 min après l'heure. */
 const TASK_WINDOW_MS = 30 * 60_000;
 const KEEP_SENT_MS = 3 * 86400_000;
+/** Échéance Garage / Maison disparue : oubliée après 60 jours (si elle revient avant, pas de nouvelle notification). */
+const KEEP_LINKED_MS = 60 * 86400_000;
+const APP_NAMES = { garage: 'Mon Garage', maison: 'Ma Maison' };
 
 const hm = d => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 /** 08:15 → « 8 h 15 ». */
@@ -37,6 +43,67 @@ const spoken = t => `${Number(t.slice(0, 2))} h ${t.slice(3)}`;
 const plural = (n, one, many = `${one}s`) => `${n} ${n > 1 ? many : one}`;
 /** Clé Firebase sûre (ni . $ # [ ] /). */
 const safe = s => String(s).replace(/[.$#[\]/]/g, '_');
+
+const asList = v => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []).filter(x => x && typeof x === 'object');
+const isDue = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+/**
+ * Tâches publiées par Mon Garage (`garage_alerts`) et Ma Maison (`maison_alerts`, y compris
+ * les tâches de saison du mois), lues comme dans js/features/linked-apps.js.
+ * La clé ignore le texte (« dans 12 j » change chaque jour) : titre, véhicule et échéance.
+ */
+export function linkedTasks(node) {
+  const out = [];
+  const add = (source, label, due, level, extra) =>
+    label && out.push({ source, label, due: isDue(due) ? due : '', level: level || '', key: createHash('sha1').update([source, label, isDue(due) ? due : '', extra].join('|')).digest('hex').slice(0, 16) });
+  asList(node?.garage_alerts).forEach(v =>
+    asList(v.alerts).forEach(a => add('garage', [v.vehicleName, a.title].filter(Boolean).map(String).join(' · '), a.due, a.level))
+  );
+  const m = node?.maison_alerts;
+  if (m && typeof m === 'object' && m.name) {
+    asList(m.alerts).filter(a => a.level !== 'info').forEach(a => add('maison', String(a.title || ''), a.due, a.level));
+    asList(m.season).forEach(t => add('maison', String(t.label || ''), '', 'info', `saison ${m.seasonMonth || ''}`));
+  }
+  return out;
+}
+
+/**
+ * Nouvelles tâches Garage / Maison depuis le dernier passage, et la liste « déjà vues » à jour.
+ * Premier passage (rien de connu) : tout est noté comme vu, sans notification.
+ */
+export function newLinkedTasks(node, seen, now) {
+  const current = linkedTasks(node);
+  const first = !seen;
+  // `_init` : la liste existe même vide (sinon un compte sans échéance resterait au « premier passage »).
+  const known = { _init: now.getTime(), ...(seen || {}) };
+  const fresh = [];
+  const currentKeys = new Set(current.map(t => t.key));
+  for (const t of current) {
+    if (known[t.key]) continue;
+    known[t.key] = now.getTime();
+    if (!first && !fresh.some(f => f.key === t.key)) fresh.push(t);
+  }
+  for (const [k, at] of Object.entries(known)) if (k !== '_init' && !currentKeys.has(k) && now - at > KEEP_LINKED_MS) delete known[k];
+  return { fresh, seen: known, changed: first || JSON.stringify(known) !== JSON.stringify(seen) };
+}
+
+/** Une notification par app pour ses nouvelles tâches. */
+export function linkedNotifications(fresh) {
+  return Object.keys(APP_NAMES)
+    .map(source => {
+      const list = fresh.filter(t => t.source === source);
+      if (!list.length) return null;
+      const line = t => `${t.label}${t.due ? ` (${t.due.slice(8)}/${t.due.slice(5, 7)})` : ''}${t.level === 'late' ? ' · en retard' : ''}`;
+      return {
+        key: `linked_${source}_${list.map(t => t.key).join('').slice(0, 24)}`,
+        title: list.length > 1 ? `${APP_NAMES[source]} · ${list.length} nouvelles tâches` : `${APP_NAMES[source]} · nouvelle tâche`,
+        body: list.slice(0, 4).map(line).join('\n') + (list.length > 4 ? '\n…' : ''),
+        tag: `linked-${source}`,
+        url: './'
+      };
+    })
+    .filter(Boolean);
+}
 
 function leadLabel(min) {
   if (min <= 0) return 'Maintenant';
@@ -116,6 +183,10 @@ export function dueNotifications(node, prefs, now, sent = {}) {
       if (sessions.length) lines.push(`Sport : ${sessions.map(s => [s.training || famName(s.family), s.distance && `${s.distance} km`].filter(Boolean).join(' ')).join(', ')}`);
       if (appts.length) lines.push(`Agenda : ${appts.slice(0, 3).map(x => (x.time ? `${x.time.replace(':', 'h')} ${x.title}` : x.title)).join(', ')}${appts.length > 3 ? '…' : ''}`);
       if (tasks.length) lines.push(`À faire : ${plural(tasks.length, 'tâche')}${late ? ` dont ${late} en retard` : ''}`);
+      if (prefs?.linked !== false) {
+        const due = linkedTasks(node).filter(t => t.level === 'late' || (t.due && t.due <= today));
+        if (due.length) lines.push(`Garage / Maison : ${due.slice(0, 2).map(t => t.label).join(', ')}${due.length > 2 ? ` et ${due.length - 2} autre${due.length > 3 ? 's' : ''}` : ''}`);
+      }
       if (lines.length) {
         push({ key: `morning_${today}`, title: 'Ta journée', body: lines.join('\n'), tag: 'morning', url: './' });
       }
@@ -156,6 +227,9 @@ async function main() {
     const user = { carnet_push: push, carnet: (await db.ref(`users/${uid}/carnet`).get()).val() };
     const sentRef = db.ref(`users/${uid}/carnet_push/sent`);
     const updates = {};
+    // Nouvelles tâches de Mon Garage / Ma Maison (une détection par compte, pour tous ses appareils).
+    const linked = newLinkedTasks(user.carnet, push.linked_seen, now);
+    const linkedList = linkedNotifications(linked.fresh);
     for (const [deviceId, device] of Object.entries(devices)) {
       if (!device?.subscription?.endpoint) continue;
       const sent = user.carnet_push.sent?.[deviceId] || {};
@@ -165,6 +239,7 @@ async function main() {
         ? [{ key: `test_${device.test}`, title: 'Carnet', body: 'Les notifications fonctionnent sur cet appareil.', tag: 'test', url: './' }].filter(n => !sent[n.key])
         : [];
       list.push(...dueNotifications(user.carnet, device.prefs, now, sent));
+      if (device.prefs?.linked !== false) list.push(...linkedList.filter(n => !sent[n.key]));
       for (const n of list) {
         console.log(`${dry ? '[essai] ' : ''}${uid.slice(0, 6)}… ${deviceId} → ${n.title} | ${n.body.replace(/\n/g, ' / ')}`);
         if (dry) continue;
@@ -185,6 +260,7 @@ async function main() {
       }
     }
     if (!dry && Object.keys(updates).length) await sentRef.update(updates);
+    if (!dry && linked.changed) await db.ref(`users/${uid}/carnet_push/linked_seen`).set(linked.seen);
   }
   console.log(`${total} notification(s) envoyée(s) à ${hm(now)}.`);
 }

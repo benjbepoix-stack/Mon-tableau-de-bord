@@ -1,5 +1,6 @@
 /*
- * Notifications (Web Push) — bloc « Notifications » des Réglages.
+ * Notifications (Web Push) — bloc « Notifications » des Réglages : résumé du matin,
+ * rappels de rendez-vous et de tâches, nouvelles tâches de Mon Garage / Ma Maison.
  *
  * L'app abonne l'appareil (permission du navigateur + PushManager du service worker)
  * et enregistre l'abonnement et les préférences dans
@@ -19,7 +20,7 @@ import { toast, toastError } from '../ui/toast.js';
 const VAPID_PUBLIC_KEY = 'BBWMKxkxDXx0JH9c04kgLlBXBrrql91E4DZIZLejdfgULy1qQEdKBZAZUuGoEp8U0ZctPmh0Deex1mbVuMsrqsU';
 const PREFS_KEY = 'carnet_push_prefs';
 const DEVICE_KEY = 'carnet_push_device';
-const DEFAULT_PREFS = { appts: true, lead: 60, tasks: true, morning: '07:30' };
+const DEFAULT_PREFS = { appts: true, lead: 60, tasks: true, linked: true, morning: '07:30' };
 
 const LEADS = [[15, '15 min avant'], [30, '30 min avant'], [60, '1 h avant'], [120, '2 h avant'], [1440, 'La veille (24 h avant)'], [-1, 'Pas de rappel']];
 const MORNINGS = ['06:30', '07:00', '07:30', '08:00', '08:30', '09:00'];
@@ -56,7 +57,7 @@ async function save(sub, extra = {}) {
   const p = prefs();
   await setUserPath(devicePath(), {
     subscription: sub.toJSON(),
-    prefs: { appts: p.lead >= 0, lead: Math.max(0, p.lead), tasks: p.tasks, morning: p.morning || '' },
+    prefs: { appts: p.lead >= 0, lead: Math.max(0, p.lead), tasks: p.tasks, linked: p.linked, morning: p.morning || '' },
     app: appLabel(),
     updatedAt: Date.now(),
     ...extra
@@ -118,15 +119,16 @@ export async function render() {
   }
   const sub = Notification.permission === 'granted' ? await subscription() : null;
   if (!sub) {
-    box.innerHTML = `${line('Rappels avant vos rendez-vous et résumé de la journée chaque matin, même app fermée.')}
+    box.innerHTML = `${line('Résumé de la journée chaque matin, rappels avant vos rendez-vous et nouvelles tâches de Mon Garage et Ma Maison, même app fermée.')}
       <button type="button" class="btn btn--primary btn--block" data-push="on">Activer les notifications</button>`;
     return;
   }
   const p = prefs();
   box.innerHTML = `
-    <div class="field"><label class="field__label" for="pushLead">Rendez-vous et événements</label>${select('pushLead', LEADS, p.lead)}</div>
     <div class="field"><label class="field__label" for="pushMorning">Résumé du matin</label>${select('pushMorning', [...MORNINGS.map(t => [t, `Chaque jour à ${Number(t.slice(0, 2))} h ${t.slice(3)}`]), ['', 'Pas de résumé']], p.morning)}</div>
+    <div class="field"><label class="field__label" for="pushLead">Rendez-vous et événements</label>${select('pushLead', LEADS, p.lead)}</div>
     <div class="field"><label class="field__label" for="pushTasks">Tâches avec une heure</label>${select('pushTasks', [['1', 'Rappel à l’heure'], ['0', 'Pas de rappel']], p.tasks ? '1' : '0')}</div>
+    <div class="field"><label class="field__label" for="pushLinked">Mon Garage et Ma Maison</label>${select('pushLinked', [['1', 'À chaque nouvelle tâche'], ['0', 'Pas de notification']], p.linked ? '1' : '0')}</div>
     <button type="button" class="btn btn--soft btn--block" data-push="test">Envoyer une notification d’essai</button>
     <button type="button" class="btn btn--ghost btn--block" data-push="off">Désactiver sur cet appareil</button>`;
 }
@@ -167,6 +169,7 @@ export function initPush() {
     if (e.target.id === 'pushLead') p.lead = Number(e.target.value);
     else if (e.target.id === 'pushMorning') p.morning = e.target.value;
     else if (e.target.id === 'pushTasks') p.tasks = e.target.value === '1';
+    else if (e.target.id === 'pushLinked') p.linked = e.target.value === '1';
     else return;
     write(PREFS_KEY, p);
     try {
