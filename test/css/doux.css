@@ -539,3 +539,26 @@ button.j-wr__d { display: grid; gap: 2px; padding: 0; border: 0; background: non
 .rt-f input:focus, .rt-f select:focus, .rt-er input:focus, .rt-er select:focus { outline: 0; box-shadow: 0 0 0 2px var(--d-rose); }
 .rt-er input[type=checkbox], .rt-f input[type=checkbox], [class^="rt-"] input[type=checkbox] { width: 20px; min-height: 0; height: 20px; padding: 0; accent-color: var(--d-rose); appearance: auto; -webkit-appearance: checkbox; background: none; }
 .auth__error:not(:empty) ~ * .input:invalid { box-shadow: 0 0 0 2px var(--danger); }
+
+/* =========================================================
+   Lisibilité (31/10) : textes secondaires plus contrastés, tailles minimales relevées.
+   ========================================================= */
+:root[data-theme="light"] { --text-2: #5E5E5E; --text-3: #767676; }
+:root[data-theme="dark"] { --text-2: #B4B4BA; --text-3: #8E8E95; }
+body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+.d-it__b small, .j-sp__t small, .e-row__s, .s-wk__l, .rt-card small { font-size: 13.5px; line-height: 1.35; }
+.d-it__b b, .j-sp__t b { font-size: 16px; line-height: 1.25; }
+.s-wk__c small, .s-wk__d small, .s-wk__t small { font-size: 12.5px; }
+.s-wk__hd { font-size: 12px; }
+.d-sec h2 small, .e-wkline { font-size: 14px; }
+/* Sport : jours passés sans séance réduits à une ligne */
+.j-sd.is-mini { display: flex; align-items: baseline; gap: 10px; padding: 12px 16px; box-shadow: none; background: var(--d-soft); }
+.j-sd.is-mini b { font-size: 15px; font-weight: 600; }
+.j-sd.is-mini small { font-size: 13.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-plan { gap: 10px; }
+.s-plan .j-sd.is-mini + .j-sd.is-mini { margin-top: -4px; }
+/* Météo : boutons Actualiser / Lieu identiques */
+.j-wxbar__a button, .j-wxbar__a button + button { border: 0; border-radius: 999px; background: none; color: var(--text); box-shadow: inset 0 0 0 1.5px var(--d-edge); }
+.j-wxbar__a button[aria-expanded="true"] { background: var(--text); color: var(--bg); box-shadow: none; }
+/* Connexion : logo arrondi comme sur l'iPhone */
+.auth__logo { border-radius: 12px; box-shadow: 0 6px 16px -8px rgba(224, 49, 91, .6); }
