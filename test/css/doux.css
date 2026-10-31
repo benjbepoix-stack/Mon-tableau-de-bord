@@ -661,3 +661,67 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 :root[data-theme="dark"] .d-cal__l.is-ev { background: #2C7A8C; }
 .s-days .j-sd > .j-sd__h { display: flex !important; flex-direction: row; align-items: flex-start; justify-content: space-between; margin: 0; padding: 0; }
 .d-cal__c.is-we { background: color-mix(in srgb, var(--d-soft) 45%, transparent); }
+
+/* =========================================================
+   Sport › Planifier compact (31/10 soir) : une ligne par jour, la semaine tient sur un écran
+   ========================================================= */
+.s-days { grid-auto-rows: auto; gap: 6px; }
+.s-days .j-sd { display: grid !important; grid-template-columns: 52px minmax(0, 1fr) 30px; align-items: center; gap: 8px; min-height: 58px; padding: 6px 8px 6px 12px; border-radius: 16px; background: var(--d-card) !important; color: var(--text); box-shadow: 0 0 0 1px var(--d-line) !important; }
+.j-sd__d b { display: block; font-size: 14.5px; font-weight: 700; line-height: 1.15; }
+.j-sd__d i { font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--d-rose); }
+.j-sd__c { display: grid; gap: 4px; min-width: 0; }
+.j-sd__ev { overflow: hidden; font-size: 12px; font-weight: 600; color: var(--d-rose); white-space: nowrap; text-overflow: ellipsis; }
+.s-days .j-sp { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 !important; border: 0; background: none !important; }
+.s-days .j-sp__t { display: grid !important; grid-template-columns: 34px minmax(0, 1fr); column-gap: 8px; align-items: center; padding: 0; }
+.s-days .j-sp__i { width: 34px; height: 34px; border-radius: 10px; grid-row: 1 / span 2; }
+.s-days .j-sp__i .d-ill { width: 26px; height: 26px; }
+.s-days .j-sp__t b { font-size: 14.5px; line-height: 1.2; }
+.s-days .j-sp__t small { overflow: hidden; font-size: 12px; line-height: 1.25; white-space: nowrap; text-overflow: ellipsis; }
+.s-days .j-sp__t em { display: none; }
+.s-days .j-done { width: 28px; height: 28px; }
+.s-days .j-done svg { width: 15px; height: 15px; }
+.s-days .j-sd.is-free .j-rest-s { display: block; margin: 0; padding: 0; background: none; color: var(--text-3); font-size: 13.5px; font-weight: 500; }
+.s-days .j-add { width: 30px; height: 30px; font-size: 18px; }
+.s-days .j-race { padding: 0; font-size: 12.5px; }
+.s-days .j-sd.is-past { opacity: .55; }
+/* Aujourd'hui : un simple contour rose, comme les événements proches */
+.s-days .j-sd.is-today { box-shadow: 0 0 0 2px var(--d-rose) !important; background: var(--d-card) !important; color: var(--text); }
+.s-days .j-sd.is-today .j-sp__t b { color: var(--text); }
+.s-days .j-sd.is-today .j-sp__t small { color: var(--text-2); }
+.s-days .j-sd.is-today .j-sp__i { background: var(--d-rose-soft); }
+.s-days .j-sd.is-today .j-add { background: var(--d-soft); color: var(--text); }
+.s-days .j-sd.is-today .j-done { border-color: #C9C9C9; }
+.s-days .j-sd.is-today .j-done.is-on { border-color: var(--d-teal); background: var(--d-teal); color: #fff; }
+.s-days .j-sd.is-today .j-rest-s { color: var(--text-3); }
+.s-days .j-sd.is-today .j-race { color: inherit; }
+:root[data-theme="dark"] .s-days .j-sd.is-today .j-done { border-color: rgba(255, 255, 255, .28); }
+/* Haut de l'onglet Sport plus serré */
+#weekView .s-phase { margin-bottom: 0; }
+#weekView .s-h { margin: 16px 0 8px; }
+#weekView .d-past { min-height: 40px; margin-bottom: 6px; padding: 8px 14px; }
+
+/* Mois : le calendrier tient sur un écran */
+.d-cal { padding: 8px 4px 8px; }
+.d-cal__h span { padding-bottom: 4px; }
+.d-cal__g { gap: 2px 0; }
+.d-cal__c { min-height: 52px; padding: 2px 0; gap: 1px; }
+.d-cal__c b { width: 26px; height: 26px; font-size: 14px; }
+.d-cal__l { padding: 1px 3px; font-size: 10px; }
+.d-cal__leg { gap: 4px 10px; margin: 6px 4px 0; font-size: 11.5px; }
+#agendaView .d-sec--top { margin-bottom: 8px; }
+
+/* Accueil, cartes : la carte tient entière à l'écran, son contenu défile à l'intérieur si besoin */
+.d-mode { margin-bottom: 8px; padding: 3px; }
+.d-mode button { min-height: 34px; font-size: 14px; }
+.d-strip { margin-bottom: 6px; }
+.d-strip button { padding: 4px 0 7px; font-size: 16px; }
+.d-cards { padding-top: 2px; padding-bottom: 10px; }
+.d-card { min-height: 0; height: var(--card-h, calc(100svh - 330px)); max-height: 620px; padding: 14px 14px 12px; }
+.d-card__n { width: 48px; height: 48px; border-radius: 15px; font-size: 24px; }
+.d-card__d b { font-size: 21px; }
+.d-card__sum { margin: 10px 2px 8px; }
+.d-card__c { overflow-y: auto; gap: 8px; margin: 0 -4px; padding: 0 4px; overscroll-behavior: contain; }
+.d-card .d-it { padding: 6px; }
+.d-card .d-th { width: 44px; height: 44px; }
+.d-card__add { flex: none; margin-top: 10px; min-height: 46px; }
+.d-card__empty { min-height: 0; }
