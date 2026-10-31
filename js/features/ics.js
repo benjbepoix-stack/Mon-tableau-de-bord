@@ -58,17 +58,19 @@ export function foldLine(line) {
  * Calcule début/fin d'un élément de l'app.
  * @param {{date:string,time?:string,endTime?:string,durationMinutes?:number}} item
  */
-export function eventWindow({ date, time, endTime, durationMinutes }) {
+export function eventWindow({ date, endDate, time, endTime, durationMinutes }) {
+  const multi = endDate && endDate > date;
   if (!isTime(time)) {
     const start = combine(date, '12:00');
     if (!start) return null;
-    const end = new Date(start);
+    // Journée(s) entière(s) : la fin est exclusive (lendemain du dernier jour).
+    const end = (multi && combine(endDate, '12:00')) || new Date(start);
     end.setDate(end.getDate() + 1);
     return { allDay: true, start, end };
   }
   const start = combine(date, time);
   if (!start) return null;
-  let end = isTime(endTime) ? combine(date, endTime) : null;
+  let end = isTime(endTime) ? combine(multi ? endDate : date, endTime) : multi ? combine(endDate, time) : null;
   if (end && end <= start) end.setDate(end.getDate() + 1); // se termine après minuit
   const duration = Number(durationMinutes) > 0 ? Number(durationMinutes) : DEFAULT_DURATION_MIN;
   if (!end) end = new Date(start.getTime() + duration * 60000);
