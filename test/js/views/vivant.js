@@ -61,6 +61,7 @@ let assignKeep = false;
 let monthsShown = 3; // Mois : ce mois-ci et les deux suivants
 let showPast = false; // Accueil : jours passés de la semaine dépliés
 let sportPast = false; // Sport : idem
+let monthPast = false; // Mois : dates passées de la liste
 
 /* ---------- Séances ---------- */
 const familyOf = s => (state.families || []).find(f => f.id === s.family);
@@ -604,9 +605,11 @@ export function renderAgendaView() {
     const races = (state.races || []).filter(r => r.date === k);
     const ses = sessionsOn(k).length;
     const tasks = state.dashboard.tasks.filter(t => !t.done && t.date === k).length;
-    const labels = [...races.map(r => `<span class="d-cal__l is-race">${esc(r.name)}</span>`), ...ev.map(x => `<span class="d-cal__l ${x.kind === 'events' ? 'is-ev' : 'is-rdv'} ${x.endDate ? 'is-span' : ''}">${x.time && !x.endDate ? `${hhmm(x.time).replace(' h 00', ' h')} ` : ''}${esc(x.title)}</span>`)];
+    const labels = [...races.map(r => `<span class="d-cal__l is-race">${esc(r.name)}</span>`), ...ev.map(x => `<span class="d-cal__l ${x.kind === 'events' ? 'is-ev' : 'is-rdv'} ${x.endDate ? `is-span ${x.date === k || fromKey(k).getDay() === 1 ? 'is-a' : ''} ${x.endDate === k || fromKey(k).getDay() === 0 ? 'is-z' : ''}` : ''}">${x.time && !x.endDate ? `${hhmm(x.time).replace(' h 00', ' h')} ` : ''}${esc(x.title)}</span>`)];
     const d = fromKey(k);
-    cells += `<button type="button" class="d-cal__c ${out ? 'is-out' : ''} ${k === today ? 'is-today' : ''} ${k === daySel ? 'is-sel' : ''} ${k < today ? 'is-past' : ''}" data-v="mday" data-day="${k}" aria-label="${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`)}" aria-pressed="${k === daySel}">
+    const wk = [0, 6].includes(fromKey(k).getDay()) ? 'is-we' : '';
+    const busyDay = labels.length ? 'has-ev' : '';
+    cells += `<button type="button" class="d-cal__c ${wk} ${busyDay} ${out ? 'is-out' : ''} ${k === today ? 'is-today' : ''} ${k === daySel ? 'is-sel' : ''} ${k < today ? 'is-past' : ''}" data-v="mday" data-day="${k}" aria-label="${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`)}" aria-pressed="${k === daySel}">
       <b>${d.getDate()}</b>${labels.slice(0, 2).join('')}${labels.length > 2 ? `<span class="d-cal__m">+${labels.length - 2}</span>` : ''}
       ${ses || tasks ? `<span class="d-cal__dots">${'<i class="is-ses"></i>'.repeat(Math.min(ses, 3))}${'<i class="is-task"></i>'.repeat(Math.min(tasks, 3))}</span>` : ''}</button>`;
   }
@@ -631,7 +634,13 @@ export function renderAgendaView() {
     <div class="d-sec"><h2>${cap(WD_FULL[sd.getDay()])} ${sd.getDate()} ${MONTHS[sd.getMonth()]}<small>${dayList.length ? `${dayList.length} chose${dayList.length > 1 ? 's' : ''} prévue${dayList.length > 1 ? 's' : ''}` : 'Rien de prévu'}</small></h2><button type="button" class="d-add" data-v="wadd" data-day="${daySel}">+ Ajouter</button></div>
     <section class="d-list">${dayList.map(itRow).join('')}${daySel >= today && wx[daySel] ? `<button type="button" class="d-wxl" data-dwx="${daySel}">${SKY[wx[daySel].sky] || SKY.cloud}${esc(wx[daySel].label)} · ${wx[daySel].min}° / ${wx[daySel].max}° · heure par heure<span aria-hidden="true">${I.fwd}</span></button>` : ''}</section>
     <div class="d-sec"><h2>Tout le mois<small>Rendez-vous, événements et courses</small></h2></div>
-    <section class="d-list">${month.map(monthRow).join('') || '<p class="j-none">Rien de prévu ce mois-ci.</p>'}</section>`;
+    <section class="d-list">${(() => {
+      const isGone = ({ k, x }) => k < today && !(x.endDate >= today);
+      const gone = month.filter(isGone);
+      const left = month.filter(m => !isGone(m));
+      const tog = gone.length ? `<button type="button" class="d-past" data-v="mpast" aria-expanded="${monthPast}">${monthPast ? 'Masquer les dates passées' : `Voir les ${gone.length} date${gone.length > 1 ? 's' : ''} passée${gone.length > 1 ? 's' : ''}`}</button>` : '';
+      return `${tog}${(monthPast ? month : left).map(monthRow).join('') || (gone.length ? '<p class="j-none">Plus rien de prévu ce mois-ci.</p>' : '<p class="j-none">Rien de prévu ce mois-ci.</p>')}`;
+    })()}</section>`;
   done(host);
 }
 
@@ -882,7 +891,9 @@ function onWxSubmit(e) {
 function jSport(keys) {
   const today = todayKey();
   const opt = (v, l, on) => `<option value="${esc(v)}"${on ? ' selected' : ''}>${esc(l)}</option>`;
-  const days = keys.map(k => {
+  const hidden = keys.filter(k => k < today);
+  const allPast = keys[6] < today;
+  const days = keys.filter(k => k >= today || sportPast || allPast).map(k => {
     const d = fromKey(k);
     const ss = sessionsOn(k);
     const busy = itemsOn(k).map(x => `${x.title}${x.time && (!x.endDate || x.date === k) ? ` ${hours(x)}` : ''}`);
@@ -895,11 +906,11 @@ function jSport(keys) {
     }).join('');
     const races = (state.races || []).filter(r => r.date === k).map(r => `<a class="j-race" href="${ALLURE_URL}">🏁 <b>${esc(r.name)}</b>${r.distance ? ` · ${esc(r.distance)} km` : ''}</a>`).join('');
     const past = k < today;
-    if (past && !ss.length && !races) return `<section class="j-sd is-past is-mini" id="pday-${k}"><b>${cap(WD_FULL[d.getDay()])} ${d.getDate()}</b><small>${busy.length ? esc(busy.join(' · ')) : 'Rien'}</small></section>`;
-    return `<section class="j-sd ${k === today ? 'is-today' : ''} ${past ? 'is-past' : ''}" id="pday-${k}"><header><b>${k === today ? 'Aujourd’hui' : cap(WD_FULL[d.getDay()])} ${d.getDate()}</b>${busy.length ? `<small>${esc(busy.join(' · '))}</small>` : ''}</header>
-      ${races}${rows || `<p class="j-rest-s">${past ? 'Rien' : 'Repos'}</p>`}${past ? '' : `<button type="button" class="j-plus" data-w="add" data-day="${k}">+ Séance</button>`}</section>`;
+    const head = `<header class="j-sd__h"><span><b>${k === today ? 'Aujourd’hui' : cap(WD_FULL[d.getDay()])} ${d.getDate()}</b>${busy.length ? `<small>${esc(busy.join(' · '))}</small>` : ''}</span>${past ? '' : `<button type="button" class="j-add" data-w="add" data-day="${k}" aria-label="Ajouter une séance ${esc(WD_FULL[d.getDay()])} ${d.getDate()}">+</button>`}</header>`;
+    return `<section class="j-sd ${k === today ? 'is-today' : ''} ${past ? 'is-past' : ''} ${ss.length ? '' : 'is-free'}" id="pday-${k}">${head}${races}${rows || `<p class="j-rest-s">${past ? 'Rien' : 'Repos'}</p>`}</section>`;
   }).join('');
-  return days;
+  const toggle = hidden.length && !allPast ? `<button type="button" class="d-past" data-v="spast" aria-expanded="${sportPast}">${sportPast ? 'Masquer les jours passés' : `Voir les jours passés <small>${cap(WD[fromKey(hidden[0]).getDay()])}. ${fromKey(hidden[0]).getDate()} – ${WD[fromKey(hidden.at(-1)).getDay()]}. ${fromKey(hidden.at(-1)).getDate()}</small>`}</button>` : '';
+  return `${toggle}<div class="s-days">${days}</div>`;
 }
 /** Sport, bloc météo : pour chaque jour, températures min-max puis vent moyen et rafales
  *  le matin, le midi et le soir. Toucher un jour ouvre la vue heure par heure. */
@@ -1827,7 +1838,11 @@ export function showVivant(id) {
     focusDay = null;
   }
   // Accueil : la semaine en cours (le dimanche soir, la suivante).
-  if (arriving && id === 'todayView') planStart = defaultPlanStart();
+  if (arriving && id === 'todayView') {
+    // En mode cartes, on revient toujours sur la carte d'aujourd'hui.
+    planStart = homeMode === 'cards' ? dateKey(mondayOf(new Date())) : defaultPlanStart();
+    cardKey = todayKey();
+  }
   if (arriving && id === 'todoView') {
     if (!assignKeep) assign = false;
     assignKeep = false;
@@ -1895,6 +1910,9 @@ function onClick(e) {
     case 'spast':
       sportPast = !sportPast;
       return renderWeekView();
+    case 'mpast':
+      monthPast = !monthPast;
+      return renderAgendaView();
     case 'dweek':
       return $('#dWeek')?.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
     case 'pedit':
@@ -2137,6 +2155,12 @@ function initDayWx() {
 
 export function initVivant({ go }) {
   goto = go;
+  // Retour dans l'app après plus d'une minute : comme une nouvelle arrivée (accueil sur aujourd'hui, Sport sur la semaine).
+  let hidAt = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') hidAt = Date.now();
+    else if (hidAt && Date.now() - hidAt > 60000) current = null;
+  });
   injectIllustrations();
   initDayWx();
   initRoutines();
