@@ -2,7 +2,10 @@
  * « Les trois espaces » : un accueil calme et un écran par univers.
  *  - Accueil : prochain rendez-vous (anneau de proximité), puis trois cartes (Ensuite, À faire,
  *    Sport) qui ouvrent chacune leur écran, et la note ;
- *  - Agenda : mini-calendrier du mois et rendez-vous / événements à venir, comptés en nombre ;
+ *  - Ma semaine : tout ce qui est prévu jour par jour (rendez-vous, événements, séances, tâches), la météo
+ *    en petit, et des propositions quand une séance tombe sur un créneau pris ou une mauvaise météo ;
+ *    le dimanche soir, elle s'ouvre sur la semaine suivante (état des lieux) ;
+ *  - Mois : calendrier du mois et ce qui est prévu, mois par mois, sur les deux mois suivants ;
  *  - Tâches : tâches groupées par échéance (glisser à droite = faite, à gauche = demain), et celles
  *    de Garage, Maison et Allure au même format, avec le nom de l'app ;
  *  - Sport : le planning détaillé. Phase de saison (Cadence) jusqu'à la prochaine course, « Programmer
@@ -13,18 +16,19 @@
  */
 import { $, esc, uid } from '../core/utils.js';
 import { state, commit } from '../core/store.js';
-import { todayKey, dateKey, addDays, fromKey, combine, formatKey, formatDate, isRepeat, nextOccurrenceKey, REPEATS, mondayOf } from '../core/dates.js';
+import { todayKey, dateKey, addDays, fromKey, combine, formatKey, formatDate, isRepeat, nextOccurrenceKey, occurrencesBetween, REPEATS, mondayOf } from '../core/dates.js';
 import { isRestTraining } from '../core/schema.js';
 import { parseEntry } from '../core/parse.js';
 import { getPhases, phaseOn, PHASE_TYPES } from '../core/season.js';
 import { readJSON, write } from '../services/storage.js';
-import { fetchSlots, SLOT_HOURS } from '../services/weather.js';
+import { fetchSlots, SLOT_HOURS, getPlace, setPlace, searchPlaces, wxAt } from '../services/weather.js';
 import { toast, toastError } from '../ui/toast.js';
 import { burst, buzz } from '../ui/feedback.js';
 import { linkedItems, GARAGE_URL, MAISON_URL } from '../features/linked-apps.js';
 import { sportTasks } from '../features/sport-tasks.js';
 import { openEditor, ALLURE_URL } from './dashboard.js';
 import { openSportManager } from './training.js';
+import { openRoutines, initRoutines } from './routines.js';
 
 const DONE_KEY = 'carnet_sessions_done';
 const WD = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
@@ -41,7 +45,6 @@ let current = 'todayView';
 let entering = true;
 let wx = {};
 const wxAsked = new Set();
-let more = 8; // rendez-vous affichés dans l'agenda
 let daySel = null; // jour choisi dans le mini-calendrier
 let monthOff = 0;
 let weekStart = '';
@@ -50,6 +53,13 @@ let flash = null; // élément ajouté, mis en évidence au prochain rendu
 let landed = null;
 let editId = null; // séance dépliée pour modification dans Sport
 let focusDay = null; // jour sur lequel se placer en arrivant sur Sport
+let planStart = ''; // lundi de la semaine affichée dans « Ma semaine »
+let assign = false; // Tâches : mode « Répartir sur la semaine »
+let assignStart = '';
+let assignKeep = false;
+let monthsShown = 3; // Mois : ce mois-ci et les deux suivants
+let showPast = false; // Accueil : jours passés de la semaine dépliés
+let sportPast = false; // Sport : idem
 
 /* ---------- Séances ---------- */
 const familyOf = s => (state.families || []).find(f => f.id === s.family);
@@ -102,15 +112,16 @@ function toggleDone(k, id) {
 }
 
 /* ---------- Météo par créneau ---------- */
-function loadWx() {
-  [todayKey(), weekStart].filter(Boolean).forEach(k => {
+function loadWx(force = false) {
+  [...new Set([todayKey(), weekStart, planStart].filter(Boolean))].forEach(k => {
     if (wxAsked.has(k)) return;
     wxAsked.add(k);
-    fetchSlots(k, 8)
+    fetchSlots(k, 8, { force })
       .then(data => {
         wx = { ...wx, ...data };
         if (!Object.keys(data).length) return;
         renderCurrent();
+        if (DW) renderDayWx();
         // Pop-up « Programmer ma semaine » ouvert avant la météo : on refait la proposition.
         replanIfUntouched();
       })
@@ -195,6 +206,7 @@ const I = {
   back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>',
   fwd: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>',
   x: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  pin: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>',
   go: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
   out: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>'
 };
@@ -211,35 +223,51 @@ function dayWord(k) {
 const dayTitle = k => (dayDiff(k) === 0 ? 'Aujourd’hui' : dayDiff(k) === 1 ? 'Demain' : cap(formatKey(k, { weekday: 'long', day: 'numeric' })));
 const hhmm = t => t.replace(':', ' h ');
 
-/** Rendez-vous et événements à venir (prochaine occurrence pour ceux qui se répètent). */
+/** Nombre de jours après le premier pour un événement sur plusieurs jours (0 sinon). */
+const spanDays = x => (x.endDate && x.date && x.endDate > x.date ? Math.round((fromKey(x.endDate) - fromKey(x.date)) / 86400000) : 0);
+/** Premier jour de l'occurrence qui couvre le jour k (plusieurs jours et répétitions compris), sinon null. */
+function startCovering(x, k) {
+  const occ = occurrencesBetween(x, dateKey(addDays(fromKey(k), -spanDays(x))), k);
+  return occ.length ? occ[occ.length - 1] : null;
+}
+const endOf = (x, start) => (spanDays(x) ? dateKey(addDays(fromKey(start), spanDays(x))) : '');
+/** Rendez-vous et événements à venir (prochaine occurrence pour ceux qui se répètent ; un événement
+ *  sur plusieurs jours déjà commencé reste à venir jusqu'à son dernier jour). */
 function upcoming() {
   const today = todayKey();
   const now = Date.now();
   const items = [];
   ['appointments', 'events'].forEach(kind =>
     state.dashboard[kind].forEach(x => {
-      const date = isRepeat(x.repeat) ? nextOccurrenceKey(x) : x.date;
-      if (!date || date < today) return;
-      const end = combine(date, x.endTime || x.time, '23:59');
+      const date = (spanDays(x) && startCovering(x, today)) || (isRepeat(x.repeat) ? nextOccurrenceKey(x) : x.date);
+      if (!date) return;
+      const endDate = endOf(x, date);
+      if ((endDate || date) < today) return;
+      const end = endDate ? null : combine(date, x.endTime || x.time, '23:59');
       if (end && end.getTime() < now) return;
-      items.push({ id: x.id, title: x.title, date, time: x.time, place: x.location || '', kind, repeat: x.repeat });
+      items.push({ id: x.id, title: x.title, date, endDate, time: x.time, endTime: x.endTime, place: x.location || '', kind, repeat: x.repeat });
     })
   );
   return items.sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
 }
-/** Rendez-vous et événements d'un jour donné (répétitions comprises). */
+/** Rendez-vous et événements d'un jour donné (répétitions et événements sur plusieurs jours compris). */
 function itemsOn(k) {
   const out = [];
   ['appointments', 'events'].forEach(kind =>
     state.dashboard[kind].forEach(x => {
-      const date = isRepeat(x.repeat) ? (x.date <= k ? nextOccurrenceKey(x, fromKey(k)) : x.date) : x.date;
-      if (date === k) out.push({ id: x.id, title: x.title, date: k, time: x.time, place: x.location || '', kind });
+      const date = startCovering(x, k);
+      if (date) out.push({ id: x.id, title: x.title, date, endDate: endOf(x, date), on: k, time: x.time, endTime: x.endTime, place: x.location || '', kind });
     })
   );
-  return out.sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+  // Événements de plusieurs jours et journées entières d'abord, puis par heure.
+  return out.sort((a, b) => (a.endDate ? '0' : a.time || '1').localeCompare(b.endDate ? '0' : b.time || '1'));
 }
 /** Proximité d'un rendez-vous : classe de couleur, remplissage de l'anneau, libellés. */
 function prox(x) {
+  if (x.endDate && x.date <= todayKey() && x.endDate >= todayKey()) {
+    const left = dayDiff(x.endDate) + 1;
+    return { cls: 'is-today', fill: 1, big: `${left}`, small: left > 1 ? 'jours' : 'jour', short: 'en cours', label: 'en cours' };
+  }
   const at = combine(x.date, x.time, '12:00');
   const h = (at - Date.now()) / 3600000;
   const d = dayDiff(x.date);
@@ -255,7 +283,11 @@ function prox(x) {
   const label = { 'is-imminent': 'imminent', 'is-today': 'aujourd’hui', 'is-week': 'cette semaine', 'is-later': 'plus tard' }[cls];
   return { cls, fill, big, small, short, label };
 }
-const whenOf = x => `${dayWord(x.date)}${x.time ? ` · ${hhmm(x.time)}` : ' · journée'}`;
+/** Jour proche (« demain », « jeu. 5 ») ou lointain (« jeu. 5 déc. »). */
+const dateWord = k => (Math.abs(dayDiff(k)) <= 6 ? dayWord(k) : formatKey(k, { weekday: 'short', day: 'numeric', month: 'short' }));
+const span = x => `du ${dateWord(x.date)} au ${dateWord(x.endDate)}`;
+const hours = x => (x.time ? `${hhmm(x.time)}${x.endTime ? ` – ${hhmm(x.endTime)}` : ''}` : '');
+const whenOf = x => (x.endDate ? span(x) : `${dateWord(x.date)}${x.time ? ` · ${hours(x)}` : ' · journée'}`);
 const openTasks = () => state.dashboard.tasks.filter(t => !t.done).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || (a.time || '99').localeCompare(b.time || '99'));
 const isLate = t => t.date && t.date < todayKey();
 function taskMeta(t) {
@@ -288,7 +320,7 @@ function nextCard(x, small) {
 function rdvRow(x, showDay = true) {
   const p = prox(x);
   return `<button type="button" class="e-row ${p.cls} ${flash === x.id ? 'e-flash' : ''}" data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"><span class="e-tile t-rdv">${x.kind === 'events' ? I.star : I.clock}</span>
-    <span class="e-row__b"><span class="e-row__t">${esc(x.title)}</span><span class="e-row__s">${esc(showDay ? whenOf(x) : x.time ? hhmm(x.time) : 'toute la journée')}${x.place ? ` · ${esc(x.place)}` : ''}${x.kind === 'events' ? ' · événement' : ''}</span></span>
+    <span class="e-row__b"><span class="e-row__t">${esc(x.title)}</span><span class="e-row__s">${esc(showDay || x.endDate ? whenOf(x) : x.time ? hours(x) : 'toute la journée')}${x.place ? ` · ${esc(x.place)}` : ''}${x.kind === 'events' ? ' · événement' : ''}</span></span>
     <span class="e-dist"><span>${p.short}</span><span class="e-dist__bar"><i style="width:${Math.round(p.fill * 100)}%"></i></span></span></button>`;
 }
 function taskRow(t) {
@@ -296,6 +328,7 @@ function taskRow(t) {
     <div class="e-row k-task ${flash === t.id ? 'e-flash' : ''}" data-task="${esc(t.id)}" tabindex="0" role="button" aria-label="Modifier « ${esc(t.title)} »"><button type="button" class="e-check" data-v="tdone" data-id="${esc(t.id)}" aria-label="Cocher « ${esc(t.title)} »"><i>${I.check}</i></button>
     <span class="e-row__b"><span class="e-row__t">${esc(t.title)}</span><span class="e-row__s ${isLate(t) ? 'is-late' : ''}">${esc(taskMeta(t))}</span></span></div></div>`;
 }
+const raceRow = x => `<a class="e-row" href="${ALLURE_URL}"><span class="e-tile t-run">🏁</span><span class="e-row__b"><span class="e-row__t">${esc(x.title)}</span><span class="e-row__s">${esc(whenOf(x))}${x.place ? ` · ${esc(x.place)}` : ''} · course</span></span><span class="e-go">${I.out}</span></a>`;
 const appRow = a => `<a class="e-row" href="${a.href}"><span class="e-check is-app"><i></i></span><span class="e-row__b"><span class="e-row__t">${esc(a.title)}<span class="e-src">${esc(a.src)}</span></span><span class="e-row__s ${a.late ? 'is-late' : ''}">${esc(a.sub || '')}</span></span><span class="e-go">${I.out}</span></a>`;
 function sessRow(s, k, showDay) {
   const sl = slotOf(s, k);
@@ -343,112 +376,183 @@ const PHASE_GOALS = {
 };
 const nextRace = () => (state.races || []).filter(r => r.date >= todayKey()).sort((a, b) => a.date.localeCompare(b.date))[0];
 
-/* ---------- Accueil ---------- */
+/* ---------- Accueil : la semaine en liste, puis les 30 prochains jours ---------- */
+/** Couleur d'un jour selon le ciel : beau (jaune), pluie (bleu), gris. */
+function toneOf(k) {
+  const s = wx[k]?.sky;
+  return s === 'sun' || s === 'part' ? 'sun' : ['rain', 'storm', 'snow'].includes(s) ? 'rain' : 'grey';
+}
+/* ---------- Style « doux » : illustrations et courbes de vent ---------- */
+const ILL = Object.fromEntries(['cal', 'clip', 'watch', 'flag', 'sun', 'sunc', 'rain', 'cloud', 'run', 'trail', 'bike', 'mtb', 'xc', 'roll', 'racket', 'swim', 'gym', 'climb', 'hike', 'yoga', 'star'].map(n => [n, `<svg class="d-ill" viewBox="0 0 64 64" aria-hidden="true"><use href="#d-${n}"/></svg>`]));
+const ILL_OF = cls => (cls.startsWith('c-ses') ? ILL.watch : cls === 'c-task' ? ILL.clip : cls === 'c-race' ? ILL.flag : ILL.cal);
+/** Une illustration par sport, d'après le nom du sport (le chronomètre si on ne reconnaît pas). */
+const SPORT_ILL = [
+  [/ski[- ]?roue|roller|rollski/, 'xc'], [/ski|fond|skating|biathlon/, 'xc'], [/vtt|gravel|cross[- ]?country|enduro/, 'mtb'],
+  [/cycl|vélo|velo|route|home[- ]?trainer/, 'bike'], [/trail|montagne|alpi/, 'trail'], [/rando|marche|hike/, 'hike'],
+  [/tennis|badminton|squash|padel|ping|raquette|pickle/, 'racket'], [/natation|nage|piscine|swim|eau libre/, 'swim'],
+  [/muscu|renfo|gainage|force|crossfit|salle|gym/, 'gym'], [/escalade|grimpe|bloc/, 'climb'], [/yoga|pilates|mobilit|étirement|stretch/, 'yoga'],
+  [/course|run|footing|pied|athl/, 'run']
+];
+const sportIll = name => { const n = (name || '').toLowerCase(); const hit = SPORT_ILL.find(([re]) => re.test(n)); return hit ? ILL[hit[1]] : ILL.watch; };
+/** Illustration du ciel d'un jour. */
+const illOfSky = s => (s === 'sun' ? ILL.sun : s === 'part' ? ILL.sunc : ['rain', 'storm', 'snow'].includes(s) ? ILL.rain : ILL.cloud);
+const skyIll = k => illOfSky(wx[k]?.sky);
+/** Une courbe douce et fermée (surface) à travers des valeurs, dans une boîte w × h. */
+function curve(vals, w, h, max) {
+  if (vals.length < 2) return '';
+  const pts = vals.map((v, i) => [i * w / (vals.length - 1), h - Math.min(v, max) / max * h * .9]);
+  let d = `M0,${h} L${pts[0][0]},${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [xa, ya] = pts[i - 1];
+    const [xb, yb] = pts[i];
+    const mx = ((xa + xb) / 2).toFixed(1);
+    d += ` C${mx},${ya.toFixed(1)} ${mx},${yb.toFixed(1)} ${xb.toFixed(1)},${yb.toFixed(1)}`;
+  }
+  return `${d} L${w},${h} Z`;
+}
+const windWord = v => (v < 15 ? 'léger' : v < 30 ? 'modéré' : 'fort');
+/** Un jour de la semaine, en frise : la date dans un rond, puis une carte par chose prévue. */
+function dayRow(k, all) {
+  const d = fromKey(k);
+  const today = todayKey();
+  const list = entriesOn(k, all);
+  const w = k >= today ? dayWx(k) : null;
+  const sport = list.some(x => x.cls.startsWith('c-ses') || x.cls === 'c-race');
+  const label = `${WD_FULL[d.getDay()]} ${d.getDate()}`;
+  const rest = w
+    ? `<button type="button" class="d-rest" data-dwx="${k}"><span class="d-rest__i">${skyIll(k)}</span><span class="d-rest__b"><b>Repos · ${esc(w.label)}</b><small>${w.min}° / ${w.max}° · vent moyen ${w.windAvg} km/h · rafales max ${w.gust} km/h${w.mm ? ` · pluie ${String(w.mm).replace('.', ',')} mm` : ''}</small></span><span class="d-rest__go" aria-hidden="true">${I.fwd}</span></button>`
+    : '<p class="d-rest">Repos</p>';
+  return `<div class="d-tl ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}" ${k === today ? 'aria-current="date"' : ''}>
+    <div class="d-tl__l"><button type="button" class="d-tl__add" data-v="wadd" data-day="${k}" aria-label="Ajouter quelque chose ${esc(label)}"><small>${cap(WD[d.getDay()])}.</small><b>${d.getDate()}</b><i aria-hidden="true">+</i></button></div>
+    <div class="d-tl__c">${list.map(x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><span class="d-th">${x.ill || ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${sport || k < today ? '' : rest}</div>
+  </div>`;
+}
+/** Les illustrations, une seule fois dans la page. */
+function injectIllustrations() {
+  if ($('#dIll')) return;
+  document.body.insertAdjacentHTML('afterbegin', `<svg id="dIll" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<linearGradient id="dgR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF7A85"/><stop offset="1" stop-color="#E0315B"/></linearGradient>
+<linearGradient id="dgW" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E8E2D8"/></linearGradient>
+<linearGradient id="dgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C98B5B"/><stop offset="1" stop-color="#8E5634"/></linearGradient>
+<linearGradient id="dgS" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4F5F7"/><stop offset=".5" stop-color="#A9AFB8"/><stop offset="1" stop-color="#6C727C"/></linearGradient>
+<linearGradient id="dgY" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#F5A623"/></linearGradient>
+<linearGradient id="dgG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9BD48A"/><stop offset="1" stop-color="#4E9A55"/></linearGradient>
+<linearGradient id="dgK" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7CC7F2"/><stop offset="1" stop-color="#2F7FC0"/></linearGradient>
+<linearGradient id="dgT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3D7F90"/><stop offset="1" stop-color="#0E3B4A"/></linearGradient>
+<linearGradient id="dgL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E9F56A"/><stop offset="1" stop-color="#B7CC1E"/></linearGradient>
+<linearGradient id="dgC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C9D8DD"/></linearGradient>
+<symbol id="d-cal" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><rect x="8" y="11" width="48" height="45" rx="9" fill="url(#dgW)" stroke="#D9D1C4"/><path d="M8 20a9 9 0 0 1 9-9h30a9 9 0 0 1 9 9v5H8z" fill="url(#dgR)"/><rect x="18" y="5" width="6" height="13" rx="3" fill="#4A4A4A"/><rect x="40" y="5" width="6" height="13" rx="3" fill="#4A4A4A"/><g fill="#CFC6B8"><rect x="15" y="31" width="7" height="6" rx="2"/><rect x="25" y="31" width="7" height="6" rx="2"/><rect x="35" y="31" width="7" height="6" rx="2"/><rect x="45" y="31" width="5" height="6" rx="2"/><rect x="15" y="41" width="7" height="6" rx="2"/><rect x="35" y="41" width="7" height="6" rx="2"/></g><rect x="25" y="41" width="7" height="6" rx="2" fill="#E0315B"/></symbol>
+<symbol id="d-clip" viewBox="0 0 64 64"><ellipse cx="32" cy="60" rx="19" ry="3" fill="#000" opacity=".12"/><rect x="12" y="8" width="40" height="50" rx="7" fill="url(#dgB)"/><rect x="17" y="15" width="30" height="38" rx="3" fill="url(#dgW)"/><rect x="23" y="4" width="18" height="10" rx="4" fill="url(#dgS)" stroke="#8A9099"/><g stroke="#B9B1A4" stroke-width="2.6" stroke-linecap="round"><path d="M28 25h13M28 33h13M28 41h9"/></g><path d="M20.5 25l2 2 3-3.5M20.5 33l2 2 3-3.5" stroke="#E0315B" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="23" cy="41" r="2.4" fill="none" stroke="#B9B1A4" stroke-width="1.8"/></symbol>
+<symbol id="d-watch" viewBox="0 0 64 64"><ellipse cx="32" cy="60" rx="18" ry="3" fill="#000" opacity=".12"/><rect x="28" y="4" width="8" height="8" rx="2" fill="url(#dgS)"/><rect x="44" y="10" width="7" height="6" rx="2" fill="url(#dgS)" transform="rotate(40 47 13)"/><circle cx="32" cy="35" r="22" fill="url(#dgS)"/><circle cx="32" cy="35" r="17.5" fill="url(#dgW)"/><path d="M32 35V22" stroke="#222" stroke-width="2.6" stroke-linecap="round"/><path d="M32 35l8 5" stroke="#E0315B" stroke-width="2.6" stroke-linecap="round"/><circle cx="32" cy="35" r="2.6" fill="#222"/></symbol>
+<symbol id="d-flag" viewBox="0 0 64 64"><ellipse cx="24" cy="59" rx="14" ry="3" fill="#000" opacity=".12"/><rect x="18" y="6" width="4" height="52" rx="2" fill="url(#dgS)"/><path d="M22 9h28l-6 9 6 9H22z" fill="url(#dgR)"/><path d="M28 13h4v4h-4zM36 17h4v4h-4zM28 21h4v4h-4z" fill="#fff" opacity=".85"/></symbol>
+<symbol id="d-sun" viewBox="0 0 64 64"><circle cx="32" cy="32" r="15" fill="url(#dgY)"/><g stroke="#F5B531" stroke-width="3.4" stroke-linecap="round"><path d="M32 6v6M32 52v6M6 32h6M52 32h6M13.6 13.6l4.2 4.2M46.2 46.2l4.2 4.2M13.6 50.4l4.2-4.2M46.2 17.8l4.2-4.2"/></g></symbol>
+<symbol id="d-sunc" viewBox="0 0 64 64"><circle cx="40" cy="22" r="13" fill="url(#dgY)"/><path d="M18 50a11 11 0 0 1-1-21.9A15 15 0 0 1 45 30a10 10 0 0 1 1 20z" fill="url(#dgC)"/></symbol>
+<symbol id="d-cloud" viewBox="0 0 64 64"><path d="M18 48a12 12 0 0 1-1-23.9A16 16 0 0 1 47 27a10.5 10.5 0 0 1 1 21z" fill="url(#dgC)"/></symbol>
+<symbol id="d-rain" viewBox="0 0 64 64"><path d="M16 40a11 11 0 0 1-1-21.9A15 15 0 0 1 43 20a10 10 0 0 1 1 20z" fill="url(#dgC)"/><g fill="#5E9BB0"><rect x="20" y="45" width="4" height="9" rx="2" transform="rotate(15 22 49)"/><rect x="30" y="45" width="4" height="9" rx="2" transform="rotate(15 32 49)"/><rect x="40" y="45" width="4" height="9" rx="2" transform="rotate(15 42 49)"/></g></symbol>
+<symbol id="d-run" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><path d="M8 44c0-6 3-10 7-12l9-12c2-2 5-2 6 1l3 6c4 3 10 4 16 5 6 1 9 5 9 10v2H8z" fill="url(#dgR)"/><path d="M8 46h50v5a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4z" fill="url(#dgW)" stroke="#D9D1C4"/><path d="M27 25l4 4M30 22l4 4M33 30l4 3" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><path d="M12 40c6 0 10-2 14-6" stroke="#fff" stroke-width="2" fill="none" opacity=".6" stroke-linecap="round"/></symbol>
+<symbol id="d-trail" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><path d="M4 54L22 22l9 14 7-10 22 28z" fill="url(#dgT)"/><path d="M22 22l-5 9 5-3 4 4zM38 26l-4 6 4-2 4 3z" fill="#fff"/><path d="M4 54h56" stroke="#4E9A55" stroke-width="3"/><path d="M34 54c-4-4 6-6 2-10s4-6 2-9" stroke="#F4D7A8" stroke-width="2.6" fill="none" stroke-dasharray="3 3" stroke-linecap="round"/></symbol>
+<symbol id="d-bike" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><circle cx="16" cy="42" r="11" fill="none" stroke="#3A3F47" stroke-width="3.4"/><circle cx="48" cy="42" r="11" fill="none" stroke="#3A3F47" stroke-width="3.4"/><circle cx="16" cy="42" r="2" fill="#3A3F47"/><circle cx="48" cy="42" r="2" fill="#3A3F47"/><path d="M16 42l9-17h17l6 17M25 25l7 17 10-17M32 42h-7" stroke="url(#dgR)" stroke-width="3.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/><path d="M22 20h7" stroke="#3A3F47" stroke-width="3.4" stroke-linecap="round"/><path d="M42 25l-2-6h6" stroke="#3A3F47" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="d-mtb" viewBox="0 0 64 64"><path d="M14 40L30 14l9 12 6-6 15 20z" fill="url(#dgG)" opacity=".55"/><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><circle cx="16" cy="44" r="10" fill="none" stroke="#3A3F47" stroke-width="5" stroke-dasharray="2.4 1.6"/><circle cx="48" cy="44" r="10" fill="none" stroke="#3A3F47" stroke-width="5" stroke-dasharray="2.4 1.6"/><path d="M16 44l9-16h16l7 16M25 28l7 16 9-16" stroke="url(#dgB)" stroke-width="3.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/><path d="M21 24h8M38 22h7" stroke="#3A3F47" stroke-width="3.4" stroke-linecap="round"/></symbol>
+<symbol id="d-xc" viewBox="0 0 64 64"><ellipse cx="32" cy="56" rx="26" ry="5" fill="url(#dgC)"/><path d="M6 46l46-30c3-2 6 0 4 2L10 50z" fill="url(#dgK)"/><path d="M12 52l46-30c3-2 6 0 4 2L16 56z" fill="url(#dgR)"/><path d="M20 8l20 44M44 8L24 52" stroke="#3A3F47" stroke-width="2.6" stroke-linecap="round"/><circle cx="38" cy="47" r="3" fill="none" stroke="#3A3F47" stroke-width="2"/><circle cx="26" cy="47" r="3" fill="none" stroke="#3A3F47" stroke-width="2"/><path d="M19 6h4M42 6h4" stroke="#E0315B" stroke-width="4" stroke-linecap="round"/></symbol>
+<symbol id="d-roll" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><rect x="6" y="34" width="52" height="7" rx="3.5" fill="url(#dgK)"/><path d="M24 34v-6h14l4 6z" fill="url(#dgR)"/><rect x="22" y="26" width="18" height="4" rx="2" fill="#3A3F47"/><circle cx="14" cy="48" r="7" fill="#3A3F47"/><circle cx="14" cy="48" r="3" fill="url(#dgS)"/><circle cx="50" cy="48" r="7" fill="#3A3F47"/><circle cx="50" cy="48" r="3" fill="url(#dgS)"/><path d="M48 8L38 30" stroke="#3A3F47" stroke-width="2.6" stroke-linecap="round"/><path d="M46 6h5" stroke="#E0315B" stroke-width="4" stroke-linecap="round"/></symbol>
+<symbol id="d-racket" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><ellipse cx="26" cy="24" rx="15" ry="18" transform="rotate(-35 26 24)" fill="#fff" stroke="url(#dgR)" stroke-width="4.4"/><g stroke="#D9D1C4" stroke-width="1.2"><path d="M14 18l18 24M18 12l18 24M22 8l16 22M12 26l14 18M17 33l14-14M13 27l14-14M22 38l12-12M27 41l9-9"/></g><path d="M35 38l14 14" stroke="url(#dgB)" stroke-width="6" stroke-linecap="round"/><circle cx="50" cy="20" r="8" fill="url(#dgL)"/><path d="M43 17c4 1 8 5 9 10M46 13c2 3 6 5 11 5" stroke="#fff" stroke-width="1.6" fill="none"/></symbol>
+<symbol id="d-swim" viewBox="0 0 64 64"><path d="M4 46c5-4 9-4 14 0s9 4 14 0 9-4 14 0 9 4 14 0v12H4z" fill="url(#dgK)"/><path d="M4 52c5-4 9-4 14 0s9 4 14 0 9-4 14 0 9 4 14 0" stroke="#fff" stroke-width="2" fill="none" opacity=".7"/><rect x="10" y="20" width="18" height="13" rx="6.5" fill="url(#dgK)" stroke="#3A3F47" stroke-width="2.6"/><rect x="36" y="20" width="18" height="13" rx="6.5" fill="url(#dgK)" stroke="#3A3F47" stroke-width="2.6"/><path d="M28 26h8M4 25l6 1M54 26l6-1" stroke="#3A3F47" stroke-width="2.6" stroke-linecap="round"/><path d="M14 24l4-1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="d-gym" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><rect x="14" y="29" width="36" height="6" rx="3" fill="url(#dgS)"/><rect x="8" y="17" width="9" height="30" rx="3" fill="#3A3F47"/><rect x="47" y="17" width="9" height="30" rx="3" fill="#3A3F47"/><rect x="3" y="23" width="6" height="18" rx="2.5" fill="url(#dgR)"/><rect x="55" y="23" width="6" height="18" rx="2.5" fill="url(#dgR)"/><path d="M11 21v10" stroke="#fff" stroke-width="2" opacity=".35" stroke-linecap="round"/></symbol>
+<symbol id="d-climb" viewBox="0 0 64 64"><rect x="8" y="6" width="48" height="50" rx="9" fill="url(#dgW)" stroke="#D9D1C4"/><path d="M16 16c3-3 8-2 8 2s-6 5-8 2z" fill="url(#dgR)"/><path d="M38 12c4-1 7 2 5 5s-7 1-5-5z" fill="url(#dgY)"/><path d="M42 34c3-2 7 0 6 3s-6 3-6-3z" fill="url(#dgK)"/><path d="M18 40c3 0 6 3 4 5s-7 0-4-5z" fill="url(#dgG)"/><path d="M28 24h7a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4h-7a4 4 0 0 1-4-4V28a4 4 0 0 1 4-4z" fill="none" stroke="url(#dgS)" stroke-width="3.4"/><path d="M24 30v-2" stroke="#E0315B" stroke-width="3.4"/><ellipse cx="32" cy="60" rx="20" ry="2.6" fill="#000" opacity=".1"/></symbol>
+<symbol id="d-hike" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><path d="M14 12h16l2 18c8 2 16 5 20 9 4 3 4 7 4 9H10z" fill="url(#dgB)"/><path d="M10 48h46v4a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4z" fill="#3A3F47"/><path d="M18 18h10M18 24h10M19 30h10" stroke="#F4D7A8" stroke-width="2.4" stroke-linecap="round"/><path d="M12 54h4M22 54h4M32 54h4M42 54h4" stroke="#6C727C" stroke-width="2"/></symbol>
+<symbol id="d-yoga" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><rect x="6" y="40" width="40" height="12" rx="3" fill="url(#dgK)"/><circle cx="48" cy="38" r="12" fill="url(#dgK)"/><circle cx="48" cy="38" r="7" fill="none" stroke="#fff" stroke-width="1.6" opacity=".7"/><circle cx="48" cy="38" r="3" fill="#2F7FC0"/><path d="M10 46h30" stroke="#fff" stroke-width="1.6" opacity=".6"/></symbol>
+<symbol id="d-star" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><path d="M32 6l7.6 15.5 17 2.5-12.3 12 2.9 17L32 45l-15.2 8 2.9-17L7.4 24l17-2.5z" fill="url(#dgY)" stroke="#E79A17" stroke-width="1.6" stroke-linejoin="round"/><path d="M24 22l5-1" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></symbol>
+</defs></svg>`);
+}
 export function renderTodayView() {
   const host = $('#todayView');
-  const k = todayKey();
-  const up = upcoming();
-  const tasks = openTasks();
-  const nowTasks = tasks.filter(t => t.date && t.date <= k);
-  const late = tasks.filter(isLate).length;
-  const keys = keysOf(dateKey(mondayOf(new Date())));
-  const st = weekStats(keys);
+  if (!planStart) planStart = defaultPlanStart();
+  const keys = keysOf(planStart);
+  const today = todayKey();
+  const wi = Math.round((fromKey(planStart) - mondayOf(new Date())) / 6048e5);
   const all = doneMap();
-  const ph = phaseOn(k);
-  const race = nextRace();
-  let nx = null;
-  for (let i = 0; i < 14 && !nx; i++) {
-    const dk = dateKey(addDays(new Date(), i));
-    const s = sessionsOn(dk).find(x => !isDone(dk, x, all) && !(dk === k && slotOf(x, dk) && slotPast(dk, slotOf(x, dk))));
-    if (s) nx = { s, k: dk };
-  }
-  const note = document.activeElement?.id === 'vNote' ? document.activeElement : null;
-  const keep = note ? { value: note.value, a: note.selectionStart, b: note.selectionEnd } : null;
-  const hour = new Date().getHours();
-  const cur = slotsOn(k)?.[hour < 12 ? 'matin' : hour < 18 ? 'aprem' : 'soir'];
+  // Dans les 30 jours : rendez-vous, événements et courses de Cadence, en liste.
+  const limit = dateKey(addDays(new Date(), 30));
+  const races = (state.races || []).filter(r => r.date >= today && r.date <= limit).map(r => ({ id: r.id, title: r.name, date: r.date, time: r.time, place: r.location || '', kind: 'race' }));
+  const soon = [...upcoming().filter(x => x.date <= limit), ...races].sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
+  const soonRow = x => `<button type="button" class="d-it d-soon ${x.kind === 'race' ? 'is-race' : ''}" ${x.kind === 'race' ? 'data-v="race"' : `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"`}>
+    <span class="d-th">${x.kind === 'race' ? ILL.flag : ILL.cal}</span>
+    <span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.date <= today ? 'aujourd’hui' : formatKey(x.date, { weekday: 'short', day: 'numeric', month: 'short' }), x.endDate ? span(x) : x.time ? hours(x) : '', x.kind === 'race' ? 'Cadence' : x.kind === 'events' ? 'événement' : '', x.place].filter(Boolean).join(' · '))}</small></span>
+    <span class="d-j">${dayDiff(x.date) <= 0 ? 'auj.' : `J-${dayDiff(x.date)}`}</span></button>`;
+  const title = wi === 0 ? 'Cette semaine' : wi === 1 ? 'Semaine prochaine' : esc(weekLabel(planStart).split(' · ')[0]);
+  const hidden = keys.filter(k => k < today);
 
   host.innerHTML = `
-    ${head(`${esc(cap(formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long' })))}${cur ? ` · <span class="e-today-wx">${skyOf(cur)}${cur.t}°</span>` : ''}`, hour >= 18 ? 'Bonsoir' : 'Bonjour')}
-    ${nextCard(up[0]) || '<div class="card e-empty">Aucun rendez-vous à venir. Le + en ajoute un.</div>'}
-    <section class="card e-space">
-      <div class="e-space__h"><span class="e-tile t-rdv">${I.clock}</span><h2>Ensuite</h2><span class="e-row__s">${Math.max(0, up.length - 1)} à venir</span></div>
-      <div class="e-list">${up.slice(1, 4).map(x => rdvRow(x)).join('') || '<p class="e-empty">Rien d’autre de prévu.</p>'}</div>
-      <button type="button" class="e-space__f" data-go="agendaView">Tout l’agenda</button>
-    </section>
-    <section class="card e-space">
-      <div class="e-space__h"><span class="e-tile t-task">${I.list}</span><h2>À faire</h2><span class="e-row__s ${late ? 'is-late' : ''}">${nowTasks.length} aujourd’hui${late ? ` · ${late} en retard` : ''}</span></div>
-      <div class="e-list">${nowTasks.slice(0, 4).map(taskRow).join('') || '<p class="e-empty">Rien pour aujourd’hui.</p>'}</div>
-      <button type="button" class="e-space__f" data-go="todoView">Toutes les tâches · ${tasks.length}</button>
-    </section>
-    <section class="card e-space">
-      <div class="e-space__h"><span class="e-tile t-run">${I.run}</span><h2>Sport</h2>${ph ? `<span class="e-pill" style="--ph:${PHASE_COLOR[ph.type] || 'var(--accent)'}">${esc(PHASE_TYPES[ph.type].short)}</span>` : ''}</div>
-      <div class="e-wkdots">${keys.map(dk => { const l = sessionsOn(dk); const d = fromKey(dk); const allDone = l.length && l.every(s => isDone(dk, s, all)); return `<span class="e-wkdot ${dk === k ? 'is-today' : ''}"><i class="${!l.length ? '' : allDone ? 'is-done' : dk < k ? 'is-miss' : 'is-plan'}">${l.length > 1 ? l.length : ''}</i>${WD[d.getDay()]}</span>`; }).join('')}</div>
-      ${nx ? `<div class="e-list">${sessRow(nx.s, nx.k, true)}</div>` : ''}
-      <button type="button" class="e-space__f" data-go="weekView">${st.done} sur ${st.n} séance${st.n > 1 ? 's' : ''} cette semaine${race ? ` · ${esc(race.name)} J-${dayDiff(race.date)}` : ''}</button>
-    </section>
-    <section class="k-blk"><div class="k-blk-h"><h2><label for="vNote">Note</label></h2><span class="k-save" id="vNoteState" aria-live="polite"></span></div>
-      <div class="k-card k-note"><textarea id="vNote" placeholder="Écrire…" maxlength="20000">${esc(keep ? keep.value : state.notes)}</textarea></div></section>`;
-  if (keep) {
-    const t = $('#vNote');
-    t.focus({ preventScroll: true });
-    t.setSelectionRange(keep.a, keep.b);
-  }
+    <div class="d-sec d-sec--top" id="dWeek"><h2>${title}<small>${esc(weekRange(planStart))}</small></h2><span><button type="button" class="d-arr" data-v="pweek" data-step="-1" aria-label="Semaine d’avant">${I.back}</button><button type="button" class="d-arr" data-v="pweek" data-step="1" aria-label="Semaine d’après">${I.fwd}</button></span></div>
+    <section class="d-week">${hidden.length ? `<button type="button" class="d-past" data-v="past" aria-expanded="${showPast}">${showPast ? 'Masquer le début de la semaine' : `Voir le début de la semaine <small>${cap(WD[fromKey(hidden[0]).getDay()])}. ${fromKey(hidden[0]).getDate()} – ${WD[fromKey(hidden.at(-1)).getDay()]}. ${fromKey(hidden.at(-1)).getDate()}</small>`}</button>` : ''}${keys.filter(k => showPast || !hidden.includes(k)).map(k => dayRow(k, all)).join('')}</section>
+    <div class="d-sec"><h2>Dans les 30 jours<small>${soon.length ? `${soon.length} date${soon.length > 1 ? 's' : ''}` : ''}</small></h2></div>
+    <section class="d-list">${soon.map(soonRow).join('') || '<p class="j-none">Rien de prévu dans les 30 jours.</p>'}</section>`;
   done(host);
 }
 
-/* ---------- Agenda ---------- */
+/* ---------- Mois : calendrier + le jour choisi + la liste du mois ---------- */
+/** Une ligne de la frise / d'une liste (même format que l'accueil). */
+const itRow = x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''}" ${x.act}><span class="d-th">${x.ill || ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`;
 export function renderAgendaView() {
   const host = $('#agendaView');
   const now = new Date();
-  const base = new Date(now.getFullYear(), now.getMonth() + monthOff, 1);
-  const first = mondayOf(base);
-  const cells = Array.from({ length: 42 }, (_, i) => addDays(first, i)).filter((d, i) => i < 35 || d.getMonth() === base.getMonth());
-  const up = upcoming();
   const today = todayKey();
-  let body = '';
-  if (daySel) {
-    const list = itemsOn(daySel);
-    body = `<div class="e-sec"><h2>${esc(dayTitle(daySel))}</h2><button type="button" class="k-lnk" data-v="mday" data-day="${daySel}">Tout voir</button></div><div class="card e-list">${list.map(x => rdvRow(x, false)).join('') || '<p class="e-empty">Rien ce jour-là. Le + en ajoute un.</p>'}</div>`;
-  } else {
-    body = `<div style="margin-top:12px">${nextCard(up[0])}</div>`;
-    let grp = '';
-    up.slice(1, more).forEach(x => {
-      const d = dayDiff(x.date);
-      const g = d <= 6 ? 'Cette semaine' : d <= 13 ? 'La semaine prochaine' : `En ${MONTHS[fromKey(x.date).getMonth()]}`;
-      if (g !== grp) {
-        body += `${grp ? '</div>' : ''}<div class="e-sec"><h2>${g}</h2></div><div class="card e-list">`;
-        grp = g;
-      }
-      body += rdvRow(x);
-    });
-    if (grp) body += '</div>';
-    if (!up.length) body += '<div class="card e-empty">Aucun rendez-vous à venir. Le + en ajoute un.</div>';
-    if (up.length > more) body += `<button type="button" class="e-more" data-v="more">Voir plus · ${up.length - more} autre${up.length - more > 1 ? 's' : ''}</button>`;
+  const base = new Date(now.getFullYear(), now.getMonth() + monthOff, 1);
+  const first = dateKey(base);
+  const last = dateKey(new Date(base.getFullYear(), base.getMonth() + 1, 0));
+  if (!daySel || daySel < first || daySel > last) daySel = today >= first && today <= last ? today : first;
+  const all = doneMap();
+  // Calendrier : du lundi avant le 1er au dimanche après le dernier jour.
+  let cells = '';
+  const end = dateKey(addDays(mondayOf(fromKey(last)), 6));
+  for (let k = dateKey(mondayOf(base)); k <= end; k = dateKey(addDays(fromKey(k), 1))) {
+    const out = k < first || k > last;
+    const ev = itemsOn(k);
+    const races = (state.races || []).filter(r => r.date === k);
+    const ses = sessionsOn(k).length;
+    const tasks = state.dashboard.tasks.filter(t => !t.done && t.date === k).length;
+    const labels = [...races.map(r => `<span class="d-cal__l is-race">${esc(r.name)}</span>`), ...ev.map(x => `<span class="d-cal__l ${x.kind === 'events' ? 'is-ev' : 'is-rdv'} ${x.endDate ? 'is-span' : ''}">${x.time && !x.endDate ? `${hhmm(x.time).replace(' h 00', ' h')} ` : ''}${esc(x.title)}</span>`)];
+    const d = fromKey(k);
+    cells += `<button type="button" class="d-cal__c ${out ? 'is-out' : ''} ${k === today ? 'is-today' : ''} ${k === daySel ? 'is-sel' : ''} ${k < today ? 'is-past' : ''}" data-v="mday" data-day="${k}" aria-label="${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`)}" aria-pressed="${k === daySel}">
+      <b>${d.getDate()}</b>${labels.slice(0, 2).join('')}${labels.length > 2 ? `<span class="d-cal__m">+${labels.length - 2}</span>` : ''}
+      ${ses || tasks ? `<span class="d-cal__dots">${'<i class="is-ses"></i>'.repeat(Math.min(ses, 3))}${'<i class="is-task"></i>'.repeat(Math.min(tasks, 3))}</span>` : ''}</button>`;
   }
+  // Le jour choisi : tout ce qui est prévu, comme sur l'accueil.
+  const sd = fromKey(daySel);
+  const dayList = entriesOn(daySel, all);
+  // Tout le mois : rendez-vous, événements et courses.
+  const month = [];
+  for (let k = first; k <= last; k = dateKey(addDays(fromKey(k), 1))) {
+    itemsOn(k).filter(x => x.date === k || (k === first && x.date < k)).forEach(x => month.push({ k, x }));
+    (state.races || []).filter(r => r.date === k).forEach(r => month.push({ k, x: { id: r.id, title: r.name, kind: 'race', distance: r.distance } }));
+  }
+  const monthRow = ({ k, x }) => `<button type="button" class="d-it d-soon ${x.kind === 'race' ? 'is-race' : ''} ${k < today && !(x.endDate >= today) ? 'is-past' : ''}" ${x.kind === 'race' ? 'data-v="race"' : `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"`}>
+    <span class="d-th">${x.kind === 'race' ? ILL.flag : ILL.cal}</span>
+    <span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.endDate ? span(x) : x.time ? hours(x) : '', x.kind === 'race' ? `Course${x.distance ? ` · ${x.distance} km` : ''} · Cadence` : x.kind === 'events' ? 'Événement' : 'Rendez-vous', x.place].filter(Boolean).join(' · '))}</small></span>
+    <span class="d-j d-j--d"><small>${WD[fromKey(k).getDay()]}.</small>${fromKey(k).getDate()}</span></button>`;
   host.innerHTML = `
-    ${head(`${up.length} rendez-vous et événement${up.length > 1 ? 's' : ''} à venir`, 'Agenda')}
-    <div class="card e-month">
-      <div class="e-month__h"><button type="button" class="k-round" data-v="mo" data-step="-1" aria-label="Mois précédent" ${monthOff <= 0 ? 'disabled' : ''}>${I.back}</button><b>${cap(MONTHS[base.getMonth()])} ${base.getFullYear()}</b><button type="button" class="k-round" data-v="mo" data-step="1" aria-label="Mois suivant">${I.fwd}</button></div>
-      <div class="e-month__g">${['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'].map(d => `<small>${d}</small>`).join('')}${cells
-        .map(d => {
-          const dk = dateKey(d);
-          const items = itemsOn(dk);
-          return `<button type="button" class="e-md ${d.getMonth() !== base.getMonth() ? 'is-out' : ''} ${dk === today ? 'is-today' : ''}" data-v="mday" data-day="${dk}" aria-pressed="${daySel === dk}" aria-label="${esc(formatKey(dk, { weekday: 'long', day: 'numeric', month: 'long' }))}${items.length ? `, ${items.length} élément${items.length > 1 ? 's' : ''}` : ''}">${d.getDate()}<span class="e-dots">${items.slice(0, 3).map(x => `<i class="${x.kind === 'events' ? 'is-ev' : ''}"></i>`).join('')}</span></button>`;
-        })
-        .join('')}</div>
-    </div>
-    ${body}`;
+    <div class="d-sec d-sec--top"><h2>${cap(MONTHS[base.getMonth()])}<small>${base.getFullYear()} · ${month.length ? `${month.length} date${month.length > 1 ? 's' : ''}` : 'rien de prévu'}</small></h2><span><button type="button" class="d-arr" data-v="mstep" data-step="-1" aria-label="Mois d’avant" ${monthOff <= -2 ? 'disabled' : ''}>${I.back}</button><button type="button" class="d-arr" data-v="mstep" data-step="1" aria-label="Mois d’après" ${monthOff >= 12 ? 'disabled' : ''}>${I.fwd}</button></span></div>
+    ${monthOff ? '<button type="button" class="d-today-btn" data-v="mstep" data-step="0">Revenir à ce mois-ci</button>' : ''}
+    <section class="d-cal" aria-label="Calendrier"><div class="d-cal__h">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span>${x}</span>`).join('')}</div><div class="d-cal__g">${cells}</div>
+      <p class="d-cal__leg"><span><i class="is-rdv"></i>Rendez-vous</span><span><i class="is-ev"></i>Événement</span><span><i class="is-race"></i>Course</span><span><i class="is-ses"></i>Sport</span><span><i class="is-task"></i>Tâche</span></p></section>
+    <div class="d-sec"><h2>${cap(WD_FULL[sd.getDay()])} ${sd.getDate()} ${MONTHS[sd.getMonth()]}<small>${dayList.length ? `${dayList.length} chose${dayList.length > 1 ? 's' : ''} prévue${dayList.length > 1 ? 's' : ''}` : 'Rien de prévu'}</small></h2><button type="button" class="d-add" data-v="wadd" data-day="${daySel}">+ Ajouter</button></div>
+    <section class="d-list">${dayList.map(itRow).join('')}${daySel >= today && wx[daySel] ? `<button type="button" class="d-wxl" data-dwx="${daySel}">${SKY[wx[daySel].sky] || SKY.cloud}${esc(wx[daySel].label)} · ${wx[daySel].min}° / ${wx[daySel].max}° · heure par heure<span aria-hidden="true">${I.fwd}</span></button>` : ''}</section>
+    <div class="d-sec"><h2>Tout le mois<small>Rendez-vous, événements et courses</small></h2></div>
+    <section class="d-list">${month.map(monthRow).join('') || '<p class="j-none">Rien de prévu ce mois-ci.</p>'}</section>`;
   done(host);
 }
 
 /* ---------- Tâches ---------- */
 export function renderTodoView() {
+  if (assign) return renderAssign();
   const host = $('#todoView');
   const tasks = openTasks();
   const today = todayKey();
   const tomorrow = dateKey(addDays(new Date(), 1));
   const doneToday = state.dashboard.tasks.filter(t => t.done && (!t.doneAt || t.doneAt === today));
   const apps = appTasks();
+  const note = document.activeElement?.id === 'vNote' ? document.activeElement : null;
+  const keep = note ? { value: note.value, a: note.selectionStart, b: note.selectionEnd } : null;
   const groups = [
     ['En retard', tasks.filter(isLate), 'is-late'],
     ['Aujourd’hui', tasks.filter(t => t.date === today)],
@@ -458,13 +562,324 @@ export function renderTodoView() {
     ['Sans date', tasks.filter(t => !t.date)]
   ].filter(g => g[1].length);
   host.innerHTML = `
-    ${head(`${tasks.length} tâche${tasks.length > 1 ? 's' : ''}${apps.length ? ` · ${apps.length} de tes apps` : ''}`, 'Tâches')}
+    <header class="j-hd"><p class="k-kicker">${tasks.length} à faire${apps.length ? ` · ${apps.length} de tes apps` : ''}</p><h1>Tâches</h1></header>
     ${groups.map(([label, list, cls]) => `<div class="e-sec ${cls || ''}"><h2>${label}</h2><small>${list.length}</small></div><div class="card e-list">${list.map(taskRow).join('')}</div>`).join('') || '<div class="card e-empty">Rien à faire. Belle journée.</div>'}
     ${apps.length ? `<div class="e-sec"><h2>Depuis tes apps</h2><small>${apps.length}</small></div><div class="card e-list">${apps.map(appRow).join('')}</div>` : ''}
     ${doneToday.length ? `<div class="e-sec"><h2>Faites aujourd’hui</h2><small>${doneToday.length}</small></div><div class="card e-list">${doneToday.map(t => `<button type="button" class="e-row is-done" data-v="undo" data-id="${esc(t.id)}"><span class="e-check is-on"><i>${I.check}</i></span><span class="e-row__b"><span class="e-row__t">${esc(t.title)}</span><span class="e-row__s">${isRepeat(t.repeat) ? esc(REPEATS[t.repeat].label.toLowerCase()) : 'disparaît demain · touche pour annuler'}</span></span></button>`).join('')}</div>` : ''}
-    ${tasks.length ? '<p class="k-hint">→ fait · ← demain · touche pour modifier</p>' : ''}`;
+    ${tasks.length ? '<p class="k-hint">→ fait · ← demain · touche pour modifier</p>' : ''}
+    <section class="k-blk"><div class="k-blk-h"><h2><label for="vNote">Note</label></h2><span class="k-save" id="vNoteState" aria-live="polite"></span></div>
+      <div class="k-card k-note"><textarea id="vNote" placeholder="Écrire…" maxlength="20000">${esc(keep ? keep.value : state.notes)}</textarea></div></section>`;
+  if (keep) {
+    const t = $('#vNote');
+    t.focus({ preventScroll: true });
+    t.setSelectionRange(keep.a, keep.b);
+  }
   bindRows(host);
   done(host);
+}
+
+/* ---------- Tâches : répartir sur la semaine ---------- */
+/** Chaque tâche à faire, avec les 7 jours de la semaine choisie : un appui l'attribue à ce jour. */
+function renderAssign() {
+  const host = $('#todoView');
+  const thisMon = dateKey(mondayOf(new Date()));
+  if (!assignStart) assignStart = thisMon;
+  const keys = keysOf(assignStart);
+  const today = todayKey();
+  const off = Math.round((fromKey(assignStart) - fromKey(thisMon)) / 6048e5);
+  const tasks = openTasks().filter(t => !isRepeat(t.repeat)).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const free = tasks.filter(t => !t.date).length;
+  const row = t => {
+    const out = t.date && !keys.includes(t.date);
+    return `<div class="w-as ${flash === t.id ? 'e-flash' : ''}"><button type="button" class="w-as__t" data-v="tedit" data-id="${esc(t.id)}"><b>${esc(t.title)}</b><small class="${isLate(t) ? 'is-late' : ''}">${esc(t.date ? (out ? `${isLate(t) ? 'en retard · ' : ''}${dateWord(t.date)}` : cap(formatKey(t.date, { weekday: 'long', day: 'numeric' }))) : 'pas encore de jour')}</small></button>
+      <div class="w-as__d">${keys.map(k => { const d = fromKey(k); return `<button type="button" data-v="aday" data-id="${esc(t.id)}" data-day="${k}" aria-pressed="${t.date === k}" class="${k < today ? 'is-past' : ''} ${k === today ? 'is-today' : ''}" aria-label="${esc(formatKey(k, { weekday: 'long', day: 'numeric' }))}"><small>${WD[d.getDay()].slice(0, 1).toUpperCase()}</small>${d.getDate()}</button>`; }).join('')}</div></div>`;
+  };
+  host.innerHTML = `
+    ${head(`${free} sans jour · ${tasks.length - free} placée${tasks.length - free > 1 ? 's' : ''}`, 'Répartir', '<button type="button" class="k-lnk" data-v="assign">Terminé</button>')}
+    <div class="w-seg" role="group" aria-label="Semaine">${[[0, 'Cette semaine'], [1, 'Semaine prochaine']].map(([o, l]) => `<button type="button" data-v="aweek" data-off="${o}" aria-pressed="${off === o}">${l}</button>`).join('')}</div>
+    <p class="k-hint w-hint">Touche un jour pour y mettre la tâche, touche-le encore pour l’enlever.</p>
+    <div class="card w-aslist">${tasks.map(row).join('') || '<p class="e-empty">Aucune tâche à répartir. Le + en ajoute une.</p>'}</div>`;
+  done(host);
+}
+function assignDay(id, k) {
+  const t = state.dashboard.tasks.find(x => x.id === id);
+  if (!t) return;
+  const prev = t.date;
+  t.date = t.date === k ? '' : k;
+  if (!t.date) t.time = '';
+  buzz(8);
+  commit('dashboard');
+  toast(t.date ? `${t.title} · ${dayWord(t.date)}` : `${t.title} · sans jour`, { action: { label: 'Annuler', onClick: () => { t.date = prev; commit('dashboard'); } } });
+}
+
+/* ---------- Ma semaine : tout ce qui est prévu, et ce qu'on peut réorganiser ---------- */
+/** Plages horaires des créneaux, en minutes (mêmes heures que la météo par créneau). */
+const SLOT_RANGE = { matin: [7 * 60, 12 * 60], aprem: [12 * 60, 18 * 60], soir: [18 * 60, 22 * 60] };
+const toMin = t => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+/** Heures prises un jour donné : rendez-vous et événements avec une heure (1 h si pas de fin). */
+function busyOn(k) {
+  return itemsOn(k)
+    .filter(x => x.time && (!x.endDate || x.date === k))
+    .map(x => ({ x, a: toMin(x.time), b: x.endTime && x.endTime > x.time ? toMin(x.endTime) : toMin(x.time) + 60 }));
+}
+/** Plus longue plage libre d'un créneau (en minutes) et ce qui l'occupe. */
+function freeIn(k, sl) {
+  let [a, b] = SLOT_RANGE[sl];
+  if (k === todayKey()) a = Math.max(a, new Date().getHours() * 60 + new Date().getMinutes());
+  const busy = busyOn(k).filter(r => r.b > a && r.a < b).sort((p, q) => p.a - q.a);
+  let gap = 0;
+  let cur = a;
+  busy.forEach(r => {
+    gap = Math.max(gap, r.a - cur);
+    cur = Math.max(cur, r.b);
+  });
+  gap = Math.max(gap, b - cur);
+  return { gap: Math.max(0, gap), by: busy[0]?.x || null };
+}
+const needOf = s => durMin(s.time) || 60;
+const okSlot = (s, k, sl) => !slotPast(k, sl) && freeIn(k, sl).gap >= needOf(s);
+const wxScore = (s, k, sl) => score(kindOf(s), slotsOn(k)?.[sl]);
+/** Créneau d'une séance dans « Ma semaine » : celui choisi, sinon le meilleur créneau libre selon la météo. */
+function planSlot(s, k) {
+  if (s.slot) return s.slot;
+  const open = SLOT_IDS.filter(sl => okSlot(s, k, sl));
+  if (!open.length) return slotOf(s, k);
+  return open.reduce((a, b) => (wxScore(s, k, b) > wxScore(s, k, a) ? b : a));
+}
+/** Séance à faire à la maison : un sport d'intérieur (renfo de préférence). */
+function homeFamily() {
+  const fams = (state.families || []).filter(f => kindOfFamily(f.name) === 'indoor');
+  const f = fams.find(x => /muscu|renfo/i.test(x.name)) || fams[0];
+  if (!f) return null;
+  const types = f.types.filter(t => !isRestTraining(t));
+  return { f, type: types.find(t => /renfo/i.test(t)) || types[0] || '' };
+}
+/** Ce qui ne va pas pour une séance (créneau pris, météo à éviter) et ce que Carnet propose à la place. */
+function issueOf(s, k) {
+  if (k < todayKey() || isDone(k, s)) return null;
+  const sl = planSlot(s, k);
+  if (!sl) return null;
+  const kind = kindOf(s);
+  const w = slotsOn(k)?.[sl];
+  const f = freeIn(k, sl);
+  const busy = !slotPast(k, sl) && f.gap < needOf(s) ? f.by || { title: 'la journée' } : null;
+  const bad = kind !== 'indoor' && w && level(score(kind, w)) === 'bad';
+  const past = slotPast(k, sl);
+  if (!busy && !bad && !past) return null;
+  const fine = (k2, sl2) => okSlot(s, k2, sl2) && (kind === 'indoor' || !slotsOn(k2)?.[sl2] || level(wxScore(s, k2, sl2)) !== 'bad');
+  const same = SLOT_IDS.filter(x => x !== sl && fine(k, x)).sort((p, q) => wxScore(s, k, q) - wxScore(s, k, p))[0];
+  let other = null;
+  if (!same) {
+    keysOf(planStart).filter(k2 => k2 !== k && k2 >= todayKey()).forEach(k2 => {
+      SLOT_IDS.filter(x => fine(k2, x) && slotsOn(k2)?.[x]).forEach(x => {
+        const v = wxScore(s, k2, x) - Math.abs(dayDiff(k2) - dayDiff(k)) * 4 + (sessionsOn(k2).length ? 0 : 12);
+        if (!other || v > other.v) other = { k: k2, sl: x, v };
+      });
+    });
+  }
+  const home = kind !== 'indoor' && (bad || (busy && !same)) ? homeFamily() : null;
+  const reason = busy
+    ? `« ${busy.title} »${busy.time ? ` à ${hhmm(busy.time)}` : ''} : pas ${durLabel(needOf(s))} de libre le ${SLOTS[sl].toLowerCase()}`
+    : past ? `le ${SLOTS[sl].toLowerCase()} est passé` : `${why(w) || 'météo à éviter'} le ${SLOTS[sl].toLowerCase()}`;
+  return { sl, reason, same, other, home };
+}
+/** Tout ce qui est prévu un jour donné, dans l'ordre de la journée : rendez-vous et événements, courses,
+ *  séances, tâches (celles en retard passent sur aujourd'hui). Sert à la semaine condensée et à « Planifier ». */
+function entriesOn(k, all = doneMap()) {
+  const today = todayKey();
+  const out = [];
+  itemsOn(k).forEach(x => {
+    const n = spanDays(x);
+    const ev = x.kind === 'events';
+    const at = x.time && (!x.endDate || x.date === k) ? x.time : '';
+    out.push({ id: x.id, at: at || '00:00', cls: ev ? 'c-ev' : 'c-rdv', tag: at ? hhmm(at) : ev ? 'Événement' : 'RDV', title: x.title, sub: n ? `jour ${dayDiff(k) - dayDiff(x.date) + 1}/${n + 1}` : '', act: `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"` });
+  });
+  (state.races || []).filter(r => r.date === k).forEach(r => out.push({ id: r.id, at: r.time || '00:01', cls: 'c-race', tag: 'Course', title: r.name, act: 'data-v="race"' }));
+  sessionsOn(k).forEach(s => {
+    const sl = planSlot(s, k);
+    const done = isDone(k, s, all);
+    out.push({ id: s.id, at: sl ? `${pad(SLOT_RANGE[sl][0] / 60)}:30` : '12:30', cls: `c-ses k-${TILE[kindOf(s)]}`, tag: s.training || '', sub: [s.distance ? km(s.distance) : '', durLabel(durMin(s.time)), sl ? SLOT_WHEN[sl] : ''].filter(Boolean).join(' · '), title: familyOf(s)?.name || s.training || 'Séance', ill: sportIll(familyOf(s)?.name || s.training), done, warn: !done && issueOf(s, k)?.reason, act: `data-v="pedit" data-day="${k}" data-id="${esc(s.id)}"` });
+  });
+  state.dashboard.tasks
+    .filter(t => (t.date === k && (t.done ? !t.doneAt || t.doneAt >= today : k >= today)) || (k === today && !t.done && isLate(t)))
+    .forEach(t => out.push({ id: t.id, at: t.time || '99:99', cls: 'c-task', tag: 'Tâche', title: t.title, done: t.done, sub: isLate(t) ? 'en retard' : '', act: `data-v="tedit" data-id="${esc(t.id)}"` }));
+  return out.sort((a, b) => a.at.localeCompare(b.at));
+}
+const SLOT_WHEN = { matin: 'matin', aprem: 'ap.-midi', soir: 'soir' };
+/** Météo d'un jour en une ligne courte, couleur selon une sortie à pied (idéal / moyen / à éviter). */
+function dayWx(k) {
+  const w = wx[k];
+  if (!w) return null;
+  const ss = Object.values(w.slots || {});
+  const best = bestSlot('run', k);
+  return {
+    sky: SKY[w.sky] || SKY.cloud,
+    min: w.min,
+    max: w.max,
+    rain: ss.length ? Math.max(...ss.map(x => x.rain)) : 0,
+    wind: ss.length ? Math.max(...ss.map(x => x.wind)) : 0,
+    gust: ss.length ? Math.max(...ss.map(x => x.gust)) : 0,
+    windAvg: w.hours?.length ? Math.round(w.hours.reduce((a, x) => a + x.wind, 0) / w.hours.length) : ss.length ? Math.round(ss.reduce((a, x) => a + x.wind, 0) / ss.length) : 0,
+    mm: Math.round(ss.reduce((a, x) => a + (x.mm || 0), 0) * 10) / 10,
+    q: best ? level(score('run', w.slots[best])) : ss.length ? level(Math.max(...ss.map(x => score('run', x)))) : 'ok',
+    label: w.label
+  };
+}
+const isSundayEve = () => new Date().getDay() === 0 && new Date().getHours() >= 15;
+const defaultPlanStart = () => dateKey(addDays(mondayOf(new Date()), isSundayEve() ? 7 : 0));
+const weekRange = start => {
+  const a = fromKey(start);
+  const b = addDays(a, 6);
+  return `${a.getDate()}${a.getMonth() !== b.getMonth() ? ` ${MONTHS[a.getMonth()]}` : ''} – ${b.getDate()} ${MONTHS[b.getMonth()]}`;
+};
+const weekLabel = start => {
+  const wi = Math.round((fromKey(start) - mondayOf(new Date())) / 6048e5);
+  const end = addDays(fromKey(start), 6);
+  const s = fromKey(start);
+  return `${wi === 0 ? 'Cette semaine' : wi === 1 ? 'Semaine prochaine' : wi === -1 ? 'Semaine dernière' : wi > 0 ? `Dans ${wi} semaines` : `Il y a ${-wi} semaines`} · ${s.getDate()}${s.getMonth() !== end.getMonth() ? ` ${formatDate(s, { month: 'short' })}` : ''} – ${end.getDate()} ${formatDate(end, { month: 'short' })}`;
+};
+
+/* ---------- « Planifier » : un jour après l'autre, les tâches puis la séance ---------- */
+let W = null; // { part: 'w' météo | 't' tâches | 's' sport }
+const box = (title, body) => `<section class="j-box"><h3>${title}</h3>${body}</section>`;
+/* Météo : actualisation à la main, heure de mise à jour et lieu. */
+let placeOpen = false;
+let placeHits = [];
+function wxBar() {
+  const at = wxAt();
+  return `<div class="j-wxbar"><span>${I.pin}<b>${esc(getPlace().name)}</b> · ${at ? `mise à jour à ${pad(at.getHours())} h ${pad(at.getMinutes())}` : 'pas encore chargée'}</span>
+    <span class="j-wxbar__a"><button type="button" data-wx="refresh">Actualiser</button><button type="button" data-wx="place" aria-expanded="${placeOpen}">Lieu</button></span></div>
+    ${placeOpen ? `<form class="j-add j-place" data-wx="search" autocomplete="off"><input placeholder="Ville (ex. Pontarlier)" aria-label="Chercher une ville" maxlength="80"><button type="submit" aria-label="Chercher">${I.go}</button></form>
+      ${placeHits.length ? `<div class="j-hits">${placeHits.map((p, i) => `<button type="button" data-wx="pick" data-i="${i}"><b>${esc(p.name)}</b> <small>${esc([p.admin1, p.country].filter(Boolean).join(', '))}</small></button>`).join('')}</div>` : ''}` : ''}`;
+}
+function refreshWx() {
+  wx = {};
+  wxAsked.clear();
+  loadWx(true);
+  toast('Météo en cours d’actualisation…');
+}
+function onWxClick(e) {
+  const b = e.target.closest('[data-wx]');
+  if (!b || b.tagName === 'FORM') return;
+  const a = b.dataset.wx;
+  if (a === 'refresh') return refreshWx();
+  if (a === 'place') { placeOpen = !placeOpen; placeHits = []; renderCurrent(); return setTimeout(() => $('.j-place input')?.focus(), 30); }
+  if (a === 'pick') {
+    const p = placeHits[Number(b.dataset.i)];
+    if (!p) return;
+    setPlace({ name: p.name, lat: p.lat, lon: p.lon });
+    placeOpen = false;
+    placeHits = [];
+    toast(`Météo : ${p.name}`);
+    return refreshWx();
+  }
+}
+function onWxSubmit(e) {
+  if (e.target.dataset?.wx !== 'search') return;
+  e.preventDefault();
+  e.stopPropagation();
+  const q = e.target.querySelector('input').value;
+  searchPlaces(q).then(list => {
+    placeHits = list;
+    if (!list.length) toast('Aucune ville trouvée');
+    renderCurrent();
+  }).catch(() => toastError('Recherche de ville impossible (hors ligne ?)'));
+}
+/** Petite bande des 7 jours : beau, gris ou pluie (pour placer les tâches). */
+function jSport(keys) {
+  const today = todayKey();
+  const opt = (v, l, on) => `<option value="${esc(v)}"${on ? ' selected' : ''}>${esc(l)}</option>`;
+  const days = keys.filter(k => k >= today || sportPast).map(k => {
+    const d = fromKey(k);
+    const ss = sessionsOn(k);
+    const busy = itemsOn(k).map(x => `${x.title}${x.time && (!x.endDate || x.date === k) ? ` ${hours(x)}` : ''}`);
+    const cells = SLOT_IDS.map(sl => {
+      const w = slotsOn(k)?.[sl];
+      const past = slotPast(k, sl);
+      const f = freeIn(k, sl);
+      const by = !past && f.gap < 60 ? f.by : null;
+      return `<span class="j-wc ${past ? 'is-past' : by ? 'is-busy' : w ? `q-${level(score('run', w))}` : ''}"><small>${SLOT_WHEN[sl]}</small>${past ? '—' : by ? `<b class="j-wc__by">${esc(by.title)}</b>` : w ? `${skyOf(w)}<b>${w.wind}</b><small>raf. ${w.gust} · ${w.t}°</small>` : '·'}</span>`;
+    }).join('');
+    const rows = ss.map(s => {
+      const is = issueOf(s, k);
+      return `<div class="j-sp ${landed === s.id || flash === s.id ? 'e-flash' : ''}"><button type="button" class="j-sp__t" data-w="sedit" data-day="${k}" data-id="${esc(s.id)}"><span class="j-sp__i">${sportIll(familyOf(s)?.name || s.training)}</span><b>${esc(familyOf(s)?.name || s.training || 'Séance')}</b><small>${esc([s.training, s.distance ? km(s.distance) : '', durLabel(durMin(s.time))].filter(Boolean).join(' · '))}</small>${is ? `<em>${esc(is.reason)}</em>` : ''}</button>
+        <div class="j-sp__s"><select data-w="sday" data-day="${k}" data-id="${esc(s.id)}" aria-label="Jour">${keys.filter(x => x >= today || x === k).map(x => opt(x, cap(formatKey(x, { weekday: 'short', day: 'numeric' })), x === k)).join('')}</select>
+        <select data-w="sslot" data-day="${k}" data-id="${esc(s.id)}" aria-label="Moment">${SLOT_IDS.map(sl => opt(sl, SLOTS[sl], planSlot(s, k) === sl)).join('')}</select></div></div>`;
+    }).join('');
+    const races = (state.races || []).filter(r => r.date === k).map(r => `<a class="j-race" href="${ALLURE_URL}">🏁 <b>${esc(r.name)}</b>${r.distance ? ` · ${esc(r.distance)} km` : ''}</a>`).join('');
+    const past = k < today;
+    return `<section class="j-sd ${k === today ? 'is-today' : ''} ${past ? 'is-past' : ''}" id="pday-${k}"><header><b>${k === today ? 'Aujourd’hui' : cap(WD_FULL[d.getDay()])} ${d.getDate()}</b>${busy.length ? `<small>${esc(busy.join(' · '))}</small>` : ''}${!past && wx[k]?.hours?.length ? `<button type="button" class="j-sd__hr" data-dwx="${k}">Heure par heure ${I.fwd}</button>` : ''}</header>
+      ${past ? '' : `<div class="j-sd__w">${cells}</div>`}${races}${rows || `<p class="j-rest-s">${past ? 'Rien' : 'Repos'}</p>`}${past ? '' : `<button type="button" class="j-plus" data-w="add" data-day="${k}">+ Séance</button>`}</section>`;
+  }).join('');
+  const hidden = keys.filter(k => k < today);
+  const toggle = hidden.length ? `<button type="button" class="d-past" data-v="spast" aria-expanded="${sportPast}">${sportPast ? 'Masquer le début de la semaine' : `Voir le début de la semaine <small>${cap(WD[fromKey(hidden[0]).getDay()])}. ${fromKey(hidden[0]).getDate()} – ${WD[fromKey(hidden.at(-1)).getDay()]}. ${fromKey(hidden.at(-1)).getDate()}</small>`}</button>` : '';
+  return `${toggle}${days}`;
+}
+/** La semaine en courbes (vent, rafales) sur fond bleu canard, comme une appli météo. */
+function wxChart(keys) {
+  const today = todayKey();
+  const days = keys.filter(k => k >= today);
+  const pts = days.flatMap(k => SLOT_IDS.map(sl => slotsOn(k)?.[sl]).filter(Boolean));
+  if (pts.length < 3) return '';
+  const gusty = days.filter(k => (dayWx(k)?.gust || 0) >= 45);
+  const name = k => WD_FULL[fromKey(k).getDay()];
+  const head = !gusty.length ? 'Une semaine <b>plutôt calme</b>.' : gusty.length >= days.length / 2 ? 'Une semaine <b>venteuse</b>.' : `Une semaine <b>plutôt calme</b>, sauf ${gusty.slice(0, 2).map(name).join(' et ')}.`;
+  const max = Math.max(40, ...pts.map(x => x.gust)) * 1.2;
+  const peak = pts.reduce((a, x) => (x.gust > a.gust ? x : a), pts[0]);
+  return `<section class="d-wx"><p class="d-wx__h">${head}</p>
+    <div class="d-wx__c"><svg viewBox="0 0 350 150" preserveAspectRatio="none" aria-hidden="true"><path d="${curve(pts.map(x => x.gust), 350, 150, max)}" fill="#1C5B6B"/><path d="${curve(pts.map(x => x.wind), 350, 150, max)}" fill="#BFD3D8"/></svg>
+      <span class="d-wx__pk">${peak.gust}<small> km/h en rafales au plus fort</small></span>
+      <div class="d-wx__d">${days.map(k => `<span class="${gusty.includes(k) ? 'is-bad' : ''}">${cap(WD[fromKey(k).getDay()])}</span>`).join('')}</div></div>
+    <p class="d-wx__l"><i></i>vent moyen <i class="g"></i>rafales</p></section>`;
+}
+/** Sport : changer le jour ou le moment d'une séance depuis ses listes déroulantes. */
+function onSessionChange(e) {
+  const t = e.target;
+  const { w, day, id } = t.dataset;
+  if (!id) return;
+  if (w === 'sslot') return setSessionSlot(day, id, t.value);
+  if (w === 'sday') {
+    const s = plansOn(day).find(x => x.id === id);
+    const open = s ? SLOT_IDS.filter(sl => okSlot(s, t.value, sl)) : [];
+    return moveSession(id, day, t.value, (s?.slot && open.includes(s.slot) ? s.slot : open.sort((p, q) => wxScore(s, t.value, q) - wxScore(s, t.value, p))[0]) || 'aprem');
+  }
+}
+function setSessionSlot(k, id, sl) {
+  const s = plansOn(k).find(x => x.id === id);
+  if (!s) return;
+  const prev = s.slot;
+  s.slot = sl;
+  landed = id;
+  commit('plans');
+  setTimeout(() => (landed = null), 1300);
+  buzz(10);
+  toast(`${s.training || 'Séance'} · ${SLOTS[sl].toLowerCase()}`, { action: { label: 'Annuler', onClick: () => { s.slot = prev; commit('plans'); } } });
+}
+function sessionAtHome(k, id) {
+  const s = plansOn(k).find(x => x.id === id);
+  const h = homeFamily();
+  if (!s || !h) return;
+  const prev = { family: s.family, training: s.training, distance: s.distance, elevation: s.elevation };
+  Object.assign(s, { family: h.f.id, training: h.type, distance: '', elevation: '' });
+  landed = id;
+  commit('plans');
+  setTimeout(() => (landed = null), 1300);
+  buzz(10);
+  toast(`${h.type || h.f.name} à la maison`, { action: { label: 'Annuler', onClick: () => { Object.assign(s, prev); commit('plans'); } } });
+}
+function toggleTask(id) {
+  const t = state.dashboard.tasks.find(x => x.id === id);
+  if (!t) return;
+  if (t.done) {
+    t.done = false;
+    delete t.doneAt;
+  } else {
+    t.done = true;
+    t.doneAt = todayKey();
+    buzz(12);
+  }
+  commit('dashboard');
+  return t.done;
 }
 
 /* ---------- Sport : le planning détaillé ---------- */
@@ -473,8 +888,11 @@ function editorHTML(s, k) {
   const f = familyOf(s);
   const opt = (v, l, on) => `<option value="${esc(v)}"${on ? ' selected' : ''}>${esc(l)}</option>`;
   const types = (f?.types || []).filter(t => !isRestTraining(t));
+  const days = Array.from({ length: 21 }, (_, i) => dateKey(addDays(new Date(), i)));
+  if (!days.includes(k)) days.unshift(k);
   return `<div class="e-ed" data-day="${k}" data-sid="${esc(s.id)}">
     <div class="e-ed__g">
+      <label class="e-ed__f is-wide"><span>Jour</span><select data-ed="day">${days.map(x => opt(x, cap(formatKey(x, { weekday: 'long', day: 'numeric', month: 'long' })), x === k)).join('')}</select></label>
       <label class="e-ed__f is-wide"><span>Sport</span><select data-ed="family">${(state.families || []).map(x => opt(x.id, x.name, x.id === s.family)).join('')}</select></label>
       <label class="e-ed__f is-wide"><span>Séance</span><select data-ed="training">${opt('', '— Choisir —', !s.training)}${types.map(t => opt(t, t, t === s.training)).join('')}${s.training && !types.includes(s.training) ? opt(s.training, s.training, true) : ''}</select></label>
       <label class="e-ed__f"><span>km</span><input data-ed="distance" type="text" inputmode="decimal" value="${esc(s.distance || '')}" placeholder="0" autocomplete="off"></label>
@@ -482,24 +900,12 @@ function editorHTML(s, k) {
       <label class="e-ed__f"><span>D+ m</span><input data-ed="elevation" type="text" inputmode="numeric" value="${esc(s.elevation || '')}" placeholder="0" autocomplete="off"></label>
       <label class="e-ed__f"><span>Moment</span><select data-ed="slot">${opt('', 'Au mieux', !s.slot)}${SLOT_IDS.map(sl => opt(sl, SLOTS[sl], s.slot === sl)).join('')}</select></label>
     </div>
-    <div class="e-ed__a"><button type="button" class="k-lnk is-danger" data-v="sdel" data-day="${k}" data-id="${esc(s.id)}">Supprimer</button><button type="button" class="k-lnk" data-v="sports">Gérer les sports</button><button type="button" class="e-ed__ok" data-v="sclose">OK</button></div>
+    <div class="e-ed__a"><button type="button" class="k-lnk is-danger" data-v="sdel" data-day="${k}" data-id="${esc(s.id)}">${edit?.isNew ? 'Annuler' : 'Supprimer'}</button><button type="button" class="k-lnk" data-v="sports">Gérer les sports</button><button type="button" class="e-ed__ok" data-v="sclose">OK</button></div>
   </div>`;
 }
 
 /** Une séance dans la liste de la semaine : titre, puis sport · km · durée · moment. La météo n'apparaît
  *  ici que si elle est mauvaise (elle est déjà donnée une fois pour la journée). */
-function sesLine(s, k, all) {
-  const today = todayKey();
-  const done = isDone(k, s, all);
-  const kind = kindOf(s);
-  const sl = slotOf(s, k);
-  const w = slotsOn(k)?.[sl];
-  const bad = k >= today && !done && kind !== 'indoor' && w && level(score(kind, w)) === 'bad';
-  const sub = [familyOf(s)?.name, s.distance ? km(s.distance) : '', durLabel(durMin(s.time)), sl ? SLOTS[sl].toLowerCase() : ''].filter(Boolean).join(' · ');
-  const check = k <= today ? `<button type="button" class="e-check ${done ? 'is-on' : ''}" data-v="session" data-day="${k}" data-id="${esc(s.id)}" aria-pressed="${done}" aria-label="${done ? 'Séance faite' : 'Marquer la séance faite'}"><i>${I.check}</i></button>` : '';
-  return `<div class="s-ses k-${TILE[kind]} ${done ? 'is-done' : ''} ${k < today && !done ? 'is-miss' : ''} ${landed === s.id || flash === s.id ? 'e-flash' : ''}"><button type="button" class="s-ses__m" data-v="sedit" data-day="${k}" data-id="${esc(s.id)}"><b>${esc(s.training || familyOf(s)?.name || 'Séance')}</b><span>${esc(sub)}${bad ? ` · <em>${esc(why(w) || 'météo à éviter')}</em>` : ''}</span></button>${check}</div>`;
-}
-
 let phaseOpen = false;
 export function renderWeekView() {
   const host = $('#weekView');
@@ -509,7 +915,6 @@ export function renderWeekView() {
   const end = addDays(start, 6);
   const today = todayKey();
   const st = weekStats(keys);
-  const all = doneMap();
   const phases = getPhases();
   const ph = phaseOn(keys[3], phases) || phaseOn(keys[0], phases);
   const race = nextRace();
@@ -539,28 +944,11 @@ export function renderWeekView() {
   const recap = [`${st.done}/${st.n} séance${st.n > 1 ? 's' : ''} faite${st.n > 1 ? 's' : ''}`, st.km ? km(st.km) : '', durLabel(st.min), st.dp ? `${Math.round(st.dp)} m D+` : ''].filter(Boolean).join(' · ');
 
   host.innerHTML = `
-    ${head(`${label} · ${esc(range)}`, 'Sport', `<div class="k-nav">${wi ? `<button type="button" class="k-lnk e-today-lnk" data-v="wtoday">Aujourd’hui</button>` : ''}<button type="button" class="k-round" data-v="week" data-step="-1" aria-label="Semaine précédente">${I.back}</button><button type="button" class="k-round" data-v="week" data-step="1" aria-label="Semaine suivante">${I.fwd}</button></div>`)}
+    <div class="d-sec d-sec--top"><h2>Sport<small>${esc(label)} · ${esc(range)}</small></h2><span>${wi ? '<button type="button" class="d-today-btn" data-v="wtoday">Aujourd’hui</button>' : ''}<button type="button" class="d-arr" data-v="week" data-step="-1" aria-label="Semaine précédente">${I.back}</button><button type="button" class="d-arr" data-v="week" data-step="1" aria-label="Semaine suivante">${I.fwd}</button></span></div>
     ${season}
-    ${keys[6] >= today ? `<button type="button" class="s-prog" data-v="program">${I.star}Programmer ma semaine</button>` : ''}
-    <section class="card s-week">${keys.map(k => {
-      const d = fromKey(k);
-      const ss = sessionsOn(k);
-      const past = k < today;
-      const races = (state.races || []).filter(r => r.date === k);
-      const kind = ss.find(s => kindOf(s) !== 'indoor') ? kindOf(ss.find(s => kindOf(s) !== 'indoor')) : 'run';
-      const best = bestSlot(kind, k);
-      const w = wx[k];
-      const lines = [
-        ...races.map(r => `<a class="s-ses k-rdv" href="${ALLURE_URL}"><span class="s-ses__m"><b>🏁 ${esc(r.name)}</b><span>course${r.time ? ` · départ ${r.time}` : ''}${r.distance ? ` · ${r.distance} km` : ''}</span></span></a>`),
-        ...ss.map(s => sesLine(s, k, all))
-      ];
-      const body = lines.length ? lines.join('') : past || isRestDay(k) ? `<span class="s-free">${isRestDay(k) ? 'Repos' : '—'}</span>` : `<button type="button" class="s-free" data-v="addsess" data-day="${k}" aria-label="Ajouter une séance ${esc(dayWord(k))}">—</button>`;
-      return `<div class="s-day ${k === today ? 'is-today' : ''} ${past ? 'is-past' : ''}" id="pday-${k}" ${k === today ? 'aria-current="date"' : ''}>
-        <div class="s-day__d"><small>${k === today ? 'auj.' : WD[d.getDay()]}</small><b>${d.getDate()}</b></div>
-        <div class="s-day__b">${body}</div>
-        <div class="s-day__w ${!past && best && w?.slots?.[best] ? `q-${level(score(kind, w.slots[best]))}` : ''}">${!past && w ? `${SKY[w.sky] || SKY.cloud}<span>${w.max}°</span>` : ''}</div>
-      </div>`;
-    }).join('')}</section>
+    <button type="button" class="rt-entry" data-v="routines"><span class="rt-entry__i">${ILL.yoga}</span><span><b>Routines</b><small>Étirements, gainage, mobilité… avec chrono</small></span><span class="rt-entry__go">${I.fwd}</span></button>
+    ${keys[6] >= today ? `${wxChart(keys)}${wxBar()}` : ''}
+    <div class="s-plan">${jSport(keys)}</div>
     <p class="e-wkline">${esc(recap)}</p>`;
   done(host);
 }
@@ -575,11 +963,20 @@ function renderEdit() {
   const ws = slotsOn(edit.k);
   const kind = kindOf(s);
   const best = kind !== 'indoor' ? bestSlot(kind, edit.k) : null;
-  editEl().querySelector('h2').textContent = `${s.training || familyOf(s)?.name || 'Séance'} · ${dayTitle(edit.k).toLowerCase()}`;
+  editEl().querySelector('h2').textContent = edit.isNew ? 'Nouvelle séance' : `${s.training || familyOf(s)?.name || 'Séance'} · ${dayTitle(edit.k).toLowerCase()}`;
   editEl().querySelector('.e-pm__b').innerHTML = `${ws && kind !== 'indoor' ? `<div class="e-slots s-slots">${SLOT_IDS.map(sl => { const w = ws[sl]; if (!w) return '<div class="e-slot is-past"></div>'; const p = slotPast(edit.k, sl); return `<div class="e-slot ${p ? 'is-past' : `q-${level(score(kind, w))}`}"><small>${SLOTS[sl]}${sl === best ? ' ★' : ''}</small><b>${skyOf(w)}${w.t}°</b><span>pluie ${w.rain} % · vent ${w.wind}</span></div>`; }).join('')}</div>` : ''}${editorHTML(s, edit.k)}`;
 }
-function openEdit(k, id) {
-  edit = { k, id };
+/** Nouvelle séance : créée sur le jour choisi, puis réglée dans la fiche à listes déroulantes. */
+function newSession(k) {
+  const recent = Object.keys(state.plans || {}).sort().reverse().flatMap(x => sessionsOn(x))[0];
+  const fam = (recent && familyOf(recent)) || (state.families || [])[0];
+  const s = { id: uid(), family: fam?.id || '', training: '', distance: '', time: '', elevation: '', slot: '' };
+  state.plans[k] = [...plansOn(k).filter(x => x.family || x.training || x.distance || x.time || x.elevation), s];
+  commit('plans');
+  openEdit(k, s.id, true);
+}
+function openEdit(k, id, isNew = false) {
+  edit = { k, id, isNew };
   const el = editEl();
   el.hidden = false;
   document.body.classList.add('e-flow-on');
@@ -630,6 +1027,14 @@ function onEditChange(e) {
     }
     v = String(Math.round(n * 10) / 10);
   }
+  if (f === 'day') {
+    // Changer de jour : la séance passe sur ce jour (créneau gardé).
+    state.plans[box.dataset.day] = plansOn(box.dataset.day).filter(x => x.id !== s.id);
+    state.plans[v] = [...plansOn(v).filter(x => x.family || x.training || x.distance || x.time || x.elevation), s];
+    edit.k = v;
+    commit('plans');
+    return renderEdit();
+  }
   if (f === 'family') {
     s.family = v;
     s.training = '';
@@ -649,9 +1054,10 @@ function deleteSession(k, id) {
 }
 
 /** Se place sur un jour de Sport (en haut de l'écran, sous l'en-tête). */
-function scrollToDay(k) {
+const scrollToDay = k => scrollToId(`pday-${k}`);
+function scrollToId(domId) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    const el = document.getElementById(`pday-${k}`);
+    const el = document.getElementById(domId);
     if (!el) return;
     // offsetTop (et non getBoundingClientRect) : l'animation d'entrée décale encore les cartes.
     let y = 0;
@@ -1051,11 +1457,11 @@ function bindRows(host) {
 }
 
 /* ---------- Le + : une question par écran ---------- */
-const STEPS = { task: ['kind', 'title', 'day', 'done'], appointments: ['kind', 'title', 'day', 'time', 'done'], events: ['kind', 'title', 'day', 'done'], sess: ['kind', 'family', 'type', 'day', 'slot', 'done'] };
+const STEPS = { task: ['kind', 'title', 'day', 'done'], appointments: ['kind', 'title', 'day', 'time', 'done'], events: ['kind', 'title', 'day', 'end', 'done'], sess: ['kind', 'family', 'type', 'day', 'slot', 'done'] };
 let F = null;
 const flowEl = () => $('#eFlow');
 function openFlow(preset) {
-  F = { type: null, i: 0, d: {}, ...(preset || {}) };
+  F = { type: null, i: 0, d: {}, from: current, ...(preset || {}) };
   const el = flowEl();
   el.hidden = false;
   document.body.classList.add('e-flow-on');
@@ -1066,7 +1472,7 @@ function closeFlow() {
   const el = flowEl();
   el.classList.remove('is-open');
   // L'assistant « Programmer ma semaine » peut rester ouvert dessous.
-  if (!P) document.body.classList.remove('e-flow-on');
+  if (!P && !W) document.body.classList.remove('e-flow-on');
   setTimeout(() => (el.hidden = true), reduced() ? 0 : 500);
 }
 const steps = () => (F.type ? STEPS[F.type].filter(s => !(s === 'day' && F.d.fixedDay)) : ['kind', '', '', '']);
@@ -1092,28 +1498,37 @@ function stepHTML(st) {
   const days = Array.from({ length: 14 }, (_, i) => dateKey(addDays(new Date(), i)));
   switch (st) {
     case 'kind':
-      return `<h2 class="e-q">Qu’est-ce que tu ajoutes ?</h2><div class="e-kinds">${[['task', 'Tâche', 'Avec ou sans date', 't-task', I.list], ['appointments', 'Rendez-vous', 'Un jour, une heure', 't-rdv', I.clock], ['events', 'Événement', 'Une journée à retenir', 't-rdv', I.star], ['sess', 'Séance', 'Placée avec la météo', 't-run', I.run]].map(([k, b, s, t, ic], i) => `<button type="button" class="e-kind" data-fl="kind" data-val="${k}" style="animation-delay:${i * 50}ms"><span class="e-tile ${t}">${ic}</span><b>${b}</b><span>${s}</span></button>`).join('')}</div>
+      return `<h2 class="e-q">Qu’est-ce que tu ajoutes${d.fixedDay ? `, ${dateWord(d.day)}` : ''} ?</h2><div class="e-kinds">${[['task', 'Tâche', 'Avec ou sans date', ILL.clip], ['appointments', 'Rendez-vous', 'Un jour, une heure', ILL.cal], ['events', 'Événement', 'Un ou plusieurs jours', ILL.cal], ['sess', 'Séance', 'Placée avec la météo', ILL.run]].map(([k, b, s, ic], i) => `<button type="button" class="e-kind" data-fl="kind" data-val="${k}" style="animation-delay:${i * 50}ms"><span class="d-th e-kind__i">${ic}</span><b>${b}</b><span>${s}</span></button>`).join('')}</div>
         <p class="e-lab">Ou écris tout d’un coup</p><form class="e-big" data-fl="quick" autocomplete="off"><input id="eQuick" placeholder="dentiste jeudi 17h30" aria-label="Écrire en une phrase" maxlength="120"><button type="submit" aria-label="Valider">${I.go}</button></form><div id="eQuickChip"></div>`;
     case 'title':
       return `<h2 class="e-q">${F.type === 'task' ? 'Qu’y a-t-il à faire ?' : F.type === 'appointments' ? 'Quel rendez-vous ?' : 'Quel événement ?'}</h2><form class="e-big" data-fl="title" autocomplete="off"><input value="${esc(d.title || '')}" placeholder="${F.type === 'task' ? 'Payer la cantine' : F.type === 'appointments' ? 'Dentiste' : 'Anniversaire'}" aria-label="Titre" maxlength="100"><button type="submit" aria-label="Continuer">${I.go}</button></form>`;
     case 'family':
-      return `<h2 class="e-q">Quel sport ?${d.fixedDay ? `<small>Pour ${dayWord(d.day)}.</small>` : ''}</h2><div class="e-kinds">${(state.families || []).map((f, i) => `<button type="button" class="e-kind" data-fl="family" data-val="${esc(f.id)}" style="animation-delay:${i * 40}ms"><span class="e-tile t-${TILE[kindOfFamily(f.name)]}">${esc(abbrOf(f.name))}</span><b>${esc(f.name)}</b><span>${kindOfFamily(f.name) === 'indoor' ? 'intérieur' : 'dehors'}</span></button>`).join('')}</div>`;
+      return `<h2 class="e-q">Quel sport ?${d.fixedDay ? `<small>Pour ${dayWord(d.day)}.</small>` : ''}</h2><div class="e-kinds">${(state.families || []).map((f, i) => `<button type="button" class="e-kind" data-fl="family" data-val="${esc(f.id)}" style="animation-delay:${i * 40}ms"><span class="d-th e-kind__i">${sportIll(f.name)}</span><b>${esc(f.name)}</b><span>${kindOfFamily(f.name) === 'indoor' ? 'intérieur' : 'dehors'}</span></button>`).join('')}</div>`;
     case 'type':
       return `<h2 class="e-q">Quelle séance ?</h2><div class="e-opts e-opts--2">${(fam?.types || []).filter(t => !isRestTraining(t)).map((t, i) => `<button type="button" data-fl="type" data-val="${esc(t)}" style="animation-delay:${i * 30}ms">${esc(t)}</button>`).join('')}</div>`;
     case 'day':
-      return `<h2 class="e-q">Quel jour ?${F.type === 'sess' && kind !== 'indoor' ? '<small>La pastille donne la météo du meilleur moment.</small>' : ''}</h2>
+      return `<h2 class="e-q">${F.type === 'events' ? 'Quel jour commence-t-il ?' : 'Quel jour ?'}${F.type === 'sess' && kind !== 'indoor' ? '<small>La pastille donne la météo du meilleur moment.</small>' : ''}</h2>
         ${F.type === 'task' ? `<div class="e-opts e-opts--2" style="margin-bottom:14px"><button type="button" data-fl="day" data-val="">Sans date</button><button type="button" data-fl="day" data-val="${todayKey()}">Aujourd’hui</button></div>` : ''}
-        <div class="e-days">${days.map((k, i) => { const x = fromKey(k); const b = F.type === 'sess' && kind !== 'indoor' ? bestSlot(kind, k) : null; return `<button type="button" data-fl="day" data-val="${k}" style="animation-delay:${i * 18}ms"><small>${i ? WD[x.getDay()] : 'auj'}</small><b>${x.getDate()}</b><i class="${b ? `q-${level(score(kind, slotsOn(k)[b]))}` : ''}"></i></button>`; }).join('')}</div>`;
+        <div class="e-days">${days.map((k, i) => { const x = fromKey(k); const b = F.type === 'sess' && kind !== 'indoor' ? bestSlot(kind, k) : null; return `<button type="button" data-fl="day" data-val="${k}" style="animation-delay:${i * 18}ms"><small>${i ? WD[x.getDay()] : 'auj'}</small><b>${x.getDate()}</b><i class="${b ? `q-${level(score(kind, slotsOn(k)[b]))}` : ''}"></i></button>`; }).join('')}</div>
+        <p class="e-lab">Ou n’importe quelle date</p><form class="e-big" data-fl="date" autocomplete="off"><input type="date" min="${todayKey()}" value="${esc(d.day || '')}" aria-label="Choisir une date"><button type="submit" aria-label="Valider la date">${I.go}</button></form>`;
+    case 'end': {
+      const next = Array.from({ length: 7 }, (_, i) => dateKey(addDays(fromKey(d.day), i + 1)));
+      return `<h2 class="e-q">Jusqu’à quand ?<small>Il commence ${esc(dateWord(d.day))}.</small></h2>
+        <div class="e-opts" style="margin-bottom:14px"><button type="button" data-fl="end" data-val="">Seulement ce jour-là</button></div>
+        <p class="e-lab">Dernier jour</p><div class="e-days">${next.map((k, i) => { const x = fromKey(k); return `<button type="button" data-fl="end" data-val="${k}" style="animation-delay:${i * 18}ms"><small>${WD[x.getDay()]}</small><b>${x.getDate()}</b><i></i></button>`; }).join('')}</div>
+        <p class="e-lab">Ou une autre date de fin</p><form class="e-big" data-fl="enddate" autocomplete="off"><input type="date" min="${dateKey(addDays(fromKey(d.day), 1))}" value="${esc(d.end || '')}" aria-label="Date de fin"><button type="submit" aria-label="Valider la date de fin">${I.go}</button></form>`;
+    }
     case 'time':
       return `<h2 class="e-q">À quelle heure, ${dayWord(d.day)} ?</h2><div class="e-opts e-opts--5">${Array.from({ length: 16 }, (_, i) => i + 7).map((h, i) => `<button type="button" data-fl="hour" data-val="${h}" aria-pressed="${d.h === h}" style="animation-delay:${i * 15}ms">${h} h</button>`).join('')}</div>
-        <p class="e-lab">Minutes</p><div class="e-opts e-opts--4">${['00', '15', '30', '45'].map(m => `<button type="button" data-fl="min" data-val="${m}" aria-pressed="${(d.m || '00') === m}">${m}</button>`).join('')}</div><button type="button" class="e-btn" data-fl="timeok" ${d.h ? '' : 'disabled'}>Ajouter</button>`;
+        <p class="e-lab">Minutes</p><div class="e-opts e-opts--4">${['00', '15', '30', '45'].map(m => `<button type="button" data-fl="min" data-val="${m}" aria-pressed="${(d.m || '00') === m}">${m}</button>`).join('')}</div>
+        <p class="e-lab">Durée</p><div class="e-opts e-opts--4">${[[30, '30 min'], [60, '1 h'], [120, '2 h'], [180, '3 h']].map(([m, l]) => `<button type="button" data-fl="dur" data-val="${m}" aria-pressed="${(d.dur || 60) === m}">${l}</button>`).join('')}</div><button type="button" class="e-btn" data-fl="timeok" ${d.h ? '' : 'disabled'}>Ajouter</button>`;
     case 'slot': {
       const ws = slotsOn(d.day);
       const b = kind !== 'indoor' ? bestSlot(kind, d.day) : null;
       return `<h2 class="e-q">À quel moment, ${dayWord(d.day)} ?${b ? `<small>Carnet conseille ${SLOTS[b].toLowerCase()}.</small>` : ''}</h2><div class="e-slotpick">${SLOT_IDS.map((sl, i) => { const w = ws?.[sl]; const p = slotPast(d.day, sl); return `<button type="button" class="${p || !w || kind === 'indoor' ? '' : `q-${level(score(kind, w))}`}" data-fl="slot" data-val="${sl}" ${p ? 'disabled' : ''} style="animation-delay:${i * 60}ms">${w ? skyOf(w) : ''}<b>${SLOTS[sl]}${sl === b ? ' · conseillé' : ''}</b><span>${w ? `${w.t}° · pluie ${w.rain} % · vent ${w.wind}` : ''}</span></button>`; }).join('')}</div>`;
     }
     case 'done':
-      return `<div class="e-stamp"><i>${I.check}</i><b>Ajouté</b><span class="e-row__s">${esc(F.type === 'sess' ? `${d.type}, ${dayWord(d.day)} ${SLOTS[d.slot].toLowerCase()}` : `${d.title}${d.day ? `, ${dayWord(d.day)}` : ''}`)}</span></div>`;
+      return `<div class="e-stamp"><i>${I.check}</i><b>Ajouté</b><span class="e-row__s">${esc(F.type === 'sess' ? `${d.type}, ${dateWord(d.day)} ${SLOTS[d.slot].toLowerCase()}` : `${d.title}${d.end ? `, ${span({ date: d.day, endDate: d.end })}` : d.day ? `, ${dateWord(d.day)}` : ''}`)}</span></div>`;
   }
   return '';
 }
@@ -1132,10 +1547,20 @@ function saveFlow() {
     focusDay = d.day;
     target = 'weekView';
   } else {
-    state.dashboard[F.type].push({ id, title: d.title, date: d.day, time: F.type === 'appointments' ? `${pad(d.h)}:${d.m || '00'}` : '', note: '' });
+    const item = { id, title: d.title, date: d.day, time: '', note: '' };
+    if (F.type === 'appointments') {
+      const a = d.h * 60 + Number(d.m || 0);
+      const b = a + (d.dur || 60);
+      item.time = `${pad(d.h)}:${d.m || '00'}`;
+      if (b < 24 * 60) item.endTime = `${pad(Math.floor(b / 60))}:${pad(b % 60)}`;
+    }
+    if (F.type === 'events' && d.end > d.day) item.endDate = d.end;
+    state.dashboard[F.type].push(item);
     commit('dashboard');
-    const pos = upcoming().findIndex(x => x.id === id);
-    more = Math.max(more, pos + 1);
+    // Le mois de l'élément ajouté est affiché dans « Mois ».
+    const now = new Date();
+    const m = fromKey(d.day);
+    monthsShown = Math.max(monthsShown, (m.getFullYear() - now.getFullYear()) * 12 + m.getMonth() - now.getMonth() + 1);
     daySel = null;
     target = 'agendaView';
   }
@@ -1145,6 +1570,7 @@ function saveFlow() {
   setTimeout(() => burst(r.left + r.width / 2, r.top + r.height / 2 - 40, 20), 250);
   setTimeout(() => {
     closeFlow();
+    // Séance ajoutée depuis « Planifier » : on reste dans l'assistant.
     goto(target);
     setTimeout(() => {
       document.querySelector('.e-flash')?.scrollIntoView({ block: 'center', behavior: reduced() ? 'auto' : 'smooth' });
@@ -1164,27 +1590,34 @@ function onFlowClick(e) {
     F.i--;
     if (!F.i) {
       F.type = null;
-      F.d = {};
+      F.d = F.d.fixedDay ? { day: F.d.day, fixedDay: true } : {};
     }
     return showStep('back');
   }
   if (a === 'kind') {
     F.type = v;
-    F.d = {};
-    if (v === 'sess') loadWx();
+    F.d = F.d.fixedDay ? { day: F.d.day, fixedDay: true } : {};
+    if (v === 'sess') {
+      // Séance : une fiche à listes déroulantes plutôt que des questions.
+      const day = F.d.day || todayKey();
+      closeFlow();
+      loadWx();
+      return setTimeout(() => newSession(day), reduced() ? 0 : 200);
+    }
     return nextStep();
   }
   if (a === 'family') {
     d.family = v;
     return nextStep();
   }
-  if (a === 'type' || a === 'day') {
+  if (a === 'type' || a === 'day' || a === 'end') {
     d[a] = v;
     b.classList.add('is-picked');
     return setTimeout(nextStep, 160);
   }
-  if (a === 'hour' || a === 'min') {
+  if (a === 'hour' || a === 'min' || a === 'dur') {
     if (a === 'hour') d.h = Number(v);
+    else if (a === 'dur') d.dur = Number(v);
     else d.m = v;
     b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
     flowEl().querySelector('[data-fl="timeok"]').disabled = !d.h;
@@ -1203,6 +1636,13 @@ function onFlowSubmit(e) {
     const v = e.target.querySelector('input').value.trim();
     if (!v) return;
     F.d.title = v;
+    return nextStep();
+  }
+  if (f === 'date' || f === 'enddate') {
+    const v = e.target.querySelector('input').value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+    if (f === 'enddate' && v <= F.d.day) return toastError('La fin doit être après le début.');
+    F.d[f === 'date' ? 'day' : 'end'] = v;
     return nextStep();
   }
   if (f === 'quick') {
@@ -1254,6 +1694,12 @@ export function showVivant(id) {
     land = focusDay || todayKey();
     focusDay = null;
   }
+  // Accueil : la semaine en cours (le dimanche soir, la suivante).
+  if (arriving && id === 'todayView') planStart = defaultPlanStart();
+  if (arriving && id === 'todoView') {
+    if (!assignKeep) assign = false;
+    assignKeep = false;
+  }
   renderCurrent();
   if (land && !flash) scrollToDay(land);
   if (pendingEdit && id === 'weekView') {
@@ -1294,14 +1740,62 @@ function onClick(e) {
       delete t.doneAt;
       return commit('dashboard');
     }
-    case 'more':
-      more += 8;
+    case 'mmore':
+      monthsShown += 1;
       return renderAgendaView();
+    case 'pweek':
+      planStart = dateKey(addDays(fromKey(planStart), Number(b.dataset.step) * 7));
+      return renderTodayView();
+    case 'routines':
+      return openRoutines();
+    case 'past':
+      showPast = !showPast;
+      return renderTodayView();
+    case 'spast':
+      sportPast = !sportPast;
+      return renderWeekView();
+    case 'dweek':
+      return $('#dWeek')?.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
+    case 'pedit':
+      return openEdit(day, id);
+    case 'pslot':
+      return setSessionSlot(day, id, b.dataset.slot);
+    case 'phome':
+      return sessionAtHome(day, id);
+    case 'wadd':
+      loadWx();
+      return openFlow({ d: { day, fixedDay: true } });
+    case 'wtdone': {
+      if (toggleTask(id)) {
+        const r = b.getBoundingClientRect();
+        burst(r.left + r.width / 2, r.top + r.height / 2, 14);
+      }
+      return;
+    }
+    case 'tedit':
+      return openEditor('tasks', id);
+    case 'race':
+      return window.open(ALLURE_URL, '_self');
+    case 'assign':
+      assign = !assign;
+      if (assign) assignStart = defaultPlanStart();
+      entering = true;
+      renderTodoView();
+      return window.scrollTo({ top: 0, behavior: reduced() ? 'auto' : 'smooth' });
+    case 'aweek':
+      assignStart = dateKey(addDays(mondayOf(new Date()), Number(b.dataset.off) * 7));
+      return renderTodoView();
+    case 'aday':
+      return assignDay(id, day);
     case 'mo':
-      monthOff = Math.max(0, monthOff + Number(b.dataset.step));
+      monthOff = Number(b.dataset.to);
+      return renderAgendaView();
+    case 'mstep':
+      monthOff = Number(b.dataset.step) ? monthOff + Number(b.dataset.step) : 0;
+      daySel = null;
       return renderAgendaView();
     case 'mday':
-      daySel = daySel === day ? null : day;
+      daySel = day;
       return renderAgendaView();
     case 'week':
       weekStart = dateKey(addDays(fromKey(weekStart), Number(b.dataset.step) * 7));
@@ -1325,7 +1819,7 @@ function onClick(e) {
       return moveSession(id, day, b.dataset.to, b.dataset.slot);
     case 'addsess':
       loadWx();
-      return openFlow({ type: 'sess', i: 1, d: { day, fixedDay: true } });
+      return newSession(day);
     case 'sedit':
       if (current !== 'weekView') {
         // Depuis l'accueil : Sport s'ouvre sur le jour de la séance, puis sa fiche.
@@ -1344,8 +1838,167 @@ function onClick(e) {
   }
 }
 
+/* ---------- Météo d'un jour, heure par heure (curseur à glisser) ---------- */
+let DW = null; // { k, i } : jour affiché et heure choisie (index dans hours)
+const dwEl = () => $('#dWx');
+const fr = v => String(v).replace('.', ',');
+function openDayWx(k) {
+  loadWx();
+  const hrs = wx[k]?.hours || [];
+  const now = new Date().getHours();
+  const at = k === todayKey() ? Math.max(0, hrs.findIndex(x => x.h >= now)) : Math.max(0, hrs.findIndex(x => x.h >= 12));
+  DW = { k, i: at };
+  const el = dwEl();
+  el.hidden = false;
+  document.body.classList.add('e-flow-on');
+  renderDayWx();
+  requestAnimationFrame(() => el.classList.add('is-open'));
+}
+function closeDayWx() {
+  const el = dwEl();
+  el.classList.remove('is-open');
+  DW = null;
+  if (!W && !P && $('#eFlow')?.hidden) document.body.classList.remove('e-flow-on');
+  setTimeout(() => (el.hidden = true), reduced() ? 0 : 300);
+}
+/** Ligne lisse (non fermée) à travers des points. */
+function line(pts) {
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [xa, ya] = pts[i - 1];
+    const [xb, yb] = pts[i];
+    const mx = ((xa + xb) / 2).toFixed(1);
+    d += ` C${mx},${ya.toFixed(1)} ${mx},${yb.toFixed(1)} ${xb.toFixed(1)},${yb.toFixed(1)}`;
+  }
+  return d;
+}
+// Géométrie du graphique : 3 bandes (température, pluie, vent) sur une même échelle d'heures.
+const DWG = { w: 340, pad: 14, t: [34, 96], r: [124, 156], v: [184, 254], h: 278 };
+const dwX = (i, n) => DWG.pad + (n > 1 ? (i * (DWG.w - 2 * DWG.pad)) / (n - 1) : 0);
+function dayWxChart(hrs) {
+  const n = hrs.length;
+  const tMin = Math.min(...hrs.map(x => x.t));
+  const tMax = Math.max(...hrs.map(x => x.t));
+  const ty = v => DWG.t[1] - ((v - tMin) / Math.max(1, tMax - tMin)) * (DWG.t[1] - DWG.t[0]);
+  const tPts = hrs.map((x, i) => [dwX(i, n), ty(x.t)]);
+  const mmMax = Math.max(2, ...hrs.map(x => x.mm));
+  const bw = Math.max(4, (DWG.w - 2 * DWG.pad) / n - 5);
+  const bars = hrs.map((x, i) => { const hh = (x.mm / mmMax) * (DWG.r[1] - DWG.r[0]); return x.mm ? `<rect x="${(dwX(i, n) - bw / 2).toFixed(1)}" y="${(DWG.r[1] - hh).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(2, hh).toFixed(1)}" rx="2" fill="#7FB8D6"/>` : `<rect x="${(dwX(i, n) - 1.5).toFixed(1)}" y="${DWG.r[1] - 2}" width="3" height="2" rx="1" fill="#3A6A78"/>`; }).join('');
+  const vMax = Math.max(30, ...hrs.map(x => x.gust)) * 1.1;
+  const vy = v => DWG.v[1] - (v / vMax) * (DWG.v[1] - DWG.v[0]);
+  const area = key => `${line(hrs.map((x, i) => [dwX(i, n), vy(x[key])]))} L${dwX(n - 1, n)},${DWG.v[1]} L${dwX(0, n)},${DWG.v[1]} Z`;
+  const iMax = hrs.reduce((a, x, i) => (x.t > hrs[a].t ? i : a), 0);
+  const iMin = hrs.reduce((a, x, i) => (x.t < hrs[a].t ? i : a), 0);
+  const ticks = hrs.map((x, i) => (x.h % 3 === 0 ? `<text x="${dwX(i, n).toFixed(1)}" y="${DWG.h - 4}" text-anchor="middle">${x.h} h</text>` : '')).join('');
+  return `<svg class="dw-svg" viewBox="0 0 ${DWG.w} ${DWG.h}" aria-hidden="true">
+    <text class="dw-lab" x="${DWG.pad}" y="12">Température</text>
+    <path d="${line(tPts)}" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+    <text class="dw-val" x="${dwX(iMax, n).toFixed(1)}" y="${(ty(hrs[iMax].t) - 7).toFixed(1)}" text-anchor="middle">${hrs[iMax].t}°</text>
+    ${iMin !== iMax ? `<text class="dw-val is-dim" x="${dwX(iMin, n).toFixed(1)}" y="${(ty(hrs[iMin].t) - 7).toFixed(1)}" text-anchor="middle">${hrs[iMin].t}°</text>` : ''}
+    <text class="dw-lab" x="${DWG.pad}" y="${DWG.r[0] - 6}">Pluie (mm)</text>
+    ${bars}
+    <text class="dw-lab" x="${DWG.pad}" y="${DWG.v[0] - 6}">Vent et rafales (km/h)</text>
+    <path d="${area('gust')}" fill="#2B7182"/><path d="${area('wind')}" fill="#BFD3D8"/>
+    <g class="dw-tk">${ticks}</g>
+  </svg>`;
+}
+function renderDayWx() {
+  if (!DW) return;
+  const el = dwEl();
+  const { k } = DW;
+  const days = Object.keys(wx).filter(x => x >= todayKey() && wx[x]?.hours?.length).sort().slice(0, 10);
+  const w = wx[k];
+  const hrs = w?.hours || [];
+  const d = fromKey(k);
+  const dw = dayWx(k);
+  const chips = days.map(x => { const dd = fromKey(x); return `<button type="button" class="dw-day ${x === k ? 'is-on' : ''}" data-dwx="${x}" aria-pressed="${x === k}"><small>${x === todayKey() ? 'Auj.' : cap(WD[dd.getDay()])}</small><b>${dd.getDate()}</b></button>`; }).join('');
+  el.innerHTML = `<div class="dw-top"><div class="dw-days" role="group" aria-label="Jour">${chips}</div><button type="button" class="dw-x" data-dwc="close" aria-label="Fermer">${I.x}</button></div>
+    ${hrs.length ? `<div class="dw-hero"><span class="dw-ic"></span><p class="dw-t"></p><p class="dw-d">${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`.toUpperCase())} · <span class="dw-h"></span></p><p class="dw-s"></p></div>
+    <div class="dw-ch" role="slider" tabindex="0" aria-label="Heure" aria-valuemin="${hrs[0].h}" aria-valuemax="${hrs.at(-1).h}">${dayWxChart(hrs)}<div class="dw-sc"><i></i></div><b class="dw-dot"></b></div>
+    <p class="dw-hint">Glisse le doigt sur le graphique pour changer d’heure.</p>
+    <div class="dw-sum">
+      <div><small>Températures</small><b>${w.min}° / ${w.max}°</b></div>
+      <div><small>Vent moyen</small><b>${dw.windAvg} km/h</b></div>
+      <div><small>Rafales max</small><b>${dw.gust} km/h</b></div>
+      <div><small>Pluie</small><b>${fr(Math.round(hrs.reduce((a, x) => a + x.mm, 0) * 10) / 10)} mm</b></div>
+      ${w.sunrise ? `<div><small>Soleil</small><b>${hhmm(w.sunrise)} – ${hhmm(w.sunset)}</b></div>` : ''}
+      <div><small>Ciel</small><b>${esc(w.label)}</b></div>
+    </div>` : `<p class="dw-none">Pas encore de prévisions heure par heure pour ce jour (elles vont jusqu’à 15 jours).</p>`}`;
+  el.querySelector('.dw-day.is-on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  if (hrs.length) setDwHour(DW.i);
+}
+function setDwHour(i) {
+  const hrs = wx[DW.k]?.hours || [];
+  if (!hrs.length) return;
+  DW.i = Math.max(0, Math.min(hrs.length - 1, i));
+  const x = hrs[DW.i];
+  const el = dwEl();
+  el.querySelector('.dw-ic').innerHTML = illOfSky(x.sky);
+  el.querySelector('.dw-t').textContent = `${x.t}°`;
+  el.querySelector('.dw-h').textContent = `${x.h} H`;
+  el.querySelector('.dw-s').innerHTML = `${esc(x.label)}<br><b>Vent ${x.wind} km/h ${x.dir}</b> · rafales ${x.gust} km/h · pluie ${fr(x.mm)} mm${x.rain ? ` (${x.rain} %)` : ''}`;
+  const ch = el.querySelector('.dw-ch');
+  ch.setAttribute('aria-valuenow', x.h);
+  ch.setAttribute('aria-valuetext', `${x.h} heures`);
+  const sc = el.querySelector('.dw-sc');
+  sc.style.left = `${(dwX(DW.i, hrs.length) / DWG.w) * 100}%`;
+  // Le rond du curseur suit la courbe des températures.
+  const tMin = Math.min(...hrs.map(y => y.t));
+  const tMax = Math.max(...hrs.map(y => y.t));
+  const dot = el.querySelector('.dw-dot');
+  dot.style.left = sc.style.left;
+  dot.style.top = `${((DWG.t[1] - ((x.t - tMin) / Math.max(1, tMax - tMin)) * (DWG.t[1] - DWG.t[0])) / DWG.h) * 100}%`;
+  sc.querySelector('i').textContent = `${x.h} h`;
+}
+function dwFromPointer(e) {
+  const ch = dwEl().querySelector('.dw-ch');
+  const r = ch.getBoundingClientRect();
+  const n = wx[DW.k]?.hours?.length || 1;
+  const fx = ((e.clientX - r.left) / r.width) * DWG.w;
+  setDwHour(Math.round(((fx - DWG.pad) / (DWG.w - 2 * DWG.pad)) * (n - 1)));
+}
+function initDayWx() {
+  const el = document.createElement('section');
+  el.id = 'dWx';
+  el.className = 'dw';
+  el.hidden = true;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-label', 'Météo heure par heure');
+  document.body.appendChild(el);
+  el.addEventListener('click', e => e.target.closest('[data-dwc="close"]') && closeDayWx());
+  let drag = false;
+  el.addEventListener('pointerdown', e => {
+    if (!e.target.closest('.dw-ch')) return;
+    drag = true;
+    e.target.closest('.dw-ch').setPointerCapture(e.pointerId);
+    dwFromPointer(e);
+  });
+  el.addEventListener('pointermove', e => drag && dwFromPointer(e));
+  ['pointerup', 'pointercancel'].forEach(t => el.addEventListener(t, () => (drag = false)));
+  el.addEventListener('keydown', e => {
+    if (!DW || !e.target.closest('.dw-ch')) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      setDwHour(DW.i + (e.key === 'ArrowRight' ? 1 : -1));
+    }
+  });
+  // N'importe quel élément [data-dwx] ouvre (ou change) le jour affiché.
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-dwx]');
+    if (!b) return;
+    e.stopPropagation();
+    if (DW) { DW.k = b.dataset.dwx; const hrs = wx[DW.k]?.hours || []; DW.i = Math.max(0, Math.min(DW.i, hrs.length - 1)); return renderDayWx(); }
+    openDayWx(b.dataset.dwx);
+  }, true);
+  document.addEventListener('keydown', e => e.key === 'Escape' && DW && closeDayWx());
+}
+
 export function initVivant({ go }) {
   goto = go;
+  injectIllustrations();
+  initDayWx();
+  initRoutines();
   ['#todayView', '#agendaView', '#todoView', '#weekView'].forEach(sel => $(sel).addEventListener('click', onClick));
   // Une ligne de séance est un bouton (role) : Entrée l'ouvre aussi.
   ['#todayView', '#weekView'].forEach(sel => $(sel).addEventListener('keydown', e => e.key === 'Enter' && e.target.matches('.e-row[role="button"][data-v]') && e.target.click()));
@@ -1353,7 +2006,7 @@ export function initVivant({ go }) {
   $('#weekView').addEventListener('toggle', e => e.target.matches?.('.s-phase') && (phaseOpen = e.target.open), true);
   // Note : on enregistre sans jamais réécrire le champ (le curseur reste où on tape).
   let noteTimer;
-  $('#todayView').addEventListener('input', e => {
+  $('#todoView').addEventListener('input', e => {
     if (e.target.id !== 'vNote') return;
     state.notes = e.target.value.slice(0, 20000);
     commit('notes');
@@ -1388,6 +2041,17 @@ export function initVivant({ go }) {
   pm.addEventListener('click', onPlanClick);
   initPlanSwipe(pm);
   document.addEventListener('keydown', e => e.key === 'Escape' && !pm.hidden && $('#eFlow')?.hidden && closePlan());
+  // Sport : séances déplacées (jour, moment), ajoutées ou ouvertes depuis la semaine détaillée.
+  $('#weekView').addEventListener('change', onSessionChange);
+  $('#weekView').addEventListener('click', e => {
+    const b = e.target.closest('[data-w]');
+    if (!b || b.tagName === 'SELECT') return;
+    if (b.dataset.w === 'add') { loadWx(); return newSession(b.dataset.day); }
+    if (b.dataset.w === 'sedit') return openEdit(b.dataset.day, b.dataset.id);
+  });
+  // Météo : Actualiser / Lieu.
+  document.addEventListener('click', onWxClick);
+  document.addEventListener('submit', onWxSubmit, true);
   // Fiche d'une séance : feuille par-dessus Sport.
   const ed = document.createElement('section');
   ed.id = 'eEdit';
@@ -1399,5 +2063,5 @@ export function initVivant({ go }) {
   ed.addEventListener('change', onEditChange);
   document.addEventListener('keydown', e => e.key === 'Escape' && !ed.hidden && closeEdit());
   // L'anneau du prochain rendez-vous reste juste si l'app reste ouverte.
-  setInterval(() => current === 'todayView' && !document.hidden && document.activeElement?.id !== 'vNote' && !document.querySelector('.k-sw [style*="translateX"]') && renderTodayView(), 60000);
+  setInterval(() => current === 'todayView' && !document.hidden && renderTodayView(), 60000);
 }

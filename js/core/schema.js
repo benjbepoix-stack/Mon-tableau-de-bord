@@ -47,6 +47,8 @@ function normalizeItem(raw, withDone) {
   };
   if (isTime(raw.endTime)) item.endTime = raw.endTime;
   if (raw.location) item.location = str(raw.location, 120);
+  // Événement sur plusieurs jours : dernier jour (après le premier).
+  if (!withDone && item.date && isDateKey(raw.endDate) && raw.endDate > item.date) item.endDate = raw.endDate;
   // Périodicité : rendez-vous / événements, et tâches datées (une tâche répétée a besoin d'une échéance).
   if (isRepeat(raw.repeat) && (!withDone || item.date)) item.repeat = raw.repeat;
   if (withDone) {
