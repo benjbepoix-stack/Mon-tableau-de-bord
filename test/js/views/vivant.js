@@ -413,20 +413,20 @@ function curve(vals, w, h, max) {
 }
 const windWord = v => (v < 15 ? 'léger' : v < 30 ? 'modéré' : 'fort');
 /** Un jour de la semaine, en frise : la date dans un rond, puis une carte par chose prévue. */
+const SKY_WORD = { sun: 'Soleil', part: 'Éclaircies', cloud: 'Nuageux', fog: 'Brouillard', rain: 'Pluie', snow: 'Neige', storm: 'Orage' };
 function dayRow(k, all) {
   const d = fromKey(k);
   const today = todayKey();
   const list = entriesOn(k, all);
-  const w = k >= today ? dayWx(k) : null;
-  const sport = list.some(x => x.cls.startsWith('c-ses') || x.cls === 'c-race');
+  const sky = k >= today ? wx[k]?.sky : null;
   const label = `${WD_FULL[d.getDay()]} ${d.getDate()}`;
-  const rest = w
-    ? `<button type="button" class="d-rest" data-dwx="${k}"><span class="d-rest__i">${skyIll(k)}</span><span class="d-rest__b"><b>Repos · ${esc(w.label)}</b><small>${w.min}° / ${w.max}° · vent moyen ${w.windAvg} km/h · rafales max ${w.gust} km/h${w.mm ? ` · pluie ${String(w.mm).replace('.', ',')} mm` : ''}</small></span><span class="d-rest__go" aria-hidden="true">${I.fwd}</span></button>`
-    : '<p class="d-rest">Repos</p>';
-  return `<div class="d-tl ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}" ${k === today ? 'aria-current="date"' : ''}>
-    <div class="d-tl__l"><button type="button" class="d-tl__add" data-v="wadd" data-day="${k}" aria-label="Ajouter quelque chose ${esc(label)}"><small>${cap(WD[d.getDay()])}.</small><b>${d.getDate()}</b><i aria-hidden="true">+</i></button></div>
-    <div class="d-tl__c">${list.map(x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><span class="d-th">${x.ill || ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${sport || k < today ? '' : rest}</div>
-  </div>`;
+  // Accueil : seulement le temps qu'il fait (soleil, pluie…), le détail est dans Sport et la vue heure par heure.
+  return `<section class="d-day ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}" ${k === today ? 'aria-current="date"' : ''} aria-label="${esc(label)}">
+    <header class="d-day__h"><span class="d-day__d"><b>${d.getDate()}</b><span>${k === today ? 'Aujourd’hui' : dayDiff(k) === 1 ? 'Demain' : cap(WD_FULL[d.getDay()])}<small>${k === today || dayDiff(k) === 1 ? `${cap(WD_FULL[d.getDay()])} ${d.getDate()} ${MONTHS[d.getMonth()]}` : MONTHS[d.getMonth()]}</small></span></span>
+      ${sky ? `<button type="button" class="d-day__wx" data-dwx="${k}" aria-label="Météo : ${SKY_WORD[sky] || 'Nuageux'}">${illOfSky(sky)}<span>${SKY_WORD[sky] || 'Nuageux'}</span></button>` : ''}
+      <button type="button" class="d-day__add" data-v="wadd" data-day="${k}" aria-label="Ajouter quelque chose ${esc(label)}">+</button></header>
+    <div class="d-day__c">${list.map(x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><span class="d-th">${x.ill || ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${list.length || k < today ? '' : '<p class="d-rest">Rien de prévu · repos</p>'}</div>
+  </section>`;
 }
 /** Les illustrations, une seule fois dans la page. */
 function injectIllustrations() {
