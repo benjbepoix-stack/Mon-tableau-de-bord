@@ -1,7 +1,8 @@
 /*
  * Feuille Réglages (bouton de l'en-tête) :
  *  - thème Auto / Sombre / Clair (tranche synchronisée « theme ») ;
- *  - compte : « Connecté : e-mail » + « Se déconnecter », ou « Se connecter » sans compte.
+ *  - compte : « Connecté : e-mail » + « Se déconnecter », ou « Se connecter » sans compte ;
+ *  - notifications de cet appareil (features/push.js).
  */
 import { $ } from '../core/utils.js';
 import { state, commit } from '../core/store.js';
@@ -9,6 +10,7 @@ import { openSheet, closeSheet, confirmDialog } from '../ui/dialog.js';
 import { toastError } from '../ui/toast.js';
 import { currentUser, canSignIn, signOutUser } from '../services/firebase.js';
 import { openAuth } from './auth.js';
+import { render as renderPush } from './push.js';
 
 /** Ligne « compte » des Réglages, selon le compte connecté et la disponibilité de Firebase. */
 export function renderAccount() {
@@ -26,6 +28,7 @@ export function renderAccount() {
 export function initSettings() {
   $('#settingsBtn').addEventListener('click', () => {
     renderAccount();
+    renderPush();
     openSheet('settingsSheet', { focus: false });
   });
   $('#themeSwitch').addEventListener('click', e => {
