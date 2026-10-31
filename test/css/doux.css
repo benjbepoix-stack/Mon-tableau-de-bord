@@ -275,3 +275,11 @@ button.j-wr__d { display: grid; gap: 2px; padding: 0; border: 0; background: non
 .d-sec > span .d-today-btn { margin: 0 6px 0 0; align-self: center; }
 #weekView .s-phase { border-radius: 18px; color: #fff; }
 #weekView .s-phase__r { color: #fff; font-weight: 600; }
+
+/* ---------- Illustrations : le + et une par sport ---------- */
+.e-kind__i { width: 58px; height: 58px; margin-bottom: 6px; border-radius: 16px; background: var(--d-beige); }
+.e-kind__i .d-ill { width: 42px; height: 42px; }
+.j-sp__t { display: grid !important; grid-template-columns: 48px minmax(0, 1fr); column-gap: 12px; align-items: center; }
+.j-sp__t > :not(.j-sp__i) { grid-column: 2; }
+.j-sp__i { grid-row: 1 / span 3; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--d-rose-soft); }
+.j-sp__i .d-ill { width: 36px; height: 36px; }
