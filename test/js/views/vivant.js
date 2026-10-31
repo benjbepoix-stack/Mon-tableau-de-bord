@@ -378,17 +378,73 @@ function toneOf(k) {
   const s = wx[k]?.sky;
   return s === 'sun' || s === 'part' ? 'sun' : ['rain', 'storm', 'snow'].includes(s) ? 'rain' : 'grey';
 }
-/** Un jour de la semaine, en liste : jour et météo à gauche, tout ce qui est prévu à droite. */
+/* ---------- Style « doux » : illustrations et courbes de vent ---------- */
+const ILL = Object.fromEntries(['cal', 'clip', 'watch', 'flag', 'sun', 'sunc', 'rain', 'cloud'].map(n => [n, `<svg class="d-ill" viewBox="0 0 64 64" aria-hidden="true"><use href="#d-${n}"/></svg>`]));
+const ILL_OF = cls => (cls.startsWith('c-ses') ? ILL.watch : cls === 'c-task' ? ILL.clip : cls === 'c-race' ? ILL.flag : ILL.cal);
+/** Illustration du ciel d'un jour. */
+const skyIll = k => { const s = wx[k]?.sky; return s === 'sun' ? ILL.sun : s === 'part' ? ILL.sunc : ['rain', 'storm', 'snow'].includes(s) ? ILL.rain : ILL.cloud; };
+/** Une courbe douce et fermée (surface) à travers des valeurs, dans une boîte w × h. */
+function curve(vals, w, h, max) {
+  if (vals.length < 2) return '';
+  const pts = vals.map((v, i) => [i * w / (vals.length - 1), h - Math.min(v, max) / max * h * .9]);
+  let d = `M0,${h} L${pts[0][0]},${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [xa, ya] = pts[i - 1];
+    const [xb, yb] = pts[i];
+    const mx = ((xa + xb) / 2).toFixed(1);
+    d += ` C${mx},${ya.toFixed(1)} ${mx},${yb.toFixed(1)} ${xb.toFixed(1)},${yb.toFixed(1)}`;
+  }
+  return `${d} L${w},${h} Z`;
+}
+const windWord = v => (v < 15 ? 'léger' : v < 30 ? 'modéré' : 'fort');
+/** Un jour de la semaine, en frise : la date dans un rond, puis une carte par chose prévue. */
 function dayRow(k, all) {
   const d = fromKey(k);
   const today = todayKey();
   const list = entriesOn(k, all);
   const w = k >= today ? dayWx(k) : null;
   const sport = list.some(x => x.cls.startsWith('c-ses') || x.cls === 'c-race');
-  return `<div class="j-ld ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}" ${k === today ? 'aria-current="date"' : ''}>
-    <div class="j-ld__d t-${k < today ? 'grey' : toneOf(k)}"><b>${cap(WD[d.getDay()])}</b><span>${d.getDate()}</span>${w ? `<small>${w.sky}${w.max}°</small>` : ''}</div>
-    <div class="j-ld__b">${list.map(x => `<button type="button" class="j-ln ${x.cls} ${x.done ? 'is-done' : ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><i>${esc(x.tag)}</i><span>${esc(x.title)}${x.sub ? ` <small>${esc(x.sub)}</small>` : ''}</span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${sport || k < today ? '' : '<span class="j-ln is-rest">Repos</span>'}</div>
+  if (k < today && !list.length) return '';
+  return `<div class="d-tl ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}" ${k === today ? 'aria-current="date"' : ''}>
+    <div class="d-tl__l"><small>${cap(WD[d.getDay()])}.</small><b>${d.getDate()}</b>${w ? `<span>${w.max}°</span>` : ''}</div>
+    <div class="d-tl__c">${list.map(x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><span class="d-th">${ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${sport || k < today ? '' : `<p class="d-rest">${w ? skyIll(k) : ''}Repos${w && w.gust >= 45 ? `, rafales à ${w.gust} km/h` : ''}</p>`}</div>
   </div>`;
+}
+/** La grande carte « Aujourd'hui » : météo en courbe, puis ce qui est prévu. */
+function todayCard(all) {
+  const k = todayKey();
+  const d = fromKey(k);
+  const w = dayWx(k);
+  const sl = slotsOn(k) || {};
+  const ws = SLOT_IDS.map(s => sl[s]).filter(Boolean);
+  const list = entriesOn(k, all);
+  const what = list.length ? list.slice(0, 3).map(x => x.title).join(' · ') + (list.length > 3 ? ` · +${list.length - 3}` : '') : 'Rien de prévu';
+  return `<article class="d-today">
+    <div class="d-hero">${ws.length > 1 ? `<svg class="d-hero__c" viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"><path d="${curve(ws.map(x => x.gust), 300, 70, 70)}" fill="#1C5B6B"/><path d="${curve(ws.map(x => x.wind), 300, 70, 70)}" fill="#BFD3D8" opacity=".9"/></svg>` : ''}
+      <span class="d-hero__i">${skyIll(k)}</span><span class="d-badge">Aujourd’hui</span><span class="d-hero__t">${w ? `${w.max}°` : '—'}</span></div>
+    <div class="d-today__b"><h2>${cap(WD_FULL[d.getDay()])} ${d.getDate()} ${MONTHS[d.getMonth()]}</h2><p>${esc(what)}</p>
+      <div class="d-today__r"><span>${w ? `Vent ${windWord(w.wind)}, rafales ${w.gust} km/h` : 'Météo pas encore chargée'}</span><button type="button" data-v="dweek">Voir la semaine</button></div></div>
+  </article>`;
+}
+/** Les illustrations, une seule fois dans la page. */
+function injectIllustrations() {
+  if ($('#dIll')) return;
+  document.body.insertAdjacentHTML('afterbegin', `<svg id="dIll" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<linearGradient id="dgR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF7A85"/><stop offset="1" stop-color="#E0315B"/></linearGradient>
+<linearGradient id="dgW" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E8E2D8"/></linearGradient>
+<linearGradient id="dgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C98B5B"/><stop offset="1" stop-color="#8E5634"/></linearGradient>
+<linearGradient id="dgS" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4F5F7"/><stop offset=".5" stop-color="#A9AFB8"/><stop offset="1" stop-color="#6C727C"/></linearGradient>
+<linearGradient id="dgY" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#F5A623"/></linearGradient>
+<linearGradient id="dgC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C9D8DD"/></linearGradient>
+<symbol id="d-cal" viewBox="0 0 64 64"><ellipse cx="32" cy="59" rx="22" ry="3" fill="#000" opacity=".12"/><rect x="8" y="11" width="48" height="45" rx="9" fill="url(#dgW)" stroke="#D9D1C4"/><path d="M8 20a9 9 0 0 1 9-9h30a9 9 0 0 1 9 9v5H8z" fill="url(#dgR)"/><rect x="18" y="5" width="6" height="13" rx="3" fill="#4A4A4A"/><rect x="40" y="5" width="6" height="13" rx="3" fill="#4A4A4A"/><g fill="#CFC6B8"><rect x="15" y="31" width="7" height="6" rx="2"/><rect x="25" y="31" width="7" height="6" rx="2"/><rect x="35" y="31" width="7" height="6" rx="2"/><rect x="45" y="31" width="5" height="6" rx="2"/><rect x="15" y="41" width="7" height="6" rx="2"/><rect x="35" y="41" width="7" height="6" rx="2"/></g><rect x="25" y="41" width="7" height="6" rx="2" fill="#E0315B"/></symbol>
+<symbol id="d-clip" viewBox="0 0 64 64"><ellipse cx="32" cy="60" rx="19" ry="3" fill="#000" opacity=".12"/><rect x="12" y="8" width="40" height="50" rx="7" fill="url(#dgB)"/><rect x="17" y="15" width="30" height="38" rx="3" fill="url(#dgW)"/><rect x="23" y="4" width="18" height="10" rx="4" fill="url(#dgS)" stroke="#8A9099"/><g stroke="#B9B1A4" stroke-width="2.6" stroke-linecap="round"><path d="M28 25h13M28 33h13M28 41h9"/></g><path d="M20.5 25l2 2 3-3.5M20.5 33l2 2 3-3.5" stroke="#E0315B" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="23" cy="41" r="2.4" fill="none" stroke="#B9B1A4" stroke-width="1.8"/></symbol>
+<symbol id="d-watch" viewBox="0 0 64 64"><ellipse cx="32" cy="60" rx="18" ry="3" fill="#000" opacity=".12"/><rect x="28" y="4" width="8" height="8" rx="2" fill="url(#dgS)"/><rect x="44" y="10" width="7" height="6" rx="2" fill="url(#dgS)" transform="rotate(40 47 13)"/><circle cx="32" cy="35" r="22" fill="url(#dgS)"/><circle cx="32" cy="35" r="17.5" fill="url(#dgW)"/><path d="M32 35V22" stroke="#222" stroke-width="2.6" stroke-linecap="round"/><path d="M32 35l8 5" stroke="#E0315B" stroke-width="2.6" stroke-linecap="round"/><circle cx="32" cy="35" r="2.6" fill="#222"/></symbol>
+<symbol id="d-flag" viewBox="0 0 64 64"><ellipse cx="24" cy="59" rx="14" ry="3" fill="#000" opacity=".12"/><rect x="18" y="6" width="4" height="52" rx="2" fill="url(#dgS)"/><path d="M22 9h28l-6 9 6 9H22z" fill="url(#dgR)"/><path d="M28 13h4v4h-4zM36 17h4v4h-4zM28 21h4v4h-4z" fill="#fff" opacity=".85"/></symbol>
+<symbol id="d-sun" viewBox="0 0 64 64"><circle cx="32" cy="32" r="15" fill="url(#dgY)"/><g stroke="#F5B531" stroke-width="3.4" stroke-linecap="round"><path d="M32 6v6M32 52v6M6 32h6M52 32h6M13.6 13.6l4.2 4.2M46.2 46.2l4.2 4.2M13.6 50.4l4.2-4.2M46.2 17.8l4.2-4.2"/></g></symbol>
+<symbol id="d-sunc" viewBox="0 0 64 64"><circle cx="40" cy="22" r="13" fill="url(#dgY)"/><path d="M18 50a11 11 0 0 1-1-21.9A15 15 0 0 1 45 30a10 10 0 0 1 1 20z" fill="url(#dgC)"/></symbol>
+<symbol id="d-cloud" viewBox="0 0 64 64"><path d="M18 48a12 12 0 0 1-1-23.9A16 16 0 0 1 47 27a10.5 10.5 0 0 1 1 21z" fill="url(#dgC)"/></symbol>
+<symbol id="d-rain" viewBox="0 0 64 64"><path d="M16 40a11 11 0 0 1-1-21.9A15 15 0 0 1 43 20a10 10 0 0 1 1 20z" fill="url(#dgC)"/><g fill="#5E9BB0"><rect x="20" y="45" width="4" height="9" rx="2" transform="rotate(15 22 49)"/><rect x="30" y="45" width="4" height="9" rx="2" transform="rotate(15 32 49)"/><rect x="40" y="45" width="4" height="9" rx="2" transform="rotate(15 42 49)"/></g></symbol>
+</defs></svg>`);
 }
 export function renderTodayView() {
   const host = $('#todayView');
@@ -401,18 +457,20 @@ export function renderTodayView() {
   const limit = dateKey(addDays(new Date(), 30));
   const races = (state.races || []).filter(r => r.date >= today && r.date <= limit).map(r => ({ id: r.id, title: r.name, date: r.date, time: r.time, place: r.location || '', kind: 'race' }));
   const soon = [...upcoming().filter(x => x.date <= limit), ...races].sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
-  const soonRow = x => `<button type="button" class="j-sr ${x.kind === 'race' ? 'is-race' : ''}" ${x.kind === 'race' ? 'data-v="race"' : `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"`}>
-    <span class="j-sr__d"><b>${x.date <= today ? 'Auj.' : esc(cap(formatKey(x.date, { weekday: 'short' })))}</b><small>${fromKey(x.date < today ? today : x.date).getDate()} ${esc(formatKey(x.date < today ? today : x.date, { month: 'short' }))}</small></span>
-    <span class="j-sr__t"><b>${x.kind === 'race' ? '🏁 ' : ''}${esc(x.title)}</b><small>${esc([x.endDate ? span(x) : x.time ? hours(x) : 'journée', x.kind === 'race' ? 'course · Cadence' : x.kind === 'events' ? 'événement' : '', x.place].filter(Boolean).join(' · '))}</small></span>
-    <span class="j-sr__j">${dayDiff(x.date) <= 0 ? 'auj.' : `J-${dayDiff(x.date)}`}</span></button>`;
+  const soonRow = x => `<button type="button" class="d-it d-soon ${x.kind === 'race' ? 'is-race' : ''}" ${x.kind === 'race' ? 'data-v="race"' : `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"`}>
+    <span class="d-th">${x.kind === 'race' ? ILL.flag : ILL.cal}</span>
+    <span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.date <= today ? 'aujourd’hui' : formatKey(x.date, { weekday: 'short', day: 'numeric', month: 'short' }), x.endDate ? span(x) : x.time ? hours(x) : '', x.kind === 'race' ? 'Cadence' : x.kind === 'events' ? 'événement' : '', x.place].filter(Boolean).join(' · '))}</small></span>
+    <span class="d-j">${dayDiff(x.date) <= 0 ? 'auj.' : `J-${dayDiff(x.date)}`}</span></button>`;
+  const title = wi === 0 ? 'Cette semaine' : wi === 1 ? 'Semaine prochaine' : esc(weekLabel(planStart).split(' · ')[0]);
 
   host.innerHTML = `
-    <header class="j-hd"><p class="k-kicker">${esc(weekRange(planStart))}</p><h1>${wi === 0 ? 'Ma semaine' : wi === 1 ? 'Semaine prochaine' : esc(weekLabel(planStart).split(' · ')[0])}</h1></header>
-    <button type="button" class="j-cta" data-v="planify">Planifier ${wi ? 'cette semaine-là' : 'ma semaine'}</button>
-    <section class="j-wl">${keys.map(k => dayRow(k, all)).join('')}</section>
-    <div class="j-nav"><button type="button" data-v="pweek" data-step="-1">${I.back} Semaine d’avant</button><button type="button" data-v="pweek" data-step="1">Semaine d’après ${I.fwd}</button></div>
-    <div class="e-sec"><h2>Dans les 30 jours</h2><small>${soon.length}</small></div>
-    <section class="j-soon">${soon.map(soonRow).join('') || '<p class="j-none">Rien de prévu dans les 30 jours.</p>'}</section>`;
+    <button type="button" class="d-pill" data-v="planify"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>Planifier ${wi ? 'cette semaine-là' : 'ma semaine'}</button>
+    <nav class="d-cats" aria-label="Rubriques"><button type="button" class="is-on" aria-current="page">${ILL.cal}Semaine</button><button type="button" data-go="todoView">${ILL.clip}Tâches</button><button type="button" data-go="weekView">${ILL.watch}Sport</button></nav>
+    ${wi === 0 ? todayCard(all) : ''}
+    <div class="d-sec" id="dWeek"><h2>${title}<small>${esc(weekRange(planStart))}</small></h2><span><button type="button" class="d-arr" data-v="pweek" data-step="-1" aria-label="Semaine d’avant">${I.back}</button><button type="button" class="d-arr" data-v="pweek" data-step="1" aria-label="Semaine d’après">${I.fwd}</button></span></div>
+    <section class="d-week">${keys.map(k => dayRow(k, all)).join('')}</section>
+    <div class="d-sec"><h2>Dans les 30 jours<small>${soon.length ? `${soon.length} date${soon.length > 1 ? 's' : ''}` : ''}</small></h2></div>
+    <section class="d-list">${soon.map(soonRow).join('') || '<p class="j-none">Rien de prévu dans les 30 jours.</p>'}</section>`;
   done(host);
 }
 
@@ -649,7 +707,7 @@ let W = null; // { part: 'w' météo | 't' tâches | 's' sport }
 const wEl = () => $('#wPlan');
 function openPlanner() {
   planStart = defaultPlanStart();
-  W = { part: 'w' };
+  W = { part: 'c' };
   loadWx();
   const el = wEl();
   el.hidden = false;
@@ -765,10 +823,35 @@ function jWeek(keys) {
       <span class="j-wr__d"><b>${cap(WD[d.getDay()])} ${d.getDate()}</b>${w ? `<small>${w.sky}${w.min}°/${w.max}°</small>` : '<small>—</small>'}</span>
       ${SLOT_IDS.map(sl => cell(k, sl)).join('')}</div>`;
   }).join('');
-  return `${wxBar()}<div class="j-wgrid"><span></span><small>Matin</small><small>Ap.-midi</small><small>Soir</small></div>${rows}
+  return `${wxChart(keys)}${wxBar()}<div class="j-wgrid"><span></span><small>Matin</small><small>Ap.-midi</small><small>Soir</small></div>${rows}
     <p class="j-sub">Vent et rafales en km/h. Vert : bon pour sortir, orange : moyen, rouge : à éviter.</p>`;
 }
 const PL_STEPS = [['w', 'Météo'], ['t', 'Tâches'], ['s', 'Sport']];
+/** La semaine en courbes (vent, rafales) sur fond bleu canard, comme une appli météo. */
+function wxChart(keys) {
+  const today = todayKey();
+  const days = keys.filter(k => k >= today);
+  const pts = days.flatMap(k => SLOT_IDS.map(sl => slotsOn(k)?.[sl]).filter(Boolean));
+  if (pts.length < 3) return '';
+  const gusty = days.filter(k => (dayWx(k)?.gust || 0) >= 45);
+  const name = k => WD_FULL[fromKey(k).getDay()];
+  const head = !gusty.length ? 'Une semaine <b>plutôt calme</b>.' : gusty.length >= days.length / 2 ? 'Une semaine <b>venteuse</b>.' : `Une semaine <b>plutôt calme</b>, sauf ${gusty.slice(0, 2).map(name).join(' et ')}.`;
+  const max = Math.max(40, ...pts.map(x => x.gust)) * 1.2;
+  const peak = pts.reduce((a, x) => (x.gust > a.gust ? x : a), pts[0]);
+  return `<section class="d-wx"><p class="d-wx__h">${head}</p>
+    <div class="d-wx__c"><svg viewBox="0 0 350 150" preserveAspectRatio="none" aria-hidden="true"><path d="${curve(pts.map(x => x.gust), 350, 150, max)}" fill="#1C5B6B"/><path d="${curve(pts.map(x => x.wind), 350, 150, max)}" fill="#BFD3D8"/></svg>
+      <span class="d-wx__pk">${peak.gust}<small> km/h en rafales au plus fort</small></span>
+      <div class="d-wx__d">${days.map(k => `<span class="${gusty.includes(k) ? 'is-bad' : ''}">${cap(WD[fromKey(k).getDay()])}</span>`).join('')}</div></div>
+    <p class="d-wx__l"><i></i>vent moyen <i class="g"></i>rafales</p></section>`;
+}
+/** Planifier, l'écran de départ : trois grandes cartes. */
+function jChoice(keys) {
+  const n = openTasks().filter(t => !isRepeat(t.repeat) && (!t.date || t.date <= keys[6])).length;
+  const ph = phaseOn(keys[3], getPhases()) || phaseOn(keys[0], getPhases());
+  const ns = keys.reduce((a, x) => a + sessionsOn(x).length, 0);
+  const card = (p, i, ill, t, s) => `<button type="button" class="d-choice" data-w="go" data-p="${p}"><span><i>${i}</i><b>${t}</b><small>${esc(s)}</small></span>${ill}</button>`;
+  return `<div class="d-choices">${card('w', 1, ILL.sunc, 'La météo', 'Un coup d’œil sur la semaine')}${card('t', 2, ILL.clip, 'Les tâches', `${n} à placer`)}${card('s', 3, ILL.watch, 'Le sport', `${ph ? `Cadence · ${PHASE_TYPES[ph.type].short} · ` : ''}${ns} séance${ns > 1 ? 's' : ''}`)}</div>`;
+}
 function renderPlanner() {
   if (!W) return;
   const el = wEl();
@@ -777,12 +860,16 @@ function renderPlanner() {
   const i = PL_STEPS.findIndex(x => x[0] === W.part);
   const y = el.querySelector('.pl-b')?.scrollTop || 0;
   el.dataset.tone = 'grey';
-  const title = { w: 'La météo', t: 'Les tâches', s: 'Le sport' }[W.part];
-  const body = { w: jWeek, t: jTasks, s: jSport }[W.part](keys);
-  el.innerHTML = `<div class="pl-h j-ph"><div class="j-steps j-steps--3">${PL_STEPS.map(([p, l], j) => `<button type="button" data-w="go" data-p="${p}" aria-pressed="${p === W.part}">${j + 1}. ${l}</button>`).join('')}</div><button type="button" class="k-round" data-w="close" aria-label="Fermer">${I.x}</button></div>
-    <div class="pl-b"><p class="j-k">Planifier · ${esc(weekRange(planStart))}<button type="button" class="j-wk-sw" data-w="wk" data-off="${planStart === thisMon ? 1 : 0}">${planStart === thisMon ? 'Semaine prochaine →' : '← Cette semaine'}</button></p>
+  const title = { c: 'Que voulez-vous planifier ?', w: 'La météo', t: 'Quel jour pour chaque tâche ?', s: 'Et maintenant, vos séances' }[W.part];
+  const body = { c: jChoice, w: jWeek, t: jTasks, s: jSport }[W.part](keys);
+  const prog = PL_STEPS.map((_, j) => `<i class="${j < i ? 'is-f' : j === i ? 'is-h' : ''}"></i>`).join('');
+  const foot = W.part === 'c'
+    ? '<span class="d-ft__t">Tout, dans l’ordre</span><button type="button" class="d-next is-rose" data-w="go" data-p="w">Commencer</button>'
+    : `<button type="button" class="d-back" data-w="go" data-p="${i ? PL_STEPS[i - 1][0] : 'c'}">Retour</button><button type="button" class="d-next ${i === 2 ? 'is-rose' : ''}" data-w="${i < 2 ? 'go' : 'end'}" data-p="${i < 2 ? PL_STEPS[i + 1][0] : ''}">${i === 0 ? 'Suivant' : i === 1 ? 'Suivant' : 'Valider la semaine'}</button>`;
+  el.innerHTML = `<div class="pl-h d-ph">${W.part === 'c' ? '<span></span>' : `<div class="d-steps">${PL_STEPS.map(([p, l]) => `<button type="button" data-w="go" data-p="${p}" aria-pressed="${p === W.part}">${l}</button>`).join('')}</div>`}<button type="button" class="k-round" data-w="close" aria-label="Fermer">${I.x}</button></div>
+    <div class="pl-b"><p class="j-k">Semaine du ${esc(weekRange(planStart))}<button type="button" class="j-wk-sw" data-w="wk" data-off="${planStart === thisMon ? 1 : 0}">${planStart === thisMon ? 'Semaine prochaine →' : '← Cette semaine'}</button></p>
       <h2 class="j-h">${title}</h2>${body}</div>
-    <div class="pl-f j-foot"><button type="button" data-w="${i ? 'go' : 'close'}" data-p="${i ? PL_STEPS[i - 1][0] : ''}">${i ? 'Retour' : 'Fermer'}</button><button type="button" class="is-go" data-w="${i < 2 ? 'go' : 'end'}" data-p="${i < 2 ? PL_STEPS[i + 1][0] : ''}">${i === 0 ? 'Placer les tâches' : i === 1 ? 'Passer au sport' : 'Terminé'}</button></div>`;
+    <div class="pl-f d-ft">${W.part === 'c' ? '' : `<div class="d-prog" aria-label="Étape ${i + 1} sur 3">${prog}</div>`}<div class="d-ft__r">${foot}</div></div>`;
   if (W.keepScroll) el.querySelector('.pl-b').scrollTop = y;
   W.keepScroll = false;
 }
@@ -1770,6 +1857,8 @@ function onClick(e) {
       return renderTodayView();
     case 'planify':
       return openPlanner();
+    case 'dweek':
+      return $('#dWeek')?.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
     case 'pedit':
       return openEdit(day, id);
     case 'pslot':
@@ -1850,6 +1939,7 @@ function onClick(e) {
 
 export function initVivant({ go }) {
   goto = go;
+  injectIllustrations();
   ['#todayView', '#agendaView', '#todoView', '#weekView'].forEach(sel => $(sel).addEventListener('click', onClick));
   // Une ligne de séance est un bouton (role) : Entrée l'ouvre aussi.
   ['#todayView', '#weekView'].forEach(sel => $(sel).addEventListener('keydown', e => e.key === 'Enter' && e.target.matches('.e-row[role="button"][data-v]') && e.target.click()));
