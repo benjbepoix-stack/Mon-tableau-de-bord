@@ -14,7 +14,7 @@
  * Le bouton + ouvre une saisie en questions (tâche, rendez-vous, événement, séance).
  * La fiche tâche / RDV reste celle de dashboard.js ; la liste des sports, celle de training.js.
  */
-import { $, esc, uid } from '../core/utils.js';
+import { $, $$, esc, uid } from '../core/utils.js';
 import { state, commit } from '../core/store.js';
 import { todayKey, dateKey, addDays, fromKey, combine, formatKey, formatDate, isRepeat, nextOccurrenceKey, occurrencesBetween, REPEATS, mondayOf } from '../core/dates.js';
 import { isRestTraining } from '../core/schema.js';
@@ -202,6 +202,7 @@ const I = {
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
   star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/></svg>',
+  cards: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="3"/><path d="M3 7v10M21 7v10"/></svg>',
   list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/></svg>',
   run: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="4.5" r="1.8"/><path d="m6 20 3.5-5 3 2 1.5-5 3 3h2.5M8 10l3-2.5 3.5.5"/></svg>',
   back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>',
@@ -449,6 +450,74 @@ function dayRow(k, all) {
     <div class="d-day__c">${list.map(x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''} ${x.soon?.cls || ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><span class="d-th">${x.ill || ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.soon ? `<i class="d-near">${x.soon.label}</i>` : ''}${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${list.length || k < today ? '' : '<p class="d-rest">Rien de prévu · repos</p>'}</div>
   </section>`;
 }
+/* ---------- Accueil, mode « cartes » : une grande carte par jour, on passe d'un jour à l'autre au doigt ---------- */
+const MODE_KEY = 'carnet_home_mode';
+let homeMode = (() => { try { return localStorage.getItem(MODE_KEY) === 'cards' ? 'cards' : 'list'; } catch { return 'list'; } })();
+let cardKey = null; // jour affiché en mode cartes
+const itRowsHTML = list => list.map(x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''} ${x.soon?.cls || ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><span class="d-th">${x.ill || ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.soon ? `<i class="d-near">${x.soon.label}</i>` : ''}${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('');
+function dayCard(k, all) {
+  const d = fromKey(k);
+  const today = todayKey();
+  const list = entriesOn(k, all);
+  const sky = k >= today ? wx[k]?.sky : null;
+  const w = k >= today ? wx[k] : null;
+  const rel = k === today ? 'Aujourd’hui' : dayDiff(k) === 1 ? 'Demain' : dayDiff(k) === -1 ? 'Hier' : '';
+  const n = list.length;
+  return `<article class="d-card ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}" data-ck="${k}" aria-label="${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`)}">
+    <header class="d-card__h">
+      <span class="d-card__n">${d.getDate()}</span>
+      <span class="d-card__d"><b>${rel || cap(WD_FULL[d.getDay()])}</b><small>${rel ? `${cap(WD_FULL[d.getDay()])} ` : ''}${d.getDate()} ${MONTHS[d.getMonth()]}</small></span>
+      ${sky ? `<button type="button" class="d-card__wx" data-dwx="${k}" aria-label="Météo : ${SKY_WORD[sky] || 'Nuageux'}"><span class="d-card__wi">${illOfSky(sky)}</span><span><b>${SKY_WORD[sky] || 'Nuageux'}</b>${w?.max != null ? `<small>${w.min}° / ${w.max}°</small>` : ''}</span></button>` : ''}
+    </header>
+    <p class="d-card__sum">${n ? `${n} chose${n > 1 ? 's' : ''} prévue${n > 1 ? 's' : ''}` : k < today ? 'Rien' : 'Rien de prévu'}</p>
+    <div class="d-card__c">${n ? itRowsHTML(list) : `<div class="d-card__empty"><span>${ILL.sun}</span><b>${k < today ? 'Journée libre' : 'Journée libre · repos'}</b></div>`}</div>
+    ${k < today ? '' : `<button type="button" class="d-card__add" data-v="wadd" data-day="${k}">+ Ajouter</button>`}
+  </article>`;
+}
+function cardsHTML() {
+  const start = dateKey(addDays(fromKey(planStart), -7));
+  const keys = Array.from({ length: 28 }, (_, i) => dateKey(addDays(fromKey(start), i)));
+  const all = doneMap();
+  const vis = keysOf(planStart);
+  if (!cardKey || !keys.includes(cardKey)) cardKey = vis.includes(todayKey()) ? todayKey() : planStart;
+  return `<div class="d-strip" role="tablist" aria-label="Jours">${vis.map(k => { const d = fromKey(k); return `<button type="button" class="${k === cardKey ? 'is-on' : ''} ${k === todayKey() ? 'is-today' : ''} ${entriesOn(k, all).length ? 'has' : ''}" data-v="cgo" data-day="${k}" aria-label="${esc(cap(formatKey(k, { weekday: 'long', day: 'numeric' })))}"><small>${WD[d.getDay()].slice(0, 1).toUpperCase()}</small>${d.getDate()}</button>`; }).join('')}</div>
+    <div class="d-cards" id="dCards">${keys.map(k => dayCard(k, all)).join('')}</div>`;
+}
+function scrollToCard(k, smooth) {
+  const box = $('#dCards');
+  const el = box?.querySelector(`[data-ck="${k}"]`);
+  if (!el) return;
+  box.scrollTo({ left: el.offsetLeft - (box.clientWidth - el.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'instant' });
+}
+function initCards() {
+  const box = $('#dCards');
+  if (!box) return;
+  // Tant que la carte du jour n'est pas placée (vue encore cachée au démarrage), on ignore le défilement.
+  let ready = false;
+  const place = (n = 0) => {
+    if (!box.isConnected) return;
+    if (!box.clientWidth) return n < 60 && setTimeout(() => place(n + 1), 100);
+    scrollToCard(cardKey, false);
+    setTimeout(() => (ready = true), 250);
+  };
+  place();
+  let t = null;
+  box.addEventListener('scroll', () => {
+    if (!ready || !box.clientWidth) return;
+    clearTimeout(t);
+    t = setTimeout(() => {
+      const mid = box.scrollLeft + box.clientWidth / 2;
+      const el = [...box.children].reduce((a, c) => (Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid) < Math.abs(a.offsetLeft + a.offsetWidth / 2 - mid) ? c : a));
+      const k = el.dataset.ck;
+      if (k === cardKey) return;
+      cardKey = k;
+      const mon = dateKey(mondayOf(fromKey(k)));
+      if (mon !== planStart) { planStart = mon; return renderTodayView(); }
+      $$('.d-strip button').forEach(b => b.classList.toggle('is-on', b.dataset.day === k));
+    }, 90);
+  }, { passive: true });
+}
+
 /** Les illustrations, une seule fois dans la page. */
 function injectIllustrations() {
   if ($('#dIll')) return;
@@ -506,9 +575,11 @@ export function renderTodayView() {
 
   host.innerHTML = `
     <div class="d-sec d-sec--top" id="dWeek"><h2>${title}<small>${esc(weekRange(planStart))}</small></h2><span><button type="button" class="d-arr" data-v="pweek" data-step="-1" aria-label="Semaine d’avant">${I.back}</button><button type="button" class="d-arr" data-v="pweek" data-step="1" aria-label="Semaine d’après">${I.fwd}</button></span></div>
-    <section class="d-week">${hidden.length ? `<button type="button" class="d-past" data-v="past" aria-expanded="${showPast}">${showPast ? 'Masquer le début de la semaine' : `Voir le début de la semaine <small>${cap(WD[fromKey(hidden[0]).getDay()])}. ${fromKey(hidden[0]).getDate()} – ${WD[fromKey(hidden.at(-1)).getDay()]}. ${fromKey(hidden.at(-1)).getDate()}</small>`}</button>` : ''}${keys.filter(k => showPast || !hidden.includes(k)).map(k => dayRow(k, all)).join('')}</section>
+    <div class="d-mode" role="radiogroup" aria-label="Affichage"><button type="button" role="radio" data-v="hmode" data-mode="list" aria-checked="${homeMode === 'list'}">${I.list || ''}Liste</button><button type="button" role="radio" data-v="hmode" data-mode="cards" aria-checked="${homeMode === 'cards'}">${I.cards || ''}Cartes</button></div>
+    ${homeMode === 'cards' ? cardsHTML() : `<section class="d-week">${hidden.length ? `<button type="button" class="d-past" data-v="past" aria-expanded="${showPast}">${showPast ? 'Masquer le début de la semaine' : `Voir le début de la semaine <small>${cap(WD[fromKey(hidden[0]).getDay()])}. ${fromKey(hidden[0]).getDate()} – ${WD[fromKey(hidden.at(-1)).getDay()]}. ${fromKey(hidden.at(-1)).getDate()}</small>`}</button>` : ''}${keys.filter(k => showPast || !hidden.includes(k)).map(k => dayRow(k, all)).join('')}</section>`}
     <div class="d-sec"><h2>Dans les 30 jours<small>${soon.length ? `${soon.length} date${soon.length > 1 ? 's' : ''}` : ''}</small></h2></div>
     <section class="d-list">${soon.map(soonRow).join('') || '<p class="j-none">Rien de prévu dans les 30 jours.</p>'}</section>`;
+  if (homeMode === 'cards') initCards();
   done(host);
 }
 
@@ -1806,7 +1877,16 @@ function onClick(e) {
       return renderAgendaView();
     case 'pweek':
       planStart = dateKey(addDays(fromKey(planStart), Number(b.dataset.step) * 7));
+      cardKey = keysOf(planStart).includes(todayKey()) ? todayKey() : planStart;
       return renderTodayView();
+    case 'hmode':
+      homeMode = b.dataset.mode === 'cards' ? 'cards' : 'list';
+      try { localStorage.setItem(MODE_KEY, homeMode); } catch { /* navigation privée */ }
+      return renderTodayView();
+    case 'cgo':
+      cardKey = day;
+      $$('.d-strip button').forEach(x => x.classList.toggle('is-on', x.dataset.day === day));
+      return scrollToCard(day, true);
     case 'routines':
       return openRoutines();
     case 'past':
