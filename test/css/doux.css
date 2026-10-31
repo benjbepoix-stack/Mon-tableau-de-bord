@@ -456,3 +456,86 @@ button.j-wr__d { display: grid; gap: 2px; padding: 0; border: 0; background: non
 .d-it.is-now { box-shadow: var(--d-sh), 0 0 0 2px var(--d-rose); background: color-mix(in srgb, var(--d-rose) 12%, var(--d-card)); }
 .d-near { flex: none; margin: 0 6px 0 auto; padding: 4px 9px; border-radius: 999px; background: var(--d-rose-soft) !important; color: var(--d-rose) !important; font-style: normal; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .d-it.is-now .d-near { background: var(--d-rose) !important; color: #fff !important; }
+
+/* Planifier : la séance + sa case « faite » */
+.j-sp { display: flex; align-items: center; gap: 10px; }
+.j-sp .j-sp__t { flex: 1; min-width: 0; }
+.j-done { flex: none; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 2px solid #C9C9C9; border-radius: 50%; background: none; color: transparent; cursor: pointer; transition: background .2s, border-color .2s, transform .4s var(--k-spring); }
+.j-done svg { width: 18px; height: 18px; }
+.j-done:active { transform: scale(.85); }
+.j-done.is-on { border-color: var(--d-teal); background: var(--d-teal); color: #fff; }
+.j-sp.is-done .j-sp__t b { text-decoration: line-through; text-decoration-color: var(--text-3); }
+.j-sp.is-done .j-sp__i { opacity: .55; }
+
+/* =========================================================
+   Harmonisation (31/10) : une seule palette pour toute l'app.
+   Rose = action principale et accent ; noir = choix sélectionné ; gris neutres (plus de bleu-lavande).
+   ========================================================= */
+:root[data-theme="light"] {
+  --bg: #fff; --bg-2: #fff; --surface: #fff; --surface-solid: #fff; --surface-2: #F2F2F2; --surface-3: #E4E4E4; --field: #F2F2F2;
+  --border: #EBEBEB; --border-strong: #DDDDDD;
+  --accent: #E0315B; --accent-2: #1C5B6B; --accent-ink: #fff; --accent-soft: #FFF0F3;
+  --gradient-accent: linear-gradient(135deg, #FF5A7E 0%, #E0315B 100%);
+  --pollen: #E0315B; --pollen-ink: #fff;
+  --late: #C2381F; --late-bg: #FDECE7; --danger: #C2381F; --danger-soft: #FDECE7;
+}
+:root[data-theme="dark"] {
+  --d-rose: #FF5C80;
+  --bg: #121315; --bg-2: #121315; --surface: #1C1D21; --surface-solid: #1C1D21; --surface-2: #26272B; --surface-3: #34353A; --field: #26272B;
+  --border: rgba(255, 255, 255, .08); --border-strong: rgba(255, 255, 255, .15);
+  --text: #F2F2F3; --text-2: #A8A8AE; --text-3: #7D7D84;
+  --accent: #FF5C80; --accent-2: #8CC3D0; --accent-ink: #fff; --accent-soft: rgba(255, 92, 128, .16);
+  --gradient-accent: linear-gradient(135deg, #FF7A97 0%, #E0315B 100%);
+  --pollen: #FF5C80; --pollen-ink: #fff;
+  --d-teal: #1C5B6B;
+}
+/* Actions principales : rose partout (OK, Enregistrer, flèche d'envoi, Continuer…) */
+.btn--primary, .btn--primary:hover:not(:disabled), .e-btn, .e-ed__ok, .e-big button, .j-cta, .d-next, .j-foot .is-go, .k-add button { background: var(--d-rose) !important; color: #fff !important; box-shadow: none; }
+.btn--primary:disabled, .e-big button:disabled, .e-btn:disabled { opacity: .45; }
+/* Action secondaire : contour */
+.j-wxbar__a button { background: none; color: var(--text); box-shadow: inset 0 0 0 1.5px var(--d-edge); }
+/* Liens : texte, pas d'accent ; danger en rouge */
+.k-lnk { color: var(--text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--d-edge); }
+.k-lnk.is-danger { color: var(--danger); text-decoration: none; }
+.link-btn { color: var(--text); }
+/* Feuilles : poignée grise, titres moins gros */
+.sheet { background: var(--d-card); }
+.sheet__grabber { background: var(--d-edge); }
+.sheet__title { font-size: 22px; line-height: 1.2; letter-spacing: -.03em; }
+.field__label { color: var(--text-2); font-weight: 600; letter-spacing: 0; text-transform: none; }
+.input, .select, .textarea { background: var(--d-soft); border-color: transparent; }
+.input:focus, .select:focus, .textarea:focus { box-shadow: 0 0 0 2px var(--d-rose); border-color: transparent; }
+/* Assistant + : points d'étape */
+.e-fdots i { background: var(--d-edge); }
+.e-fdots i.is-on, .e-fdots i.is-past { background: var(--text); }
+/* Cases à cocher (tâches, séances) : même rond partout */
+.k-chk, .k-ring { border-color: #C9C9C9; }
+:root[data-theme="dark"] :is(.k-chk, .k-ring, .j-done) { border-color: rgba(255, 255, 255, .28); }
+.k-chk.is-on, .k-ring.is-on { background: var(--d-teal); border-color: var(--d-teal); color: #fff; }
+/* Tâches : mêmes titres que les autres onglets, retard signalé par une pastille */
+.v-view .e-sec h2, .e-sec.is-late h2 { color: var(--text); }
+.e-sec.is-late small { padding: 2px 8px; border-radius: 999px; background: var(--late-bg); color: var(--late); }
+.e-check i { box-shadow: inset 0 0 0 2px #C9C9C9; }
+:root[data-theme="dark"] .e-check i { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .28); }
+.e-check.is-on i { background: var(--d-teal); box-shadow: none; color: #fff; }
+/* Fiche séance : même titre et mêmes étiquettes que les autres fiches */
+.e-pm__h h2 { font-size: 22px; font-weight: 700; line-height: 1.2; letter-spacing: -.03em; }
+.e-ed__f > span { font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-2); }
+.e-ed__f :is(select, input) { background: var(--d-soft); }
+/* Réglages : choix en pastilles, comme ailleurs */
+.segmented--flush { display: flex; gap: 6px; padding: 0; border: 0; background: none; }
+.segmented--flush button { flex: 1; min-height: 42px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--d-soft); color: var(--text); font: inherit; font-size: 14.5px; font-weight: 600; box-shadow: none; }
+.segmented--flush button::after { display: none; }
+.segmented--flush button[aria-checked="true"] { background: var(--text); color: var(--bg); }
+.account { padding: 14px 16px; border-radius: 16px; background: var(--d-soft); border: 0; }
+:root[data-theme="dark"] .rt-hero { background: linear-gradient(160deg, color-mix(in srgb, var(--c-main) 30%, transparent), transparent); }
+:root[data-theme="dark"] .rt-entry__i { background: var(--d-beige); }
+.j-wxbar__a button, .j-wxbar__a button[aria-expanded="true"] { border: 0; background: none; color: var(--text); box-shadow: inset 0 0 0 1.5px var(--d-edge); }
+.j-wxbar__a button[aria-expanded="true"] { background: var(--text); color: var(--bg); box-shadow: none; }
+/* Routines : formulaire aligné sur les autres fiches */
+.rt-f > span { font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.rt-f input:not([type=checkbox]), .rt-f select, .rt-er input:not([type=checkbox]), .rt-er select { border: 0; border-radius: 14px; background: var(--d-soft); appearance: none; -webkit-appearance: none; }
+.rt-f select, .rt-er select { padding-right: 30px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%238A8A8A' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+.rt-f input:focus, .rt-f select:focus, .rt-er input:focus, .rt-er select:focus { outline: 0; box-shadow: 0 0 0 2px var(--d-rose); }
+.rt-er input[type=checkbox], .rt-f input[type=checkbox], [class^="rt-"] input[type=checkbox] { width: 20px; min-height: 0; height: 20px; padding: 0; accent-color: var(--d-rose); appearance: auto; -webkit-appearance: checkbox; background: none; }
+.auth__error:not(:empty) ~ * .input:invalid { box-shadow: 0 0 0 2px var(--danger); }
