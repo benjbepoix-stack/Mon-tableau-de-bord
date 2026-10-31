@@ -57,6 +57,7 @@ let assign = false; // Tâches : mode « Répartir sur la semaine »
 let assignStart = '';
 let assignKeep = false;
 let monthsShown = 3; // Mois : ce mois-ci et les deux suivants
+let showPast = false; // Accueil : jours passés de la semaine dépliés
 
 /* ---------- Séances ---------- */
 const familyOf = s => (state.families || []).find(f => f.id === s.family);
@@ -118,6 +119,7 @@ function loadWx(force = false) {
         wx = { ...wx, ...data };
         if (!Object.keys(data).length) return;
         renderCurrent();
+        if (DW) renderDayWx();
         // Pop-up « Programmer ma semaine » ouvert avant la météo : on refait la proposition.
         replanIfUntouched();
       })
@@ -382,7 +384,8 @@ function toneOf(k) {
 const ILL = Object.fromEntries(['cal', 'clip', 'watch', 'flag', 'sun', 'sunc', 'rain', 'cloud'].map(n => [n, `<svg class="d-ill" viewBox="0 0 64 64" aria-hidden="true"><use href="#d-${n}"/></svg>`]));
 const ILL_OF = cls => (cls.startsWith('c-ses') ? ILL.watch : cls === 'c-task' ? ILL.clip : cls === 'c-race' ? ILL.flag : ILL.cal);
 /** Illustration du ciel d'un jour. */
-const skyIll = k => { const s = wx[k]?.sky; return s === 'sun' ? ILL.sun : s === 'part' ? ILL.sunc : ['rain', 'storm', 'snow'].includes(s) ? ILL.rain : ILL.cloud; };
+const illOfSky = s => (s === 'sun' ? ILL.sun : s === 'part' ? ILL.sunc : ['rain', 'storm', 'snow'].includes(s) ? ILL.rain : ILL.cloud);
+const skyIll = k => illOfSky(wx[k]?.sky);
 /** Une courbe douce et fermée (surface) à travers des valeurs, dans une boîte w × h. */
 function curve(vals, w, h, max) {
   if (vals.length < 2) return '';
@@ -404,10 +407,13 @@ function dayRow(k, all) {
   const list = entriesOn(k, all);
   const w = k >= today ? dayWx(k) : null;
   const sport = list.some(x => x.cls.startsWith('c-ses') || x.cls === 'c-race');
-  if (k < today && !list.length) return '';
+  const label = `${WD_FULL[d.getDay()]} ${d.getDate()}`;
+  const rest = w
+    ? `<button type="button" class="d-rest" data-dwx="${k}"><span class="d-rest__i">${skyIll(k)}</span><span class="d-rest__b"><b>Repos · ${esc(w.label)}</b><small>${w.min}° / ${w.max}° · vent moyen ${w.windAvg} km/h · rafales max ${w.gust} km/h${w.mm ? ` · pluie ${String(w.mm).replace('.', ',')} mm` : ''}</small></span><span class="d-rest__go" aria-hidden="true">${I.fwd}</span></button>`
+    : '<p class="d-rest">Repos</p>';
   return `<div class="d-tl ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}" ${k === today ? 'aria-current="date"' : ''}>
-    <div class="d-tl__l"><small>${cap(WD[d.getDay()])}.</small><b>${d.getDate()}</b>${w ? `<span>${w.max}°</span>` : ''}</div>
-    <div class="d-tl__c">${list.map(x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><span class="d-th">${ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${sport || k < today ? '' : `<p class="d-rest">${w ? skyIll(k) : ''}Repos${w && w.gust >= 45 ? `, rafales à ${w.gust} km/h` : ''}</p>`}</div>
+    <div class="d-tl__l"><button type="button" class="d-tl__add" data-v="wadd" data-day="${k}" aria-label="Ajouter quelque chose ${esc(label)}"><small>${cap(WD[d.getDay()])}.</small><b>${d.getDate()}</b><i aria-hidden="true">+</i></button></div>
+    <div class="d-tl__c">${list.map(x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''} ${flash === x.id || landed === x.id ? 'e-flash' : ''}" ${x.act}><span class="d-th">${ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`).join('')}${sport || k < today ? '' : rest}${sport && w ? `<button type="button" class="d-wxl" data-dwx="${k}">${SKY[wx[k].sky] || SKY.cloud}${w.min}° / ${w.max}° · vent moy. ${w.windAvg} · rafales ${w.gust} km/h<span aria-hidden="true">${I.fwd}</span></button>` : ''}</div>
   </div>`;
 }
 /** La grande carte « Aujourd'hui » : météo en courbe, puis ce qui est prévu. */
@@ -420,8 +426,8 @@ function todayCard(all) {
   const list = entriesOn(k, all);
   const what = list.length ? list.slice(0, 3).map(x => x.title).join(' · ') + (list.length > 3 ? ` · +${list.length - 3}` : '') : 'Rien de prévu';
   return `<article class="d-today">
-    <div class="d-hero">${ws.length > 1 ? `<svg class="d-hero__c" viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"><path d="${curve(ws.map(x => x.gust), 300, 70, 70)}" fill="#1C5B6B"/><path d="${curve(ws.map(x => x.wind), 300, 70, 70)}" fill="#BFD3D8" opacity=".9"/></svg>` : ''}
-      <span class="d-hero__i">${skyIll(k)}</span><span class="d-badge">Aujourd’hui</span><span class="d-hero__t">${w ? `${w.max}°` : '—'}</span></div>
+    <button type="button" class="d-hero" data-dwx="${k}" aria-label="Météo heure par heure">${ws.length > 1 ? `<svg class="d-hero__c" viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"><path d="${curve(ws.map(x => x.gust), 300, 70, 70)}" fill="#1C5B6B"/><path d="${curve(ws.map(x => x.wind), 300, 70, 70)}" fill="#BFD3D8" opacity=".9"/></svg>` : ''}
+      <span class="d-hero__i">${skyIll(k)}</span><span class="d-badge">Aujourd’hui</span><span class="d-hero__t">${w ? `${w.max}°` : '—'}</span><span class="d-hero__more">Heure par heure ${I.fwd}</span></button>
     <div class="d-today__b"><h2>${cap(WD_FULL[d.getDay()])} ${d.getDate()} ${MONTHS[d.getMonth()]}</h2><p>${esc(what)}</p>
       <div class="d-today__r"><span>${w ? `Vent ${windWord(w.wind)}, rafales ${w.gust} km/h` : 'Météo pas encore chargée'}</span><button type="button" data-v="dweek">Voir la semaine</button></div></div>
   </article>`;
@@ -462,48 +468,67 @@ export function renderTodayView() {
     <span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.date <= today ? 'aujourd’hui' : formatKey(x.date, { weekday: 'short', day: 'numeric', month: 'short' }), x.endDate ? span(x) : x.time ? hours(x) : '', x.kind === 'race' ? 'Cadence' : x.kind === 'events' ? 'événement' : '', x.place].filter(Boolean).join(' · '))}</small></span>
     <span class="d-j">${dayDiff(x.date) <= 0 ? 'auj.' : `J-${dayDiff(x.date)}`}</span></button>`;
   const title = wi === 0 ? 'Cette semaine' : wi === 1 ? 'Semaine prochaine' : esc(weekLabel(planStart).split(' · ')[0]);
+  const hidden = keys.filter(k => k < today);
 
   host.innerHTML = `
     <button type="button" class="d-pill" data-v="planify"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>Planifier ${wi ? 'cette semaine-là' : 'ma semaine'}</button>
-    <nav class="d-cats" aria-label="Rubriques"><button type="button" class="is-on" aria-current="page">${ILL.cal}Semaine</button><button type="button" data-go="todoView">${ILL.clip}Tâches</button><button type="button" data-go="weekView">${ILL.watch}Sport</button></nav>
     ${wi === 0 ? todayCard(all) : ''}
     <div class="d-sec" id="dWeek"><h2>${title}<small>${esc(weekRange(planStart))}</small></h2><span><button type="button" class="d-arr" data-v="pweek" data-step="-1" aria-label="Semaine d’avant">${I.back}</button><button type="button" class="d-arr" data-v="pweek" data-step="1" aria-label="Semaine d’après">${I.fwd}</button></span></div>
-    <section class="d-week">${keys.map(k => dayRow(k, all)).join('')}</section>
+    <section class="d-week">${hidden.length ? `<button type="button" class="d-past" data-v="past" aria-expanded="${showPast}">${showPast ? 'Masquer le début de la semaine' : `Voir le début de la semaine <small>${cap(WD[fromKey(hidden[0]).getDay()])}. ${fromKey(hidden[0]).getDate()} – ${WD[fromKey(hidden.at(-1)).getDay()]}. ${fromKey(hidden.at(-1)).getDate()}</small>`}</button>` : ''}${keys.filter(k => showPast || !hidden.includes(k)).map(k => dayRow(k, all)).join('')}</section>
     <div class="d-sec"><h2>Dans les 30 jours<small>${soon.length ? `${soon.length} date${soon.length > 1 ? 's' : ''}` : ''}</small></h2></div>
     <section class="d-list">${soon.map(soonRow).join('') || '<p class="j-none">Rien de prévu dans les 30 jours.</p>'}</section>`;
   done(host);
 }
 
-/* ---------- Mois : semaine par semaine ---------- */
+/* ---------- Mois : calendrier + le jour choisi + la liste du mois ---------- */
+/** Une ligne de la frise / d'une liste (même format que l'accueil). */
+const itRow = x => `<button type="button" class="d-it ${x.cls} ${x.done ? 'is-done' : ''}" ${x.act}><span class="d-th">${ILL_OF(x.cls)}</span><span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.tag, x.sub].filter(Boolean).join(' · '))}</small></span>${x.warn ? `<em title="${esc(x.warn)}">!</em>` : ''}</button>`;
 export function renderAgendaView() {
   const host = $('#agendaView');
   const now = new Date();
   const today = todayKey();
   const base = new Date(now.getFullYear(), now.getMonth() + monthOff, 1);
+  const first = dateKey(base);
   const last = dateKey(new Date(base.getFullYear(), base.getMonth() + 1, 0));
-  const up = upcoming();
-  const thisMon = dateKey(mondayOf(new Date()));
-  let weeks = '';
-  for (let s = dateKey(mondayOf(base)); s <= last; s = dateKey(addDays(fromKey(s), 7))) {
-    const keys = keysOf(s);
-    if (keys[6] < today) continue;
-    const items = [];
-    keys.forEach(k => {
-      // Un événement sur plusieurs jours n'apparaît qu'une fois : son premier jour (ou lundi s'il a commencé avant).
-      itemsOn(k).filter(x => x.date === k || (k === keys[0] && x.date < k)).forEach(x =>
-        items.push(`<button type="button" class="j-ev" data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}">${esc(x.title)} <small>${esc(x.endDate ? span(x) : `${WD[fromKey(k).getDay()]}.${x.time ? ` ${hhmm(x.time)}` : ''}`)}</small></button>`));
-      (state.races || []).filter(r => r.date === k).forEach(r =>
-        items.push(`<button type="button" class="j-ev is-race" data-v="race">🏁 ${esc(r.name)} <small>${WD[fromKey(k).getDay()]}.${r.distance ? ` · ${esc(r.distance)} km` : ''} · Cadence</small></button>`));
-    });
-    const a = fromKey(s);
-    const b = addDays(a, 6);
-    const tone = s === thisMon ? 'sun' : items.some(x => x.includes('is-race')) ? 'race' : items.length ? 'rain' : 'grey';
-    weeks += `<section class="j-wk t-${tone}"><div class="j-wk__n">${s === thisMon ? 'cette sem.' : 'sem.'}<b>${a.getDate()}–${b.getDate()}</b></div><div class="j-wk__b">${items.join('') || '<span class="j-none">Rien de prévu</span>'}</div></section>`;
+  if (!daySel || daySel < first || daySel > last) daySel = today >= first && today <= last ? today : first;
+  const all = doneMap();
+  // Calendrier : du lundi avant le 1er au dimanche après le dernier jour.
+  let cells = '';
+  const end = dateKey(addDays(mondayOf(fromKey(last)), 6));
+  for (let k = dateKey(mondayOf(base)); k <= end; k = dateKey(addDays(fromKey(k), 1))) {
+    const out = k < first || k > last;
+    const ev = itemsOn(k);
+    const races = (state.races || []).filter(r => r.date === k);
+    const ses = sessionsOn(k).length;
+    const tasks = state.dashboard.tasks.filter(t => !t.done && t.date === k).length;
+    const labels = [...races.map(r => `<span class="d-cal__l is-race">${esc(r.name)}</span>`), ...ev.map(x => `<span class="d-cal__l ${x.kind === 'events' ? 'is-ev' : 'is-rdv'} ${x.endDate ? 'is-span' : ''}">${x.time && !x.endDate ? `${hhmm(x.time).replace(' h 00', ' h')} ` : ''}${esc(x.title)}</span>`)];
+    const d = fromKey(k);
+    cells += `<button type="button" class="d-cal__c ${out ? 'is-out' : ''} ${k === today ? 'is-today' : ''} ${k === daySel ? 'is-sel' : ''} ${k < today ? 'is-past' : ''}" data-v="mday" data-day="${k}" aria-label="${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`)}" aria-pressed="${k === daySel}">
+      <b>${d.getDate()}</b>${labels.slice(0, 2).join('')}${labels.length > 2 ? `<span class="d-cal__m">+${labels.length - 2}</span>` : ''}
+      ${ses || tasks ? `<span class="d-cal__dots">${'<i class="is-ses"></i>'.repeat(Math.min(ses, 3))}${'<i class="is-task"></i>'.repeat(Math.min(tasks, 3))}</span>` : ''}</button>`;
   }
+  // Le jour choisi : tout ce qui est prévu, comme sur l'accueil.
+  const sd = fromKey(daySel);
+  const dayList = entriesOn(daySel, all);
+  // Tout le mois : rendez-vous, événements et courses.
+  const month = [];
+  for (let k = first; k <= last; k = dateKey(addDays(fromKey(k), 1))) {
+    itemsOn(k).filter(x => x.date === k || (k === first && x.date < k)).forEach(x => month.push({ k, x }));
+    (state.races || []).filter(r => r.date === k).forEach(r => month.push({ k, x: { id: r.id, title: r.name, kind: 'race', distance: r.distance } }));
+  }
+  const monthRow = ({ k, x }) => `<button type="button" class="d-it d-soon ${x.kind === 'race' ? 'is-race' : ''} ${k < today && !(x.endDate >= today) ? 'is-past' : ''}" ${x.kind === 'race' ? 'data-v="race"' : `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"`}>
+    <span class="d-th">${x.kind === 'race' ? ILL.flag : ILL.cal}</span>
+    <span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.endDate ? span(x) : x.time ? hours(x) : '', x.kind === 'race' ? `Course${x.distance ? ` · ${x.distance} km` : ''} · Cadence` : x.kind === 'events' ? 'Événement' : 'Rendez-vous', x.place].filter(Boolean).join(' · '))}</small></span>
+    <span class="d-j d-j--d"><small>${WD[fromKey(k).getDay()]}.</small>${fromKey(k).getDate()}</span></button>`;
   host.innerHTML = `
-    <header class="j-hd"><p class="k-kicker">Ce qui arrive</p><h1>${cap(MONTHS[base.getMonth()])}</h1></header>
-    <div class="j-months" role="group" aria-label="Mois">${[0, 1, 2, 3].map(i => { const m = new Date(now.getFullYear(), now.getMonth() + i, 1); return `<button type="button" data-v="mo" data-to="${i}" aria-pressed="${monthOff === i}">${cap(MONTHS[m.getMonth()])}</button>`; }).join('')}</div>
-    ${weeks}`;
+    <div class="d-sec d-sec--top"><h2>${cap(MONTHS[base.getMonth()])}<small>${base.getFullYear()} · ${month.length ? `${month.length} date${month.length > 1 ? 's' : ''}` : 'rien de prévu'}</small></h2><span><button type="button" class="d-arr" data-v="mstep" data-step="-1" aria-label="Mois d’avant" ${monthOff <= -2 ? 'disabled' : ''}>${I.back}</button><button type="button" class="d-arr" data-v="mstep" data-step="1" aria-label="Mois d’après" ${monthOff >= 12 ? 'disabled' : ''}>${I.fwd}</button></span></div>
+    ${monthOff ? '<button type="button" class="d-today-btn" data-v="mstep" data-step="0">Revenir à ce mois-ci</button>' : ''}
+    <section class="d-cal" aria-label="Calendrier"><div class="d-cal__h">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span>${x}</span>`).join('')}</div><div class="d-cal__g">${cells}</div>
+      <p class="d-cal__leg"><span><i class="is-rdv"></i>Rendez-vous</span><span><i class="is-ev"></i>Événement</span><span><i class="is-race"></i>Course</span><span><i class="is-ses"></i>Sport</span><span><i class="is-task"></i>Tâche</span></p></section>
+    <div class="d-sec"><h2>${cap(WD_FULL[sd.getDay()])} ${sd.getDate()} ${MONTHS[sd.getMonth()]}<small>${dayList.length ? `${dayList.length} chose${dayList.length > 1 ? 's' : ''} prévue${dayList.length > 1 ? 's' : ''}` : 'Rien de prévu'}</small></h2><button type="button" class="d-add" data-v="wadd" data-day="${daySel}">+ Ajouter</button></div>
+    <section class="d-list">${dayList.map(itRow).join('')}${daySel >= today && wx[daySel] ? `<button type="button" class="d-wxl" data-dwx="${daySel}">${SKY[wx[daySel].sky] || SKY.cloud}${esc(wx[daySel].label)} · ${wx[daySel].min}° / ${wx[daySel].max}° · heure par heure<span aria-hidden="true">${I.fwd}</span></button>` : ''}</section>
+    <div class="d-sec"><h2>Tout le mois<small>Rendez-vous, événements et courses</small></h2></div>
+    <section class="d-list">${month.map(monthRow).join('') || '<p class="j-none">Rien de prévu ce mois-ci.</p>'}</section>`;
   done(host);
 }
 
@@ -663,7 +688,7 @@ function entriesOn(k, all = doneMap()) {
   sessionsOn(k).forEach(s => {
     const sl = planSlot(s, k);
     const done = isDone(k, s, all);
-    out.push({ id: s.id, at: sl ? `${pad(SLOT_RANGE[sl][0] / 60)}:30` : '12:30', cls: `c-ses k-${TILE[kindOf(s)]}`, tag: `Sport${sl ? ` · ${SLOT_WHEN[sl]}` : ''}`, title: `${s.training || familyOf(s)?.name || 'Séance'}${s.distance ? ` · ${km(s.distance)}` : ''}`, done, warn: !done && issueOf(s, k)?.reason, act: `data-v="pedit" data-day="${k}" data-id="${esc(s.id)}"` });
+    out.push({ id: s.id, at: sl ? `${pad(SLOT_RANGE[sl][0] / 60)}:30` : '12:30', cls: `c-ses k-${TILE[kindOf(s)]}`, tag: s.training || '', sub: [s.distance ? km(s.distance) : '', durLabel(durMin(s.time)), sl ? SLOT_WHEN[sl] : ''].filter(Boolean).join(' · '), title: familyOf(s)?.name || s.training || 'Séance', done, warn: !done && issueOf(s, k)?.reason, act: `data-v="pedit" data-day="${k}" data-id="${esc(s.id)}"` });
   });
   state.dashboard.tasks
     .filter(t => (t.date === k && (t.done ? !t.doneAt || t.doneAt >= today : k >= today)) || (k === today && !t.done && isLate(t)))
@@ -684,6 +709,8 @@ function dayWx(k) {
     rain: ss.length ? Math.max(...ss.map(x => x.rain)) : 0,
     wind: ss.length ? Math.max(...ss.map(x => x.wind)) : 0,
     gust: ss.length ? Math.max(...ss.map(x => x.gust)) : 0,
+    windAvg: w.hours?.length ? Math.round(w.hours.reduce((a, x) => a + x.wind, 0) / w.hours.length) : ss.length ? Math.round(ss.reduce((a, x) => a + x.wind, 0) / ss.length) : 0,
+    mm: Math.round(ss.reduce((a, x) => a + (x.mm || 0), 0) * 10) / 10,
     q: best ? level(score('run', w.slots[best])) : ss.length ? level(Math.max(...ss.map(x => score('run', x)))) : 'ok',
     label: w.label
   };
@@ -820,7 +847,7 @@ function jWeek(keys) {
     const d = fromKey(k);
     const w = dayWx(k);
     return `<div class="j-wr t-${k < today ? 'grey' : toneOf(k)} ${k === today ? 'is-today' : ''} ${k < today ? 'is-past' : ''}">
-      <span class="j-wr__d"><b>${cap(WD[d.getDay()])} ${d.getDate()}</b>${w ? `<small>${w.sky}${w.min}°/${w.max}°</small>` : '<small>—</small>'}</span>
+      <button type="button" class="j-wr__d" data-dwx="${k}" aria-label="Météo heure par heure, ${WD_FULL[d.getDay()]} ${d.getDate()}"><b>${cap(WD[d.getDay()])} ${d.getDate()}</b>${w ? `<small>${w.sky}${w.min}°/${w.max}°</small>` : '<small>—</small>'}<small class="j-wr__more">heure par heure ›</small></button>
       ${SLOT_IDS.map(sl => cell(k, sl)).join('')}</div>`;
   }).join('');
   return `${wxChart(keys)}${wxBar()}<div class="j-wgrid"><span></span><small>Matin</small><small>Ap.-midi</small><small>Soir</small></div>${rows}
@@ -1857,6 +1884,9 @@ function onClick(e) {
       return renderTodayView();
     case 'planify':
       return openPlanner();
+    case 'past':
+      showPast = !showPast;
+      return renderTodayView();
     case 'dweek':
       return $('#dWeek')?.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
     case 'pedit':
@@ -1893,8 +1923,12 @@ function onClick(e) {
     case 'mo':
       monthOff = Number(b.dataset.to);
       return renderAgendaView();
+    case 'mstep':
+      monthOff = Number(b.dataset.step) ? monthOff + Number(b.dataset.step) : 0;
+      daySel = null;
+      return renderAgendaView();
     case 'mday':
-      daySel = daySel === day ? null : day;
+      daySel = day;
       return renderAgendaView();
     case 'week':
       weekStart = dateKey(addDays(fromKey(weekStart), Number(b.dataset.step) * 7));
@@ -1937,9 +1971,166 @@ function onClick(e) {
   }
 }
 
+/* ---------- Météo d'un jour, heure par heure (curseur à glisser) ---------- */
+let DW = null; // { k, i } : jour affiché et heure choisie (index dans hours)
+const dwEl = () => $('#dWx');
+const fr = v => String(v).replace('.', ',');
+function openDayWx(k) {
+  loadWx();
+  const hrs = wx[k]?.hours || [];
+  const now = new Date().getHours();
+  const at = k === todayKey() ? Math.max(0, hrs.findIndex(x => x.h >= now)) : Math.max(0, hrs.findIndex(x => x.h >= 12));
+  DW = { k, i: at };
+  const el = dwEl();
+  el.hidden = false;
+  document.body.classList.add('e-flow-on');
+  renderDayWx();
+  requestAnimationFrame(() => el.classList.add('is-open'));
+}
+function closeDayWx() {
+  const el = dwEl();
+  el.classList.remove('is-open');
+  DW = null;
+  if (!W && !P && $('#eFlow')?.hidden) document.body.classList.remove('e-flow-on');
+  setTimeout(() => (el.hidden = true), reduced() ? 0 : 300);
+}
+/** Ligne lisse (non fermée) à travers des points. */
+function line(pts) {
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [xa, ya] = pts[i - 1];
+    const [xb, yb] = pts[i];
+    const mx = ((xa + xb) / 2).toFixed(1);
+    d += ` C${mx},${ya.toFixed(1)} ${mx},${yb.toFixed(1)} ${xb.toFixed(1)},${yb.toFixed(1)}`;
+  }
+  return d;
+}
+// Géométrie du graphique : 3 bandes (température, pluie, vent) sur une même échelle d'heures.
+const DWG = { w: 340, pad: 14, t: [34, 96], r: [124, 156], v: [184, 254], h: 278 };
+const dwX = (i, n) => DWG.pad + (n > 1 ? (i * (DWG.w - 2 * DWG.pad)) / (n - 1) : 0);
+function dayWxChart(hrs) {
+  const n = hrs.length;
+  const tMin = Math.min(...hrs.map(x => x.t));
+  const tMax = Math.max(...hrs.map(x => x.t));
+  const ty = v => DWG.t[1] - ((v - tMin) / Math.max(1, tMax - tMin)) * (DWG.t[1] - DWG.t[0]);
+  const tPts = hrs.map((x, i) => [dwX(i, n), ty(x.t)]);
+  const mmMax = Math.max(2, ...hrs.map(x => x.mm));
+  const bw = Math.max(4, (DWG.w - 2 * DWG.pad) / n - 5);
+  const bars = hrs.map((x, i) => { const hh = (x.mm / mmMax) * (DWG.r[1] - DWG.r[0]); return x.mm ? `<rect x="${(dwX(i, n) - bw / 2).toFixed(1)}" y="${(DWG.r[1] - hh).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(2, hh).toFixed(1)}" rx="2" fill="#7FB8D6"/>` : `<rect x="${(dwX(i, n) - 1.5).toFixed(1)}" y="${DWG.r[1] - 2}" width="3" height="2" rx="1" fill="#3A6A78"/>`; }).join('');
+  const vMax = Math.max(30, ...hrs.map(x => x.gust)) * 1.1;
+  const vy = v => DWG.v[1] - (v / vMax) * (DWG.v[1] - DWG.v[0]);
+  const area = key => `${line(hrs.map((x, i) => [dwX(i, n), vy(x[key])]))} L${dwX(n - 1, n)},${DWG.v[1]} L${dwX(0, n)},${DWG.v[1]} Z`;
+  const iMax = hrs.reduce((a, x, i) => (x.t > hrs[a].t ? i : a), 0);
+  const iMin = hrs.reduce((a, x, i) => (x.t < hrs[a].t ? i : a), 0);
+  const ticks = hrs.map((x, i) => (x.h % 3 === 0 ? `<text x="${dwX(i, n).toFixed(1)}" y="${DWG.h - 4}" text-anchor="middle">${x.h} h</text>` : '')).join('');
+  return `<svg class="dw-svg" viewBox="0 0 ${DWG.w} ${DWG.h}" aria-hidden="true">
+    <text class="dw-lab" x="${DWG.pad}" y="12">Température</text>
+    <path d="${line(tPts)}" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+    <text class="dw-val" x="${dwX(iMax, n).toFixed(1)}" y="${(ty(hrs[iMax].t) - 7).toFixed(1)}" text-anchor="middle">${hrs[iMax].t}°</text>
+    ${iMin !== iMax ? `<text class="dw-val is-dim" x="${dwX(iMin, n).toFixed(1)}" y="${(ty(hrs[iMin].t) - 7).toFixed(1)}" text-anchor="middle">${hrs[iMin].t}°</text>` : ''}
+    <text class="dw-lab" x="${DWG.pad}" y="${DWG.r[0] - 6}">Pluie (mm)</text>
+    ${bars}
+    <text class="dw-lab" x="${DWG.pad}" y="${DWG.v[0] - 6}">Vent et rafales (km/h)</text>
+    <path d="${area('gust')}" fill="#2B7182"/><path d="${area('wind')}" fill="#BFD3D8"/>
+    <g class="dw-tk">${ticks}</g>
+  </svg>`;
+}
+function renderDayWx() {
+  if (!DW) return;
+  const el = dwEl();
+  const { k } = DW;
+  const days = Object.keys(wx).filter(x => x >= todayKey() && wx[x]?.hours?.length).sort().slice(0, 10);
+  const w = wx[k];
+  const hrs = w?.hours || [];
+  const d = fromKey(k);
+  const dw = dayWx(k);
+  const chips = days.map(x => { const dd = fromKey(x); return `<button type="button" class="dw-day ${x === k ? 'is-on' : ''}" data-dwx="${x}" aria-pressed="${x === k}"><small>${x === todayKey() ? 'Auj.' : cap(WD[dd.getDay()])}</small><b>${dd.getDate()}</b></button>`; }).join('');
+  el.innerHTML = `<div class="dw-top"><div class="dw-days" role="group" aria-label="Jour">${chips}</div><button type="button" class="dw-x" data-dwc="close" aria-label="Fermer">${I.x}</button></div>
+    ${hrs.length ? `<div class="dw-hero"><span class="dw-ic"></span><p class="dw-t"></p><p class="dw-d">${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`.toUpperCase())} · <span class="dw-h"></span></p><p class="dw-s"></p></div>
+    <div class="dw-ch" role="slider" tabindex="0" aria-label="Heure" aria-valuemin="${hrs[0].h}" aria-valuemax="${hrs.at(-1).h}">${dayWxChart(hrs)}<div class="dw-sc"><i></i></div><b class="dw-dot"></b></div>
+    <p class="dw-hint">Glisse le doigt sur le graphique pour changer d’heure.</p>
+    <div class="dw-sum">
+      <div><small>Températures</small><b>${w.min}° / ${w.max}°</b></div>
+      <div><small>Vent moyen</small><b>${dw.windAvg} km/h</b></div>
+      <div><small>Rafales max</small><b>${dw.gust} km/h</b></div>
+      <div><small>Pluie</small><b>${fr(Math.round(hrs.reduce((a, x) => a + x.mm, 0) * 10) / 10)} mm</b></div>
+      ${w.sunrise ? `<div><small>Soleil</small><b>${hhmm(w.sunrise)} – ${hhmm(w.sunset)}</b></div>` : ''}
+      <div><small>Ciel</small><b>${esc(w.label)}</b></div>
+    </div>` : `<p class="dw-none">Pas encore de prévisions heure par heure pour ce jour (elles vont jusqu’à 15 jours).</p>`}`;
+  el.querySelector('.dw-day.is-on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  if (hrs.length) setDwHour(DW.i);
+}
+function setDwHour(i) {
+  const hrs = wx[DW.k]?.hours || [];
+  if (!hrs.length) return;
+  DW.i = Math.max(0, Math.min(hrs.length - 1, i));
+  const x = hrs[DW.i];
+  const el = dwEl();
+  el.querySelector('.dw-ic').innerHTML = illOfSky(x.sky);
+  el.querySelector('.dw-t').textContent = `${x.t}°`;
+  el.querySelector('.dw-h').textContent = `${x.h} H`;
+  el.querySelector('.dw-s').innerHTML = `${esc(x.label)}<br><b>Vent ${x.wind} km/h ${x.dir}</b> · rafales ${x.gust} km/h · pluie ${fr(x.mm)} mm${x.rain ? ` (${x.rain} %)` : ''}`;
+  const ch = el.querySelector('.dw-ch');
+  ch.setAttribute('aria-valuenow', x.h);
+  ch.setAttribute('aria-valuetext', `${x.h} heures`);
+  const sc = el.querySelector('.dw-sc');
+  sc.style.left = `${(dwX(DW.i, hrs.length) / DWG.w) * 100}%`;
+  // Le rond du curseur suit la courbe des températures.
+  const tMin = Math.min(...hrs.map(y => y.t));
+  const tMax = Math.max(...hrs.map(y => y.t));
+  const dot = el.querySelector('.dw-dot');
+  dot.style.left = sc.style.left;
+  dot.style.top = `${((DWG.t[1] - ((x.t - tMin) / Math.max(1, tMax - tMin)) * (DWG.t[1] - DWG.t[0])) / DWG.h) * 100}%`;
+  sc.querySelector('i').textContent = `${x.h} h`;
+}
+function dwFromPointer(e) {
+  const ch = dwEl().querySelector('.dw-ch');
+  const r = ch.getBoundingClientRect();
+  const n = wx[DW.k]?.hours?.length || 1;
+  const fx = ((e.clientX - r.left) / r.width) * DWG.w;
+  setDwHour(Math.round(((fx - DWG.pad) / (DWG.w - 2 * DWG.pad)) * (n - 1)));
+}
+function initDayWx() {
+  const el = document.createElement('section');
+  el.id = 'dWx';
+  el.className = 'dw';
+  el.hidden = true;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-label', 'Météo heure par heure');
+  document.body.appendChild(el);
+  el.addEventListener('click', e => e.target.closest('[data-dwc="close"]') && closeDayWx());
+  let drag = false;
+  el.addEventListener('pointerdown', e => {
+    if (!e.target.closest('.dw-ch')) return;
+    drag = true;
+    e.target.closest('.dw-ch').setPointerCapture(e.pointerId);
+    dwFromPointer(e);
+  });
+  el.addEventListener('pointermove', e => drag && dwFromPointer(e));
+  ['pointerup', 'pointercancel'].forEach(t => el.addEventListener(t, () => (drag = false)));
+  el.addEventListener('keydown', e => {
+    if (!DW || !e.target.closest('.dw-ch')) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      setDwHour(DW.i + (e.key === 'ArrowRight' ? 1 : -1));
+    }
+  });
+  // N'importe quel élément [data-dwx] ouvre (ou change) le jour affiché.
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-dwx]');
+    if (!b) return;
+    e.stopPropagation();
+    if (DW) { DW.k = b.dataset.dwx; const hrs = wx[DW.k]?.hours || []; DW.i = Math.max(0, Math.min(DW.i, hrs.length - 1)); return renderDayWx(); }
+    openDayWx(b.dataset.dwx);
+  }, true);
+  document.addEventListener('keydown', e => e.key === 'Escape' && DW && closeDayWx());
+}
+
 export function initVivant({ go }) {
   goto = go;
   injectIllustrations();
+  initDayWx();
   ['#todayView', '#agendaView', '#todoView', '#weekView'].forEach(sel => $(sel).addEventListener('click', onClick));
   // Une ligne de séance est un bouton (role) : Entrée l'ouvre aussi.
   ['#todayView', '#weekView'].forEach(sel => $(sel).addEventListener('keydown', e => e.key === 'Enter' && e.target.matches('.e-row[role="button"][data-v]') && e.target.click()));
