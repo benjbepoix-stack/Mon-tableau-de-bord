@@ -26,7 +26,8 @@ import { toast, toastError } from '../ui/toast.js';
 import { burst, buzz } from '../ui/feedback.js';
 import { linkedItems, GARAGE_URL, MAISON_URL } from '../features/linked-apps.js';
 import { sportTasks } from '../features/sport-tasks.js';
-import { openEditor, ALLURE_URL } from './dashboard.js';
+import { openEditor, ALLURE_URL, toCalendarEvent } from './dashboard.js';
+import { offerCalendar } from '../features/calendar-prompt.js';
 import { openSportManager } from './training.js';
 import { openRoutines, initRoutines } from './routines.js';
 
@@ -1535,6 +1536,7 @@ function stepHTML(st) {
 function saveFlow() {
   const d = F.d;
   const id = uid();
+  let calItem = null;
   let target = 'todoView';
   if (F.type === 'task') {
     state.dashboard.tasks.push({ id, title: d.title, date: d.day || '', time: '', note: '', done: false });
@@ -1557,6 +1559,7 @@ function saveFlow() {
     if (F.type === 'events' && d.end > d.day) item.endDate = d.end;
     state.dashboard[F.type].push(item);
     commit('dashboard');
+    calItem = { item, type: F.type };
     // Le mois de l'élément ajouté est affiché dans « Mois ».
     const now = new Date();
     const m = fromKey(d.day);
@@ -1570,8 +1573,9 @@ function saveFlow() {
   setTimeout(() => burst(r.left + r.width / 2, r.top + r.height / 2 - 40, 20), 250);
   setTimeout(() => {
     closeFlow();
-    // Séance ajoutée depuis « Planifier » : on reste dans l'assistant.
     goto(target);
+    // Rendez-vous ou événement : proposer de l'ajouter au Calendrier de l'iPhone.
+    if (calItem) setTimeout(() => offerCalendar(toCalendarEvent(calItem.item, calItem.type), { heading: calItem.type === 'events' ? 'Événement ajouté' : 'Rendez-vous ajouté' }), 400);
     setTimeout(() => {
       document.querySelector('.e-flash')?.scrollIntoView({ block: 'center', behavior: reduced() ? 'auto' : 'smooth' });
       flash = null;
