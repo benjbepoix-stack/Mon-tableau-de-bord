@@ -331,6 +331,15 @@ export async function initCloud(options) {
 }
 
 export const currentUser = () => user;
+
+/**
+ * Écrit (ou efface avec null) un chemin du compte hors du nœud de Carnet, ex. :
+ * `carnet_push/devices/<appareil>` (abonnement aux notifications, voir features/push.js).
+ */
+export async function setUserPath(path, value) {
+  if (!user || !dbMod || !db) throw new Error('Pas de compte connecté');
+  await dbMod.set(dbMod.ref(db, `users/${user.uid}/${path}`), value === null ? null : clean(value));
+}
 /** Connexion possible (SDK chargé) : sinon l'app reste en mode local. */
 export const canSignIn = () => Boolean(authMod && auth && !fatal);
 

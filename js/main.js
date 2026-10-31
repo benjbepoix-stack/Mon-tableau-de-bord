@@ -12,6 +12,7 @@ import { initCalendarPrompt } from './features/calendar-prompt.js';
 import { setLinked, linkedLocal, onLinkedChange, linkedReady } from './features/linked-apps.js';
 import { initAuth, openAuth, closeAuth, noAccountChosen, forgetNoAccount } from './features/auth.js';
 import { initSettings, renderAccount } from './features/settings.js';
+import { initPush, syncPush } from './features/push.js';
 import { tidyTasks } from './features/task-tidy.js';
 import { initOverduePrompt } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
@@ -98,6 +99,7 @@ function onUser(user) {
     write(LAST_UID, user.uid);
     forgetNoAccount();
     closeAuth();
+    syncPush();
   } else {
     setLinked(null); // échéances de l'éventuel compte précédent retirées
     // Feuille de connexion par-dessus l'app déjà affichée, sauf si « Continuer sans compte » a été choisi.
@@ -170,6 +172,7 @@ function init() {
     if (go) switchView(go.dataset.goto);
   });
   initSettings();
+  initPush();
   forgetBackdrop();
   initAuth({ onLocal: goLocal });
 
