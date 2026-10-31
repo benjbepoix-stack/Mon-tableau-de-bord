@@ -42,7 +42,7 @@ const view = x => (isRepeat(x.repeat) ? { ...x, date: nextOccurrenceKey(x) } : x
 const startOf = x => combine(x.date, x.time, '23:59')?.getTime() ?? Infinity;
 const isPast = x => {
   if (!x.date) return false;
-  const end = combine(x.date, x.endTime || x.time, '23:59');
+  const end = x.endDate ? combine(x.endDate, '', '23:59') : combine(x.date, x.endTime || x.time, '23:59');
   return end ? end.getTime() < Date.now() : false;
 };
 const upcoming = type => state.dashboard[type].map(view).filter(x => x.date && !isPast(x)).sort((a, b) => startOf(a) - startOf(b));
@@ -330,12 +330,12 @@ export function openEditor(type, id = null) {
   $('#itemTitle').textContent = item ? TYPES[type].edit : TYPES[type].add;
   const isTask = type === 'tasks';
   form.dataset.kind = type;
-  $('#itemDateLabel').textContent = isTask ? 'Échéance (facultatif)' : 'Date';
-  $('#itemTimeLabel').innerHTML = isTask ? 'Heure <span class="field__opt">(facultatif)</span>' : 'Début';
+  $('#itemDateLabel').textContent = isTask ? 'Échéance (facultatif)' : type === 'events' ? 'Début' : 'Date';
+  $('#itemTimeLabel').innerHTML = type === 'appointments' ? 'Début' : 'Heure <span class="field__opt">(facultatif)</span>';
   form.elements.date.required = !isTask;
   $('#itemTitleInput').placeholder = isTask ? 'Ex. Appeler le garage' : type === 'appointments' ? 'Ex. Dentiste' : 'Ex. Dîner entre amis';
   $('#itemRepeatHelp').hidden = !isTask;
-  if (item) ['title', 'date', 'time', 'endTime', 'repeat', 'location', 'note'].forEach(k => (form.elements[k].value = item[k] || ''));
+  if (item) ['title', 'date', 'endDate', 'time', 'endTime', 'repeat', 'location', 'note'].forEach(k => (form.elements[k].value = item[k] || ''));
   else if (!isTask) form.elements.date.value = todayKey();
   // Une répétition déjà choisie reste visible : le volet « Plus de détails » s'ouvre.
   $('#itemMore').open = Boolean(item && (item.repeat || item.note || item.endTime || item.location));
@@ -348,6 +348,7 @@ const itemSchema = type => {
   return {
     title: [rules.required('Le titre'), rules.maxLength(100)],
     date: [rules.date({ required: !isTask })],
+    endDate: [rules.date(), (v, all) => (v && all.date && v < all.date ? 'La fin doit être après le début.' : null)],
     time: [rules.time()],
     endTime: [
       rules.time(),
@@ -380,6 +381,7 @@ async function onSubmit(e) {
   if (!isTask) {
     if (v.endTime) item.endTime = v.endTime;
     if (v.location) item.location = v.location;
+    if (type === 'events' && v.endDate > v.date) item.endDate = v.endDate;
   } else {
     item.done = existing?.done ?? false; // l'état « terminée » n'est pas perdu à l'édition
     if (item.done && existing?.doneAt) item.doneAt = existing.doneAt;
