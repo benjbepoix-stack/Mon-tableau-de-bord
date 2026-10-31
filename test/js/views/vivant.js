@@ -502,6 +502,15 @@ function initCards() {
     setTimeout(() => (ready = true), 250);
   };
   place();
+  // Hauteur des cartes : tout l'espace entre le haut des cartes et la barre d'onglets.
+  const fit = () => {
+    const tab = $('.tabbar')?.getBoundingClientRect();
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    const bottom = tab && tab.height ? tab.top + window.scrollY : window.innerHeight;
+    const h = Math.round(Math.min(bottom, window.innerHeight) - top - 22);
+    if (h > 280) box.style.setProperty('--card-h', `${h}px`);
+  };
+  requestAnimationFrame(fit);
   let t = null;
   box.addEventListener('scroll', () => {
     if (!ready || !box.clientWidth) return;
@@ -610,7 +619,7 @@ export function renderAgendaView() {
     const wk = [0, 6].includes(fromKey(k).getDay()) ? 'is-we' : '';
     const busyDay = labels.length ? 'has-ev' : '';
     cells += `<button type="button" class="d-cal__c ${wk} ${busyDay} ${out ? 'is-out' : ''} ${k === today ? 'is-today' : ''} ${k === daySel ? 'is-sel' : ''} ${k < today ? 'is-past' : ''}" data-v="mday" data-day="${k}" aria-label="${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`)}" aria-pressed="${k === daySel}">
-      <b>${d.getDate()}</b>${labels.slice(0, 2).join('')}${labels.length > 2 ? `<span class="d-cal__m">+${labels.length - 2}</span>` : ''}
+      <b>${d.getDate()}</b>${labels.slice(0, 1).join('')}${labels.length > 1 ? `<span class="d-cal__m">+${labels.length - 1}</span>` : ''}
       ${ses || tasks ? `<span class="d-cal__dots">${'<i class="is-ses"></i>'.repeat(Math.min(ses, 3))}${'<i class="is-task"></i>'.repeat(Math.min(tasks, 3))}</span>` : ''}</button>`;
   }
   // Le jour choisi : tout ce qui est prévu, comme sur l'accueil.
@@ -906,8 +915,10 @@ function jSport(keys) {
     }).join('');
     const races = (state.races || []).filter(r => r.date === k).map(r => `<a class="j-race" href="${ALLURE_URL}">🏁 <b>${esc(r.name)}</b>${r.distance ? ` · ${esc(r.distance)} km` : ''}</a>`).join('');
     const past = k < today;
-    const head = `<header class="j-sd__h"><span><b>${k === today ? 'Aujourd’hui' : cap(WD_FULL[d.getDay()])} ${d.getDate()}</b>${busy.length ? `<small>${esc(busy.join(' · '))}</small>` : ''}</span>${past ? '' : `<button type="button" class="j-add" data-w="add" data-day="${k}" aria-label="Ajouter une séance ${esc(WD_FULL[d.getDay()])} ${d.getDate()}">+</button>`}</header>`;
-    return `<section class="j-sd ${k === today ? 'is-today' : ''} ${past ? 'is-past' : ''} ${ss.length ? '' : 'is-free'}" id="pday-${k}">${head}${races}${rows || `<p class="j-rest-s">${past ? 'Rien' : 'Repos'}</p>`}</section>`;
+    // Une ligne compacte par jour : le jour (et ses RDV en petit), les séances, un petit +.
+    const dayLbl = `<div class="j-sd__d"><b>${cap(WD[d.getDay()])}. ${d.getDate()}</b>${k === today ? '<i>auj.</i>' : ''}</div>`;
+    const info = busy.length ? `<small class="j-sd__ev">${esc(busy.join(' · '))}</small>` : '';
+    return `<section class="j-sd ${k === today ? 'is-today' : ''} ${past ? 'is-past' : ''} ${ss.length ? '' : 'is-free'}" id="pday-${k}">${dayLbl}<div class="j-sd__c">${info}${races}${rows || `<p class="j-rest-s">${past ? 'Rien' : 'Repos'}</p>`}</div>${past ? '' : `<button type="button" class="j-add" data-w="add" data-day="${k}" aria-label="Ajouter une séance ${esc(WD_FULL[d.getDay()])} ${d.getDate()}">+</button>`}</section>`;
   }).join('');
   const toggle = hidden.length && !allPast ? `<button type="button" class="d-past" data-v="spast" aria-expanded="${sportPast}">${sportPast ? 'Masquer les jours passés' : `Voir les jours passés <small>${cap(WD[fromKey(hidden[0]).getDay()])}. ${fromKey(hidden[0]).getDate()} – ${WD[fromKey(hidden.at(-1)).getDay()]}. ${fromKey(hidden.at(-1)).getDate()}</small>`}</button>` : '';
   return `${toggle}<div class="s-days">${days}</div>`;
