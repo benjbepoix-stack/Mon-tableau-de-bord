@@ -403,3 +403,21 @@ button.j-wr__d { display: grid; gap: 2px; padding: 0; border: 0; background: non
 .rp-btn { min-width: 220px; min-height: 54px; border: 0; border-radius: 16px; background: #fff; color: var(--c1); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
 .rp-link { margin-top: 10px; padding: 8px; border: 0; background: none; color: #fff; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .rp, .rt, .rp-arc, .rp-bubble { transition: none; } .rp-s, .rp-medal, .rp-path i.is-cur { animation: none; } }
+
+/* ---------- Accueil : un bloc par jour, bien séparé ---------- */
+.d-week { gap: 0; }
+.d-day { padding: 16px 0 18px; border-top: 1px solid var(--d-edge); }
+.d-day:first-of-type { border-top: 0; padding-top: 4px; }
+.d-day.is-past { opacity: .55; }
+.d-day__h { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.d-day__d { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.d-day__d > b { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--d-soft); font-size: 18px; font-weight: 700; }
+.d-day.is-today .d-day__d > b { background: var(--d-rose); color: #fff; }
+.d-day__d > span { display: grid; font-size: 18px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+.d-day__d small { font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--text-2); }
+.d-day__wx { flex: none; display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 6px; border: 0; border-radius: 999px; background: var(--d-soft); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.d-day__wx .d-ill { width: 26px; height: 26px; }
+.d-day__add { flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--d-edge); border-radius: 50%; background: var(--d-card); color: var(--text); font: inherit; font-size: 20px; font-weight: 500; line-height: 1; cursor: pointer; }
+.d-day__add:hover, .d-day__add:focus-visible { border-color: var(--d-rose); background: var(--d-rose); color: #fff; }
+.d-day__c { display: grid; gap: 10px; }
+.d-day .d-rest { padding: 12px 14px; font-weight: 500; cursor: default; }
