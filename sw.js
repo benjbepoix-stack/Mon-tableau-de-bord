@@ -6,7 +6,7 @@
    À l'installation, l'app-shell (HTML/CSS/JS/icônes) est aussi pré-mis en cache :
    un tout premier lancement hors ligne (avant toute visite en ligne réussie)
    affiche donc l'app au lieu d'un écran blanc. */
-const CACHE = 'dashboard-v21';
+const CACHE = 'dashboard-v23';
 
 const PRECACHE_URLS = [
   './',
@@ -20,10 +20,19 @@ const PRECACHE_URLS = [
   './css/vivant.css',
   './css/carnet2.css',
   './css/espaces.css',
+  './css/jour.css',
+  './css/doux.css',
+  './fonts/dmsans-300.woff2',
+  './fonts/dmsans-400.woff2',
+  './fonts/dmsans-500.woff2',
+  './fonts/dmsans-600.woff2',
+  './fonts/dmsans-700.woff2',
+  './fonts/bricolage-latin.woff2',
   './fonts/geist-mono-latin.woff2',
   './js/core/parse.js',
   './js/features/briefing.js',
   './js/views/vivant.js',
+  './js/views/routines.js',
   './js/ui/feedback.js',
   './fonts/geist-latin.woff2',
   './fonts/geist-latin-ext.woff2',
@@ -84,7 +93,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE && !k.startsWith('carnet-test')).map(k => caches.delete(k)))).then(() => self.clients.claim())
   );
 });
 

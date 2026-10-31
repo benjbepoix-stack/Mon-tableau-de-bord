@@ -1,7 +1,7 @@
 /* Point d'entrée : initialise l'état, les vues, la navigation, le compte et la synchronisation. */
 import { $, $$ } from './core/utils.js';
 import { state, loadLocal, subscribe, applyRemote, setCloudSink, snapshot, resetLocal, SLICES } from './core/store.js';
-import { initCloud, pushCloud, flushNow, clearPending, isStarting } from './services/firebase.js';
+import { initCloud, pushCloud, flushNow, clearPending } from './services/firebase.js';
 import { readText, write } from './services/storage.js';
 import { initDialogs, isOpen } from './ui/dialog.js';
 import { applyTheme } from './ui/theme.js';
@@ -13,10 +13,10 @@ import { setLinked, linkedLocal, onLinkedChange, linkedReady } from './features/
 import { initAuth, openAuth, closeAuth, noAccountChosen, forgetNoAccount } from './features/auth.js';
 import { initSettings, renderAccount } from './features/settings.js';
 import { tidyTasks } from './features/task-tidy.js';
-import { initOverduePrompt, checkOverdue } from './features/overdue-prompt.js';
+import { initOverduePrompt } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining } from './views/training.js';
-import { initBriefing, maybeShowBriefing, isBriefingOpen } from './features/briefing.js';
+import { initBriefing } from './features/briefing.js';
 import { initVivant, showVivant } from './views/vivant.js';
 
 // Les quatre espaces (vivant.js) se redessinent à chaque changement. Sport contient le planning
@@ -25,12 +25,12 @@ const ALL = ['dashboard', 'notes', 'races', 'plans', 'families', 'objectives'];
 const vivant = id => ({ show: () => showVivant(id), render: () => showVivant(id), slices: ALL });
 const VIEWS = {
   todayView: { title: 'Accueil', ...vivant('todayView') },
-  agendaView: { title: 'Agenda', ...vivant('agendaView') },
+  agendaView: { title: 'Mois', ...vivant('agendaView') },
   todoView: { title: 'Tâches', ...vivant('todoView') },
   weekView: { title: 'Sport', ...vivant('weekView'), keepScroll: true }
 };
 /** Anciens noms d'écran (onglet mémorisé, liens data-goto). */
-const LEGACY = { dashboardView: 'todayView', tasksView: 'todoView', trainingView: 'weekView' };
+const LEGACY = { dashboardView: 'todayView', tasksView: 'todoView', trainingView: 'weekView', planView: 'todayView' };
 const VIEW_KEY = 'dashboard_last_view';
 /** Dernier compte connecté sur cet appareil (un autre compte vide d'abord les données locales). */
 const LAST_UID = 'dashboard_last_uid';
@@ -42,9 +42,7 @@ function settle() {
   if (settled) return;
   settled = true;
   tidyTasks();
-  // Briefing du matin (première ouverture du jour), sinon pop-up « en retard » : sur des données
-  // à jour, une fois les résumés Garage / Maison lus — sans les attendre plus de 2,5 s.
-  Promise.race([linkedReady, new Promise(r => setTimeout(r, 2500))]).then(() => maybeShowBriefing() || checkOverdue());
+  // Plus de pop-up au lancement (briefing du matin, tâches en retard) : l'accueil suffit.
 }
 
 function switchView(id, { scroll = true } = {}) {
@@ -189,7 +187,6 @@ function init() {
     if (document.visibilityState === 'hidden') return flushNow();
     if (settled) tidyTasks(); // nouveau jour : tâches cochées la veille retirées ou reprogrammées
     VIEWS[currentView].show();
-    if (settled) maybeShowBriefing(); // app laissée ouverte depuis la veille
   });
   window.addEventListener('pagehide', flushNow);
 
@@ -212,15 +209,6 @@ function init() {
     // Ancienne base : le thème sombre (ancien défaut) devient Auto.
     adaptLegacy: data => (data.theme === 'dark' ? { ...data, theme: 'auto' } : data)
   }).then(ok => !ok && goLocal());
-  // Hors ligne au lancement (cloud jamais reçu) : le pop-up s'appuie sur les données de l'appareil.
-  // Pas tant que la feuille de connexion est ouverte, ni pendant le premier chargement du compte
-  // (transfert depuis l'ancienne base compris, 8 s max) : settle() s'en chargera.
-  const overdueFallback = () => {
-    if (settled || isOpen('authSheet') || isBriefingOpen()) return;
-    if (isStarting()) return setTimeout(overdueFallback, 1000);
-    maybeShowBriefing() || checkOverdue();
-  };
-  setTimeout(overdueFallback, 6000);
   onLinkedChange(() => {
     renderDashboard();
     VIEWS[currentView].render();

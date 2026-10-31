@@ -120,6 +120,7 @@
 
 /* Éditeur : champs d'horaire masqués pour les tâches */
 #itemForm[data-kind="tasks"] .only-timed { display: none; }
+#itemForm:not([data-kind="events"]) .only-events { display: none; }
 
 /* Saisie express d'une tâche */
 .quick-add { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-3); }

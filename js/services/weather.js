@@ -15,6 +15,7 @@ export function getPlace() {
 export function setPlace(place) {
   write(PLACE_KEY, place);
   cache.clear();
+  slotCache.clear();
 }
 
 export const isDefaultPlace = () => !readJSON(PLACE_KEY, null);
@@ -119,6 +120,9 @@ export async function fetchWeek(weekStart, { force = false } = {}) {
 export const SLOT_HOURS = { matin: [7, 8, 9, 10, 11], aprem: [12, 13, 14, 15, 16, 17], soir: [18, 19, 20, 21] };
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
 const slotCache = new Map();
+let lastAt = null;
+/** Heure du dernier chargement réussi des prévisions par créneau (null si aucun). */
+export const wxAt = () => lastAt;
 
 /** Famille d'icône d'un code WMO. */
 const skyOf = code => (code >= 95 ? 'storm' : code >= 71 && code <= 77 ? 'snow' : code === 85 || code === 86 ? 'snow' : code >= 51 ? 'rain' : code >= 45 ? 'fog' : code === 3 ? 'cloud' : code === 2 ? 'part' : 'sun');
@@ -128,7 +132,7 @@ const skyOf = code => (code >= 95 ? 'storm' : code >= 71 && code <= 77 ? 'snow' 
  * (dans la fenêtre de prévision : aujourd'hui + 15 jours).
  * @returns {Promise<Record<string, {min,max,sky,label,sunrise,sunset,slots:Record<string,{t,rain,mm,wind,gust,dir,deg,sky,label}>}>>}
  */
-export async function fetchSlots(fromKey, days = 7) {
+export async function fetchSlots(fromKey, days = 7, { force = false } = {}) {
   const today = new Date();
   const first = new Date(`${fromKey}T12:00:00`);
   const start = first < today ? today : first;
@@ -140,7 +144,7 @@ export async function fetchSlots(fromKey, days = 7) {
   const place = getPlace();
   const key = `${place.lat},${place.lon}_${dateKey(start)}_${dateKey(end)}`;
   const hit = slotCache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL) return hit.data;
+  if (!force && hit && Date.now() - hit.at < CACHE_TTL) return hit.data;
 
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   Object.entries({
@@ -188,8 +192,26 @@ export async function fetchSlots(fromKey, days = 7) {
           label: (WMO[code] || ['', 'Conditions météo'])[1]
         };
       }
+      // Heure par heure, de 6 h à 22 h : pour la vue détaillée d'un jour.
+      const hours = [];
+      for (let x = 6; x <= 22; x++) {
+        const i = byHour[`${day}T${String(x).padStart(2, '0')}:00`];
+        if (i === undefined || h.temperature_2m[i] == null) continue;
+        hours.push({
+          h: x,
+          t: Math.round(h.temperature_2m[i]),
+          rain: h.precipitation_probability[i] ?? 0,
+          mm: Math.round((h.precipitation[i] ?? 0) * 10) / 10,
+          wind: Math.round(h.wind_speed_10m[i] ?? 0),
+          gust: Math.round(h.wind_gusts_10m[i] ?? 0),
+          dir: COMPASS[Math.round((h.wind_direction_10m[i] ?? 0) / 45) % 8],
+          sky: skyOf(h.weather_code[i] ?? 0),
+          label: (WMO[h.weather_code[i]] || ['', 'Conditions météo'])[1]
+        });
+      }
       const code = json.daily.weather_code[di];
       data[day] = {
+        hours,
         min: Math.round(json.daily.temperature_2m_min[di]),
         max: Math.round(json.daily.temperature_2m_max[di]),
         sky: skyOf(code),
@@ -200,6 +222,7 @@ export async function fetchSlots(fromKey, days = 7) {
       };
     });
     slotCache.set(key, { at: Date.now(), data });
+    lastAt = new Date();
     return data;
   } finally {
     clearTimeout(timer);
