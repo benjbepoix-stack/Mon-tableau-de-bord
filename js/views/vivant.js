@@ -471,7 +471,7 @@ function dayCard(k, all) {
       ${sky ? `<button type="button" class="d-card__wx" data-dwx="${k}" aria-label="Météo : ${SKY_WORD[sky] || 'Nuageux'}"><span class="d-card__wi">${illOfSky(sky)}</span><span><b>${SKY_WORD[sky] || 'Nuageux'}</b>${w?.max != null ? `<small>${w.min}° / ${w.max}°</small>` : ''}</span></button>` : ''}
     </header>
     <p class="d-card__sum">${n ? `${n} chose${n > 1 ? 's' : ''} prévue${n > 1 ? 's' : ''}` : k < today ? 'Rien' : 'Rien de prévu'}</p>
-    <div class="d-card__c">${n ? itRowsHTML(list) : `<div class="d-card__empty"><span>${ILL.sun}</span><b>${k < today ? 'Journée libre' : 'Journée libre · repos'}</b></div>`}</div>
+    <div class="d-card__c">${n ? itRowsHTML(list) : `<div class="d-card__empty"><span>${ILL.cal}</span><b>${k < today ? 'Journée libre' : 'Journée libre · repos'}</b></div>`}</div>
   </article>`;
 }
 function cardsHTML() {
