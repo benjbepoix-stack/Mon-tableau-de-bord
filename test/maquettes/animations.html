@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Carnet · animations</title>
+<link rel="stylesheet" href="base.css">
+<style>
+/* ---------- Animations (chacune activée par une classe sur <html>) ---------- */
+:root { --spring: cubic-bezier(.3, 1.4, .45, 1); --out: cubic-bezier(.2, .8, .2, 1); }
+
+/* 1 Onglets : l'écran glisse, la pastille de l'onglet suit */
+.a-tab .tab-ink { transition: transform .45s var(--spring), width .3s var(--out); }
+.a-tab .tab svg { transition: transform .35s var(--spring); }
+.a-tab .tab.is-on svg { transform: translateY(-1px) scale(1.12); }
+.view.in-r { animation: inR .38s var(--out); }
+.view.in-l { animation: inL .38s var(--out); }
+@keyframes inR { from { opacity: 0; transform: translateX(28px); } }
+@keyframes inL { from { opacity: 0; transform: translateX(-28px); } }
+
+/* 2 Apparition en cascade */
+.stg .it, .stg .sp, .stg .day__hd, .stg .bx, .stg .goal, .stg .field, .stg .wxrow, .stg .routine { animation: up .5s var(--out) both; animation-delay: calc(var(--i, 0) * 45ms + 60ms); }
+.stg .day:nth-child(1) { --i: 0; } .stg .day:nth-child(2) { --i: 2; } .stg .day:nth-child(3) { --i: 4; } .stg .day:nth-child(4) { --i: 6; } .stg .day:nth-child(5) { --i: 8; } .stg .day:nth-child(6) { --i: 10; } .stg .day:nth-child(7) { --i: 11; } .stg .day:nth-child(n+8) { --i: 12; }
+.stg .sp:nth-child(2) { --i: 1; } .stg .sp:nth-child(3) { --i: 2; } .stg .sp:nth-child(4) { --i: 3; } .stg .sp:nth-child(5) { --i: 4; } .stg .sp:nth-child(6) { --i: 5; } .stg .sp:nth-child(7) { --i: 6; }
+.stg .sp .it { animation: none; }
+@keyframes up { from { opacity: 0; transform: translateY(14px); } }
+
+/* 3 Tâche cochée */
+.a-check .chk { transition: background .25s, border-color .25s, transform .3s var(--spring); }
+.a-check .chk svg { opacity: 1; stroke-dasharray: 22; stroke-dashoffset: 22; transition: stroke-dashoffset .35s .1s var(--out); }
+.a-check .chk.is-on svg { stroke-dashoffset: 0; }
+.a-check .is-checking .chk { background: var(--accent); border-color: var(--accent); transform: scale(1.18); }
+.a-check .is-checking .chk svg { stroke-dashoffset: 0; }
+.a-check .it__body b::after { content: ''; position: absolute; left: 0; top: 52%; height: 2px; width: 0; background: var(--faint); transition: width .35s .15s var(--out); }
+.a-check .is-checking .it__body b { color: var(--faint); transition: color .3s .15s; }
+.a-check .is-checking .it__body b::after { width: 100%; }
+.is-leaving { overflow: hidden; transition: height .35s var(--out), opacity .3s, margin .35s; opacity: 0; margin-top: -8px; }
+
+/* 4 Glisser une tâche */
+.a-swipe .sw__bg { display: flex; position: absolute; inset: 0; border-radius: var(--r); align-items: center; justify-content: space-between; padding: 0 20px; font-weight: 700; color: #fff; font-size: 15px; background: #2FA36B; }
+.a-swipe .sw.to-tm .sw__bg { background: #1C5B6B; }
+.a-swipe .sw .sw__tm, .a-swipe .sw.to-tm .sw__ok { opacity: 0; } .a-swipe .sw.to-tm .sw__tm { opacity: 1; }
+.a-swipe .sw__bg span { transition: transform .25s var(--spring); }
+.a-swipe .sw.armed .sw__bg span { transform: scale(1.15); }
+.a-swipe .sw .it { transition: transform .35s var(--spring); z-index: 1; }
+
+/* 5 Bouton + et feuille */
+.a-fab .fab { transition: transform .45s var(--spring), box-shadow .3s; }
+.a-fab .sheet { transition: transform .5s var(--spring), visibility 0s .5s; }
+.a-fab.sheet-open .sheet, .a-fab .sheet-open .sheet { transition: transform .5s var(--spring), visibility 0s; }
+.a-fab .scrim { transition: opacity .3s; backdrop-filter: blur(0); }
+.a-fab .sheet-open .scrim { backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.a-fab .sheet-open .ch { animation: pop .45s var(--spring) both; animation-delay: calc(var(--i) * 55ms + 120ms); }
+.a-fab .sheet-open .ch svg { animation: wig .6s var(--spring) both; animation-delay: calc(var(--i) * 55ms + 300ms); }
+@keyframes pop { from { opacity: 0; transform: translateY(18px) scale(.92); } }
+@keyframes wig { 0% { transform: rotate(-14deg) scale(.6); } 100% { transform: none; } }
+
+/* 6 Frise des jours */
+.a-strip .st.is-sel b { animation: none; }
+.day.flash { animation: flash 1.1s var(--out); }
+@keyframes flash { 0%, 30% { background: var(--accent-soft); box-shadow: 0 0 0 10px var(--accent-soft); } 100% { background: transparent; box-shadow: 0 0 0 10px transparent; } }
+
+/* 7 Séance faite */
+.a-ring .ring-fg { transition: stroke-dashoffset .6s var(--out); }
+.a-ring .ring-ok { transition: stroke-dashoffset .3s .5s var(--out); }
+.a-ring .ring.is-on { animation: ringpop .5s .5s var(--spring); }
+@keyframes ringpop { 50% { transform: scale(1.25); } }
+.roll { display: inline-block; animation: roll .4s var(--out); }
+@keyframes roll { 0% { transform: translateY(0); opacity: 1; } 40% { transform: translateY(-8px); opacity: 0; } 41% { transform: translateY(8px); } 100% { transform: none; opacity: 1; } }
+
+/* 8 Météo animée */
+.a-wx .wx-rays { transform-origin: 16px 16px; animation: spin 12s linear infinite; }
+.a-wx .wx--sun circle { transform-origin: 16px 16px; animation: breathe 3s ease-in-out infinite; }
+.a-wx .wx-cloud { animation: drift 4s ease-in-out infinite alternate; }
+.a-wx .wx-cloud2 { animation: drift 5s ease-in-out infinite alternate-reverse; }
+.a-wx .wx-sunb { transform-origin: 12px 12px; animation: breathe 3s ease-in-out infinite; }
+.a-wx .wx-drop { animation: drop 1.05s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes breathe { 50% { transform: scale(1.08); } }
+@keyframes drift { from { transform: translateX(-1.5px); } to { transform: translateX(2px); } }
+@keyframes drop { 0% { transform: translateY(-3px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(5px); opacity: 0; } }
+
+/* 10 Appui : effet ressort */
+.a-press .it, .a-press .press, .a-press .st, .a-press .tab, .a-press .mc, .a-press .nav-btn, .a-press .fab, .a-press .chk, .a-press .ring { transition: transform .35s var(--spring); }
+.a-press .it:active, .a-press .press:active, .a-press .nav-btn:active, .a-press .mc:active { transform: scale(.97); transition-duration: .08s; }
+.a-press .st:active, .a-press .tab:active, .a-press .chk:active, .a-press .ring:active { transform: scale(.88); transition-duration: .08s; }
+.a-press .fab:active { transform: scale(.9); transition-duration: .08s; }
+.a-press .sheet-open .fab:active { transform: rotate(45deg) scale(.9); }
+
+/* 11 Tirer pour actualiser */
+.ptr { height: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; transition: height .4s var(--spring); }
+.ptr__sun { width: 34px; height: 34px; display: block; transform: scale(0); }
+.ptr__sun .wx { width: 34px; height: 34px; }
+.ptr small { color: var(--mute); font-size: 12.5px; font-weight: 600; padding-bottom: 6px; white-space: nowrap; }
+.ptr.loading .ptr__sun { animation: spin 0.9s linear infinite; transform: none !important; }
+
+/* 12 Mois */
+.cal-in .cal__grid .mc { animation: up .4s var(--out) both; animation-delay: calc(var(--i) * 12ms); }
+.cal-r .cal__grid { animation: inR .35s var(--out); } .cal-l .cal__grid { animation: inL .35s var(--out); }
+.mc.pop b { animation: pp .45s var(--spring); }
+@keyframes pp { 0% { transform: scale(.6); } }
+#msel.stg .it { animation-delay: calc(var(--i) * 50ms); }
+
+/* ---------- Panneau de choix ---------- */
+.mq__row { align-items: center; }
+.mq .mq__title { flex: 1; font-weight: 700; font-size: 15px; color: #222; }
+.mq .mq__btn { background: #E0315B; color: #fff; }
+.panel { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.35); display: none; }
+.panel.is-on { display: block; }
+.panel__box { position: absolute; left: 0; right: 0; bottom: 0; max-width: 480px; margin: 0 auto; max-height: 86vh; overflow: auto; background: #fff; border-radius: 24px 24px 0 0; padding: 16px 18px calc(24px + env(safe-area-inset-bottom, 0px)); font-family: var(--font); animation: up .35s var(--out); }
+.panel h3 { margin: 4px 0 4px; font-size: 22px; }
+.panel p { margin: 0 0 12px; color: #717171; font-size: 14px; }
+.an { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #EBEBEB; }
+.an__n { flex: none; width: 28px; height: 28px; border-radius: 50%; background: #FFF0F3; color: #E0315B; font-weight: 700; display: grid; place-items: center; font-size: 14px; }
+.an__t { flex: 1; } .an__t b { display: block; font-size: 16px; } .an__t small { color: #717171; font-size: 13.5px; }
+.an__go { flex: none; padding: 7px 12px; border-radius: 99px; background: #F2F2F2; font-weight: 600; font-size: 13.5px; }
+.sw-toggle { flex: none; width: 46px; height: 28px; border-radius: 99px; background: #DDD; position: relative; transition: background .2s; }
+.sw-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .3s var(--spring); }
+.sw-toggle.is-on { background: #E0315B; } .sw-toggle.is-on::after { transform: translateX(18px); }
+.panel__all { display: flex; gap: 8px; margin: 12px 0 0; }
+.panel__all button { flex: 1; padding: 12px; border-radius: 14px; background: #F2F2F2; font-weight: 700; }
+.panel__all button:last-child { background: #222; color: #fff; }
+</style>
+</head>
+<body>
+<div class="mq"><div class="mq__row"><span class="mq__title">Maquette · animations</span><button class="mq__btn" id="openPanel">✦ Les 12 animations</button></div></div>
+<div id="app"></div>
+<div class="panel" id="panel"><div class="panel__box">
+  <h3>Les animations</h3>
+  <p>Toutes sont actives. Coupe celles que tu n’aimes pas, puis dis-moi les numéros à garder. « Voir » t’emmène au bon endroit.</p>
+  <div id="anList"></div>
+  <div class="panel__all"><button id="allOff">Tout couper</button><button id="closePanel">Fermer</button></div>
+</div></div>
+<script>
+  var LIST = [
+    ['tab', 'Changer d’onglet', 'L’écran glisse dans le sens de l’onglet, la pastille rose suit.', 'agendaView'],
+    ['stagger', 'Apparition en cascade', 'Les lignes arrivent l’une après l’autre à l’ouverture d’un écran.', 'todayView'],
+    ['check', 'Cocher une tâche', 'La coche se dessine, le titre se barre, petites étincelles, la ligne se range.', 'todoView'],
+    ['swipe', 'Glisser une tâche', 'Vers la droite = Fait (vert), vers la gauche = Demain (bleu).', 'todoView'],
+    ['fab', 'Bouton +', 'Le + tourne en ×, la feuille monte avec un rebond, les choix apparaissent un à un.', 'fab'],
+    ['strip', 'Frise des jours', 'Le rond noir glisse vers le jour touché, la page défile jusqu’à ce jour qui s’allume.', 'todayView'],
+    ['ring', 'Valider une séance', 'L’anneau se remplit, petite explosion, la barre de la semaine avance.', 'weekView'],
+    ['wx', 'Météo vivante', 'Le soleil tourne doucement, les nuages bougent, la pluie tombe.', 'weekView'],
+    ['count', 'Chiffres qui défilent', 'J-36, nombre de tâches… comptent jusqu’à leur valeur.', 'weekView'],
+    ['press', 'Effet ressort à l’appui', 'Tout ce qu’on touche s’enfonce légèrement puis rebondit.', 'todayView'],
+    ['ptr', 'Tirer pour actualiser', 'Sur l’accueil, tirer vers le bas : un soleil tourne et la météo se met à jour.', 'todayView'],
+    ['month', 'Mois animé', 'Les jours apparaissent en vague, le mois glisse avec les flèches, le jour touché rebondit.', 'agendaView']
+  ];
+  var A = {};
+  try { A = JSON.parse(localStorage.getItem('carnet_maquette_anim') || 'null') || {}; } catch (e) {}
+  LIST.forEach(function (l) { if (A[l[0]] === undefined) A[l[0]] = true; });
+  window.CARNET_ANIM = A;
+  function applyClasses() {
+    LIST.forEach(function (l) { document.documentElement.classList.toggle('a-' + l[0], !!A[l[0]]); });
+    try { localStorage.setItem('carnet_maquette_anim', JSON.stringify(A)); } catch (e) {}
+  }
+  applyClasses();
+  function drawList() {
+    document.getElementById('anList').innerHTML = LIST.map(function (l, i) {
+      return '<div class="an"><span class="an__n">' + (i + 1) + '</span><span class="an__t"><b>' + l[1] + '</b><small>' + l[2] + '</small></span>' +
+        '<button class="an__go" data-go-demo="' + i + '">Voir</button><button class="sw-toggle' + (A[l[0]] ? ' is-on' : '') + '" data-tog="' + l[0] + '" aria-label="Activer"></button></div>';
+    }).join('');
+  }
+  drawList();
+  var panel = document.getElementById('panel');
+  document.getElementById('openPanel').onclick = function () { drawList(); panel.classList.add('is-on'); };
+  document.getElementById('closePanel').onclick = function () { panel.classList.remove('is-on'); };
+  document.getElementById('allOff').onclick = function () { LIST.forEach(function (l) { A[l[0]] = false; }); applyClasses(); drawList(); };
+  panel.addEventListener('click', function (e) {
+    if (e.target === panel) { panel.classList.remove('is-on'); return; }
+    var t = e.target.closest('[data-tog]');
+    if (t) { e.stopPropagation(); A[t.dataset.tog] = !A[t.dataset.tog]; applyClasses(); t.classList.toggle('is-on', A[t.dataset.tog]); return; }
+    var g = e.target.closest('[data-go-demo]');
+    if (g) {
+      e.stopPropagation();
+      var l = LIST[+g.dataset.goDemo]; panel.classList.remove('is-on');
+      if (l[3] === 'fab') { setTimeout(function () { document.getElementById('kFab').click(); }, 250); return; }
+      var cur = Carnet.S.view;
+      if (cur === l[3]) { Carnet.S.view = l[3] === 'todayView' ? 'agendaView' : 'todayView'; Carnet.render(); }
+      setTimeout(function () { Carnet.setView(l[3]); }, 80);
+    }
+  });
+</script>
+<script src="core.js"></script>
+</body>
+</html>
