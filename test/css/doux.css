@@ -782,3 +782,22 @@ body:not([data-screen="trainingView"]) .app { padding-top: calc(var(--safe-top) 
 
 /* 6 · Taille du texte « Grand » : tout le contenu agrandi d'environ 12 %. */
 :root[data-text="lg"] .app, :root[data-text="lg"] .sheet { zoom: 1.12; }
+
+/* 3 · Calendrier du Mois : pastilles de couleur au lieu des étiquettes coupées, bande pour les événements sur plusieurs jours. */
+.d-cal__c { min-height: 58px; gap: 3px; }
+.d-cal__bar { display: block; height: 5px; margin: 0; background: var(--d-teal); }
+.d-cal__bar.is-a { margin-left: 6px; border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+.d-cal__bar.is-z { margin-right: 6px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
+:root[data-theme="dark"] .d-cal__bar { background: var(--d-mist); }
+.d-cal__pts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3px; padding: 0 2px; }
+.d-cal__pts i { width: 8px; height: 8px; border-radius: 50%; }
+.d-cal__pts i.is-rdv { background: var(--d-rose); }
+.d-cal__pts i.is-ev { background: var(--d-teal); }
+.d-cal__pts i.is-race { background: #F5B531; }
+.d-cal__pts i.is-ses { background: var(--d-teal-2); }
+.d-cal__pts i.is-task { background: var(--text-3); }
+.d-cal__pts em { font-style: normal; font-size: 10px; font-weight: 700; line-height: 1; color: var(--text-2); }
+:root[data-theme="dark"] .d-cal__pts i.is-ev { background: var(--d-mist); }
+.d-cal__c.is-past .d-cal__pts, .d-cal__c.is-past .d-cal__bar { opacity: .45; }
+.d-cal__leg i.is-ev { height: 5px; width: 14px; border-radius: 3px; }
+.d-cal__leg i.is-rdv, .d-cal__leg i.is-race { border-radius: 50%; }

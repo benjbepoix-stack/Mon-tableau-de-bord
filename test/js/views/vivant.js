@@ -613,13 +613,22 @@ export function renderAgendaView() {
     const races = (state.races || []).filter(r => r.date === k);
     const ses = sessionsOn(k).length;
     const tasks = state.dashboard.tasks.filter(t => !t.done && t.date === k).length;
-    const labels = [...races.map(r => `<span class="d-cal__l is-race">${esc(r.name)}</span>`), ...ev.map(x => `<span class="d-cal__l ${x.kind === 'events' ? 'is-ev' : 'is-rdv'} ${x.endDate ? `is-span ${x.date === k || fromKey(k).getDay() === 1 ? 'is-a' : ''} ${x.endDate === k || fromKey(k).getDay() === 0 ? 'is-z' : ''}` : ''}">${x.time && !x.endDate ? `${hhmm(x.time).replace(' h 00', ' h')} ` : ''}${esc(x.title)}</span>`)];
+    // Pastilles de couleur (lisibles même petites) ; les événements sur plusieurs jours en bande continue.
+    const spans = ev.filter(x => x.endDate && x.endDate !== x.date);
+    const dow = fromKey(k).getDay();
+    const bars = spans.slice(0, 2).map(x => `<span class="d-cal__bar ${x.date === k || dow === 1 ? 'is-a' : ''} ${x.endDate === k || dow === 0 ? 'is-z' : ''}"></span>`).join('');
+    const dots = [
+      ...ev.filter(x => x.kind !== 'events').map(() => 'is-rdv'),
+      ...ev.filter(x => x.kind === 'events' && !spans.includes(x)).map(() => 'is-ev'),
+      ...races.map(() => 'is-race'),
+      ...Array(ses).fill('is-ses'),
+      ...Array(tasks).fill('is-task')
+    ];
     const d = fromKey(k);
-    const wk = [0, 6].includes(fromKey(k).getDay()) ? 'is-we' : '';
-    const busyDay = labels.length ? 'has-ev' : '';
-    cells += `<button type="button" class="d-cal__c ${wk} ${busyDay} ${out ? 'is-out' : ''} ${k === today ? 'is-today' : ''} ${k === daySel ? 'is-sel' : ''} ${k < today ? 'is-past' : ''}" data-v="mday" data-day="${k}" aria-label="${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`)}" aria-pressed="${k === daySel}">
-      <b>${d.getDate()}</b>${labels.slice(0, 1).join('')}${labels.length > 1 ? `<span class="d-cal__m">+${labels.length - 1}</span>` : ''}
-      ${ses || tasks ? `<span class="d-cal__dots">${'<i class="is-ses"></i>'.repeat(Math.min(ses, 3))}${'<i class="is-task"></i>'.repeat(Math.min(tasks, 3))}</span>` : ''}</button>`;
+    const wk = [0, 6].includes(dow) ? 'is-we' : '';
+    const busyDay = ev.length || races.length ? 'has-ev' : '';
+    cells += `<button type="button" class="d-cal__c ${wk} ${busyDay} ${out ? 'is-out' : ''} ${k === today ? 'is-today' : ''} ${k === daySel ? 'is-sel' : ''} ${k < today ? 'is-past' : ''}" data-v="mday" data-day="${k}" aria-label="${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}${dots.length + spans.length ? ` : ${dots.length + spans.length} chose${dots.length + spans.length > 1 ? 's' : ''} prévue${dots.length + spans.length > 1 ? 's' : ''}` : ''}`)}" aria-pressed="${k === daySel}">
+      <b>${d.getDate()}</b>${bars}${dots.length ? `<span class="d-cal__pts">${dots.slice(0, 4).map(c => `<i class="${c}"></i>`).join('')}${dots.length > 4 ? '<em>+</em>' : ''}</span>` : ''}</button>`;
   }
   // Le jour choisi : tout ce qui est prévu, comme sur l'accueil.
   const sd = fromKey(daySel);
