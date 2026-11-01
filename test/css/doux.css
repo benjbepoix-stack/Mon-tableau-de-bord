@@ -740,21 +740,8 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .s-days .j-add { width: 32px; height: 32px; }
 
 /* =========================================================
-   Lisibilité (1/11 soir) : en-tête compact, météo de Sport, cartes, icônes d'onglets, texte grand
+   Lisibilité (1/11 soir) : météo de Sport, cartes, icônes d'onglets, texte grand
    ========================================================= */
-/* 1 · En-tête : plus de pastille de synchro (un point sur la roue si hors ligne), la roue sur la ligne du titre. */
-body[data-screen$="View"]:not([data-screen="trainingView"]) .topbar, body:not([data-screen="trainingView"]) .topbar { position: absolute; top: 0; left: 0; right: 0; z-index: 31; pointer-events: none; }
-body:not([data-screen="trainingView"]) .topbar__inner { min-height: 0; padding-top: 12px; max-width: 560px; }
-body:not([data-screen="trainingView"]) .topbar__actions { pointer-events: auto; position: relative; }
-body:not([data-screen="trainingView"]) .sync-pill { display: none; }
-body:not([data-screen="trainingView"]) #settingsBtn { width: 40px; height: 40px; min-width: 40px; border: 0; background: var(--d-soft); color: var(--text); }
-.topbar__actions:has(.sync-pill[data-status="offline"]) #settingsBtn::after { content: ""; position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--d-rose); box-shadow: 0 0 0 2px var(--bg); }
-body:not([data-screen="trainingView"]) .app { padding-top: calc(var(--safe-top) + 12px); }
-.v-view > .d-sec--top:first-child, .v-view > .d-sec--top { margin-top: 0; padding-right: 50px; min-height: 40px; align-items: center; }
-.d-sec--top h2 { font-size: 24px; line-height: 1.1; }
-.d-sec--top h2 small { font-size: 14px; }
-.d-sec--top .d-arr { width: 36px; height: 36px; }
-
 /* 2 · Météo de Sport : chiffres en noir, légende explicite. */
 .s-wk__key { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0 0 8px; font-size: 13px; color: var(--text-2); }
 .s-wk__key b { color: var(--text); font-weight: 700; }
