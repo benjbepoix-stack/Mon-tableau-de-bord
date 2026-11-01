@@ -189,7 +189,8 @@ export function dueNotifications(node, prefs, now, sent = {}) {
         if (due.length) lines.push(`Garage / Maison : ${due.slice(0, 2).map(t => t.label).join(', ')}${due.length > 2 ? ` et ${due.length - 2} autre${due.length > 3 ? 's' : ''}` : ''}`);
       }
       if (lines.length) {
-        push({ key: `morning_${today}`, title: 'Ta journée', body: lines.join('\n'), tag: 'morning', url: './' });
+        // Une fois par jour et par heure choisie : changer l'heure renvoie le résumé à la nouvelle heure.
+        push({ key: safe(`morning_${today}_${prefs.morning}`), title: 'Ta journée', body: lines.join('\n'), tag: 'morning', url: './' });
       }
     }
   }
