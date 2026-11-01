@@ -180,7 +180,8 @@ export function dueNotifications(node, prefs, now, sent = {}) {
       const tasks = openTasks(dash.tasks, today);
       const late = tasks.filter(t => t.date < today).length;
       const lines = [];
-      if (sessions.length) lines.push(`Sport : ${sessions.map(s => [s.training || famName(s.family), s.distance && `${s.distance} km`].filter(Boolean).join(' ')).join(', ')}`);
+      // Sport puis type de séance : « Course à pied · Footing facile · 10 km ».
+      if (sessions.length) lines.push(`Sport : ${sessions.map(s => [famName(s.family), s.training, s.distance && `${s.distance} km`].filter(Boolean).join(' · ')).join(' / ')}`);
       if (appts.length) lines.push(`Agenda : ${appts.slice(0, 3).map(x => (x.time ? `${x.time.replace(':', 'h')} ${x.title}` : x.title)).join(', ')}${appts.length > 3 ? '…' : ''}`);
       if (tasks.length) lines.push(`À faire : ${plural(tasks.length, 'tâche')}${late ? ` dont ${late} en retard` : ''}`);
       if (prefs?.linked !== false) {
