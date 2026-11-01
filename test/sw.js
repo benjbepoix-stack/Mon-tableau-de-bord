@@ -6,7 +6,7 @@
    À l'installation, l'app-shell (HTML/CSS/JS/icônes) est aussi pré-mis en cache :
    un tout premier lancement hors ligne (avant toute visite en ligne réussie)
    affiche donc l'app au lieu d'un écran blanc. */
-const CACHE = 'carnet-test-v36';
+const CACHE = 'carnet-test-v37';
 
 const PRECACHE_URLS = [
   './',
@@ -102,6 +102,8 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // Firebase, météo, polices… : non concernés.
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // Vidéos (lues par morceaux, requêtes « Range ») : directement au réseau, comme le navigateur les attend.
+  if (e.request.headers.has('range') || url.pathname.endsWith('.mp4')) return;
   e.respondWith(
     fetch(e.request, { cache: 'no-cache' })
       .then(res => {
