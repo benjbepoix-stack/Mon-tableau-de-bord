@@ -1,24 +1,29 @@
-# Notifications de Carnet : toutes les 10 minutes, envoie les rappels dus
-# (rendez-vous, tâches à heure fixe, résumé du matin) aux appareils abonnés.
+# Notifications de Carnet : envoie les rappels dus (résumé du jour, rendez-vous, tâches
+# à heure fixe, nouvelles tâches Garage / Maison) aux appareils abonnés.
+# GitHub ne lance les tâches planifiées que toutes les quelques heures : chaque lancement
+# vérifie donc une fois par minute pendant 5 h 30, puis relance la tâche lui-même.
+# Le planning ci-dessous ne sert que de secours si la chaîne s'interrompt.
 # Script : scripts/notify/send.mjs. Secrets requis : FIREBASE_SERVICE_ACCOUNT, VAPID_PRIVATE_KEY.
 name: Notifications Carnet
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
+# Un seul envoi à la fois : un nouveau lancement remplace celui en cours.
 concurrency:
   group: carnet-notifications
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   send:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 350
     env:
       TZ: Europe/Paris
     steps:
@@ -37,5 +42,12 @@ jobs:
       - run: node send.mjs
         working-directory: scripts/notify
         env:
+          LOOP_MINUTES: 330
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+      - name: Relancer pour les 5 h 30 suivantes
+        if: success() || failure()
+        run: gh workflow run notifications.yml --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}

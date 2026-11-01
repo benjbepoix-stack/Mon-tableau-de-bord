@@ -1,5 +1,5 @@
 /*
- * Notifications de Carnet (Web Push), lancé toutes les 10 minutes par
+ * Notifications de Carnet (Web Push), lancé par
  * .github/workflows/notifications.yml (heure de Paris : TZ=Europe/Paris).
  *
  * Pour chaque compte, lit dans Firebase :
@@ -213,18 +213,72 @@ async function main() {
   const db = getDatabase();
   if (!dry) webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, vapidPrivate);
 
+  // Jeton OAuth du compte de service, réutilisé tant qu'il est valable (1 h).
+  let token = null;
+  let tokenUntil = 0;
+  const accessToken = async () => {
+    if (Date.now() > tokenUntil) {
+      const t = await credential.getAccessToken();
+      token = t.access_token;
+      tokenUntil = Date.now() + (t.expires_in - 120) * 1000;
+    }
+    return token;
+  };
+
+  // GitHub ne lance la tâche planifiée que toutes les quelques heures : chaque lancement
+  // tourne donc en boucle (un passage par minute) pendant LOOP_MINUTES, puis s'arrête.
+  const loopMinutes = Number(process.env.LOOP_MINUTES) || 0;
+  const end = Date.now() + loopMinutes * 60_000;
+  let lastLog = '';
+  do {
+    const started = Date.now();
+    try {
+      const { devices, sent } = await pass(db, webpush, accessToken, dry);
+      const line = `${devices} appareil(s) abonné(s)`;
+      if (sent || line !== lastLog) console.log(`${hm(new Date())} · ${line} · ${sent} notification(s) envoyée(s)`);
+      lastLog = line;
+    } catch (error) {
+      console.warn(`${hm(new Date())} · passage en erreur :`, error.message || error);
+    }
+    if (Date.now() + 60_000 >= end) break;
+    await new Promise(r => setTimeout(r, Math.max(0, 60_000 - (Date.now() - started))));
+  } while (Date.now() < end);
+}
+
+/**
+ * Lecture d'un chemin via un écouteur gardé ouvert : le premier passage télécharge le
+ * nœud, les suivants ne reçoivent que les changements (quota de téléchargement Firebase).
+ */
+const live = new Map();
+function read(db, path) {
+  if (!live.has(path)) {
+    live.set(path, new Promise((resolve, reject) => {
+      const entry = { value: null };
+      db.ref(path).on('value', snap => {
+        entry.value = snap.val();
+        resolve(entry);
+      }, reject);
+    }));
+  }
+  return live.get(path).then(entry => entry.value);
+}
+
+/** Un passage : envoie tout ce qui est dû maintenant. */
+async function pass(db, webpush, accessToken, dry) {
   const now = new Date();
   // Liste des comptes sans leur contenu (REST shallow) : on ne télécharge que ceux qui ont un appareil abonné.
-  const { access_token: token } = await credential.getAccessToken();
+  const token = await accessToken();
   const res = await fetch(`${DATABASE_URL}users.json?shallow=true`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`Lecture des comptes impossible (${res.status})`);
   const uids = Object.keys((await res.json()) || {});
   let total = 0;
+  let count = 0;
   for (const uid of uids) {
-    const push = (await db.ref(`users/${uid}/carnet_push`).get()).val();
+    const push = await read(db, `users/${uid}/carnet_push`);
     const devices = push?.devices;
     if (!devices || typeof devices !== 'object') continue;
-    const user = { carnet_push: push, carnet: (await db.ref(`users/${uid}/carnet`).get()).val() };
+    count += Object.values(devices).filter(d => d?.subscription?.endpoint).length;
+    const user = { carnet_push: push, carnet: await read(db, `users/${uid}/carnet`) };
     const sentRef = db.ref(`users/${uid}/carnet_push/sent`);
     const updates = {};
     // Nouvelles tâches de Mon Garage / Ma Maison (une détection par compte, pour tous ses appareils).
@@ -262,7 +316,7 @@ async function main() {
     if (!dry && Object.keys(updates).length) await sentRef.update(updates);
     if (!dry && linked.changed) await db.ref(`users/${uid}/carnet_push/linked_seen`).set(linked.seen);
   }
-  console.log(`${total} notification(s) envoyée(s) à ${hm(now)}.`);
+  return { devices: count, sent: total };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
