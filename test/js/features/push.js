@@ -4,7 +4,7 @@
  *
  * L'app abonne l'appareil (permission du navigateur + PushManager du service worker)
  * et enregistre l'abonnement et les préférences dans
- * users/<uid>/carnet_push/devices/<appareil>. L'envoi est fait toutes les 10 minutes
+ * users/<uid>/carnet_push/devices/<appareil>. L'envoi est vérifié chaque minute
  * par la tâche GitHub .github/workflows/notifications.yml (scripts/notify/send.mjs),
  * qui lit l'agenda, les tâches et le planning du même compte.
  *
@@ -87,9 +87,9 @@ async function sendTest() {
   if (!sub) return;
   const reg = await navigator.serviceWorker.ready;
   await reg.showNotification('Carnet', { body: 'Voici à quoi ressemblera une notification.', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'local-test' });
-  // Essai de bout en bout : le serveur enverra la sienne à son prochain passage (10 min au plus, souvent moins).
+  // Essai de bout en bout : le serveur enverra la sienne à son prochain passage (1 à 2 min).
   await save(sub, { test: Date.now() });
-  toast('Une 2ᵉ notification arrivera du serveur d’ici 10 minutes', { type: 'info', duration: 4000 });
+  toast('Une 2ᵉ notification arrivera du serveur d’ici 1 à 2 minutes', { type: 'info', duration: 4000 });
 }
 
 const select = (id, options, value) =>
