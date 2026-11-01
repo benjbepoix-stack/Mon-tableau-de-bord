@@ -35,6 +35,21 @@ export function initSettings() {
     const pick = e.target.closest('[data-theme-pick]')?.dataset.themePick;
     if (pick && pick !== state.theme) commit('theme', { theme: pick });
   });
+  // Taille du texte : réglage propre à cet appareil (appliqué avant le premier rendu dans index.html).
+  const markText = () => {
+    const lg = document.documentElement.dataset.text === 'lg';
+    document.querySelectorAll('[data-text-pick]').forEach(b => b.setAttribute('aria-checked', String((b.dataset.textPick === 'lg') === lg)));
+  };
+  markText();
+  $('#textSwitch').addEventListener('click', e => {
+    const pick = e.target.closest('[data-text-pick]')?.dataset.textPick;
+    if (!pick) return;
+    if (pick === 'lg') document.documentElement.dataset.text = 'lg';
+    else delete document.documentElement.dataset.text;
+    try { localStorage.setItem('carnet_text', pick); } catch { /* navigation privée */ }
+    markText();
+    window.dispatchEvent(new Event('resize'));
+  });
   $('#loginBtn').addEventListener('click', () => {
     closeSheet('settingsSheet');
     openAuth();

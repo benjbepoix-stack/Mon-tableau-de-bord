@@ -468,7 +468,7 @@ function dayCard(k, all) {
     <header class="d-card__h">
       <span class="d-card__n">${d.getDate()}</span>
       <span class="d-card__d"><b>${rel || cap(WD_FULL[d.getDay()])}</b><small>${rel ? `${cap(WD_FULL[d.getDay()])} ` : ''}${d.getDate()} ${MONTHS[d.getMonth()]}</small></span>
-      ${sky ? `<button type="button" class="d-card__wx" data-dwx="${k}" aria-label="Météo : ${SKY_WORD[sky] || 'Nuageux'}"><span class="d-card__wi">${illOfSky(sky)}</span><span><b>${SKY_WORD[sky] || 'Nuageux'}</b>${w?.max != null ? `<small>${w.min}° / ${w.max}°</small>` : ''}</span></button>` : ''}
+      ${sky ? `<button type="button" class="d-card__wx" data-dwx="${k}" aria-label="Météo : ${SKY_WORD[sky] || 'Nuageux'}"><span class="d-card__wi">${illOfSky(sky)}</span>${w?.max != null ? `<span><b>${w.max}°</b><small>${w.min}°</small></span>` : ''}</button>` : ''}
     </header>
     <p class="d-card__sum">${n ? `${n} chose${n > 1 ? 's' : ''} prévue${n > 1 ? 's' : ''}` : k < today ? 'Rien' : 'Rien de prévu'}</p>
     <div class="d-card__c">${n ? itRowsHTML(list) : `<div class="d-card__empty"><span>${ILL.cal}</span><b>${k < today ? 'Journée libre' : 'Journée libre · repos'}</b></div>`}</div>
@@ -947,8 +947,9 @@ function wxWeek(keys) {
     }).join('');
     return `<button type="button" class="s-wk__r ${k === today ? 'is-today' : ''}" data-dwx="${k}" aria-label="${esc(cap(WD_FULL[d.getDay()]))} : heure par heure"><span class="s-wk__d">${name}</span><span class="s-wk__t"><span class="s-wk__i">${skyIll(k)}</span><span><b>${w.max}°</b><small>${w.min}°</small></span></span>${cells}</button>`;
   }).join('');
-  return `<section class="s-wk"><div class="s-wk__r s-wk__hd"><span></span><span>Min · max</span>${SLOT_IDS.map(sl => `<span>${head[sl]}</span>`).join('')}</div>${rows}
-    <p class="s-wk__l"><b>12</b> vent moyen · <small>30</small> rafales, en km/h · touche un jour pour le détail heure par heure</p></section>`;
+  return `<section class="s-wk"><div class="s-wk__r s-wk__hd"><span></span><span>Temp.</span>${SLOT_IDS.map(sl => `<span>${head[sl]}</span>`).join('')}</div>
+    <div class="s-wk__key"><span>En km/h :</span><span><b>vent</b> en haut</span><span><b>rafales</b> en bas</span></div>${rows}
+    <p class="s-wk__l">Touche un jour pour le détail heure par heure.</p></section>`;
 }
 /** La semaine en courbes (vent, rafales) sur fond bleu canard, comme une appli météo. */
 function wxChart(keys) {

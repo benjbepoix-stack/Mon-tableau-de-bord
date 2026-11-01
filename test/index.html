@@ -26,6 +26,7 @@
       if ((t !== 'light' && t !== 'dark') || (t === 'dark' && !localStorage.getItem('dashboard_theme_auto_v1'))) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.dataset.theme = t;
       document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#ffffff' : '#121315');
+      if (localStorage.getItem('carnet_text') === 'lg') document.documentElement.dataset.text = 'lg';
     } catch (e) {}
   </script>
 
@@ -66,10 +67,10 @@
   </header>
 
   <nav class="tabbar" aria-label="Navigation principale">
-    <button type="button" class="tabbar__item is-active" data-view="todayView" aria-current="page">Accueil</button>
-    <button type="button" class="tabbar__item" data-view="agendaView">Mois</button>
-    <button type="button" class="tabbar__item" data-view="todoView">Tâches</button>
-    <button type="button" class="tabbar__item" data-view="weekView">Sport</button>
+    <button type="button" class="tabbar__item is-active" data-view="todayView" aria-current="page"><svg class="tabbar__ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-6.5 8 6.5"/><path d="M6.5 9.5V19h11V9.5"/></svg><span>Accueil</span></button>
+    <button type="button" class="tabbar__item" data-view="agendaView"><svg class="tabbar__ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg><span>Mois</span></button>
+    <button type="button" class="tabbar__item" data-view="todoView"><svg class="tabbar__ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="4"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span>Tâches</span></button>
+    <button type="button" class="tabbar__item" data-view="weekView"><svg class="tabbar__ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14.5" cy="5" r="1.8"/><path d="M8 20l3-5 3 2.5V21M6 12.5l3.5-3 4 1 2.5 3h3M11 15l1.5-4.5"/></svg><span>Sport</span></button>
   </nav>
   <button type="button" class="k-fab" id="kFab" aria-label="Ajouter"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
 
@@ -190,6 +191,13 @@
             <button type="button" role="radio" data-theme-pick="auto" aria-checked="false">Auto</button>
             <button type="button" role="radio" data-theme-pick="dark" aria-checked="false">Sombre</button>
             <button type="button" role="radio" data-theme-pick="light" aria-checked="false">Clair</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field__label" id="textLabel">Taille du texte</span>
+          <div class="segmented segmented--flush" role="radiogroup" aria-labelledby="textLabel" id="textSwitch">
+            <button type="button" role="radio" data-text-pick="md" aria-checked="true">Normal</button>
+            <button type="button" role="radio" data-text-pick="lg" aria-checked="false">Grand</button>
           </div>
         </div>
         <div class="field">
