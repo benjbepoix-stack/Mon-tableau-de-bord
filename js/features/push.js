@@ -20,10 +20,9 @@ import { toast, toastError } from '../ui/toast.js';
 const VAPID_PUBLIC_KEY = 'BBWMKxkxDXx0JH9c04kgLlBXBrrql91E4DZIZLejdfgULy1qQEdKBZAZUuGoEp8U0ZctPmh0Deex1mbVuMsrqsU';
 const PREFS_KEY = 'carnet_push_prefs';
 const DEVICE_KEY = 'carnet_push_device';
-const DEFAULT_PREFS = { appts: true, lead: 60, tasks: true, linked: true, morning: '07:30' };
+const DEFAULT_PREFS = { appts: true, lead: 60, tasks: true, linked: true, morning: '07:30', morningTime: '07:30' };
 
 const LEADS = [[15, '15 min avant'], [30, '30 min avant'], [60, '1 h avant'], [120, '2 h avant'], [1440, 'La veille (24 h avant)'], [-1, 'Pas de rappel']];
-const MORNINGS = ['06:30', '07:00', '07:30', '08:00', '08:30', '09:00'];
 
 const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const prefs = () => ({ ...DEFAULT_PREFS, ...readJSON(PREFS_KEY, {}) });
@@ -125,7 +124,8 @@ export async function render() {
   }
   const p = prefs();
   box.innerHTML = `
-    <div class="field"><label class="field__label" for="pushMorning">Résumé du matin</label>${select('pushMorning', [...MORNINGS.map(t => [t, `Chaque jour à ${Number(t.slice(0, 2))} h ${t.slice(3)}`]), ['', 'Pas de résumé']], p.morning)}</div>
+    <div class="field"><label class="field__label" for="pushMorningOn">Résumé de la journée</label>${select('pushMorningOn', [['1', 'Chaque jour'], ['0', 'Pas de résumé']], p.morning ? '1' : '0')}</div>
+    <div class="field"${p.morning ? '' : ' hidden'}><label class="field__label" for="pushMorningTime">À quelle heure</label><input class="input" type="time" id="pushMorningTime" value="${esc(p.morning || p.morningTime)}"></div>
     <div class="field"><label class="field__label" for="pushLead">Rendez-vous et événements</label>${select('pushLead', LEADS, p.lead)}</div>
     <div class="field"><label class="field__label" for="pushTasks">Tâches avec une heure</label>${select('pushTasks', [['1', 'Rappel à l’heure'], ['0', 'Pas de rappel']], p.tasks ? '1' : '0')}</div>
     <div class="field"><label class="field__label" for="pushLinked">Mon Garage et Ma Maison</label>${select('pushLinked', [['1', 'À chaque nouvelle tâche'], ['0', 'Pas de notification']], p.linked ? '1' : '0')}</div>
@@ -167,7 +167,15 @@ export function initPush() {
   box.addEventListener('change', async e => {
     const p = prefs();
     if (e.target.id === 'pushLead') p.lead = Number(e.target.value);
-    else if (e.target.id === 'pushMorning') p.morning = e.target.value;
+    else if (e.target.id === 'pushMorningOn') {
+      if (p.morning) p.morningTime = p.morning;
+      p.morning = e.target.value === '1' ? p.morningTime || '07:30' : '';
+      $('#pushMorningTime').closest('.field').hidden = !p.morning;
+    } else if (e.target.id === 'pushMorningTime') {
+      // Heure libre ; un champ vidé garde l'heure précédente.
+      if (!/^\d{2}:\d{2}$/.test(e.target.value)) return;
+      p.morning = p.morningTime = e.target.value;
+    }
     else if (e.target.id === 'pushTasks') p.tasks = e.target.value === '1';
     else if (e.target.id === 'pushLinked') p.linked = e.target.value === '1';
     else return;
