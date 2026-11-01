@@ -1844,8 +1844,10 @@ export function showVivant(id) {
       openDay = null;
       editId = null;
     }
-    land = focusDay || todayKey();
+    // Comme les autres onglets, Sport s'ouvre en haut de la page (sauf si on vient d'un jour précis).
+    land = focusDay;
     focusDay = null;
+    if (!land) window.scrollTo({ top: 0, behavior: 'auto' });
   }
   // Accueil : la semaine en cours (le dimanche soir, la suivante).
   if (arriving && id === 'todayView') {
@@ -1907,6 +1909,9 @@ function onClick(e) {
     case 'hmode':
       homeMode = b.dataset.mode === 'cards' ? 'cards' : 'list';
       try { localStorage.setItem(MODE_KEY, homeMode); } catch { /* navigation privée */ }
+      // Même point de départ qu'en arrivant sur l'accueil : la carte d'aujourd'hui, ou la semaine par défaut en liste.
+      planStart = homeMode === 'cards' ? dateKey(mondayOf(new Date())) : defaultPlanStart();
+      cardKey = todayKey();
       return renderTodayView();
     case 'cgo':
       cardKey = day;
