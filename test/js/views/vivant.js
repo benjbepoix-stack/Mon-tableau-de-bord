@@ -1846,7 +1846,7 @@ export function showVivant(id) {
   const arriving = id !== current;
   if (arriving) entering = true;
   current = id;
-  // Sport s'ouvre toujours sur la semaine en cours, placé sur aujourd'hui (sauf arrivée sur un jour précis).
+  // Sport s'ouvre sur la semaine en cours (ou celle du jour demandé), toujours en haut de la page.
   let land = null;
   if (arriving && id === 'weekView') {
     if (!focusDay) {
@@ -1854,10 +1854,9 @@ export function showVivant(id) {
       openDay = null;
       editId = null;
     }
-    // Comme les autres onglets, Sport s'ouvre en haut de la page (sauf si on vient d'un jour précis).
-    land = focusDay;
+    // Sport s'ouvre toujours en haut de la page, comme les autres onglets (la semaine du jour demandé reste choisie).
     focusDay = null;
-    if (!land) window.scrollTo({ top: 0, behavior: 'auto' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }
   // Accueil : la semaine en cours (le dimanche soir, la suivante).
   if (arriving && id === 'todayView') {

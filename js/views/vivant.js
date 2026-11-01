@@ -1846,7 +1846,7 @@ export function showVivant(id) {
   const arriving = id !== current;
   if (arriving) entering = true;
   current = id;
-  // Sport s'ouvre toujours sur la semaine en cours, placé sur aujourd'hui (sauf arrivée sur un jour précis).
+  // Sport s'ouvre sur la semaine en cours (ou celle du jour demandé), toujours en haut de la page.
   let land = null;
   if (arriving && id === 'weekView') {
     if (!focusDay) {
@@ -1854,8 +1854,9 @@ export function showVivant(id) {
       openDay = null;
       editId = null;
     }
-    land = focusDay || todayKey();
+    // Sport s'ouvre toujours en haut de la page, comme les autres onglets (la semaine du jour demandé reste choisie).
     focusDay = null;
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }
   // Accueil : la semaine en cours (le dimanche soir, la suivante).
   if (arriving && id === 'todayView') {
@@ -1917,6 +1918,9 @@ function onClick(e) {
     case 'hmode':
       homeMode = b.dataset.mode === 'cards' ? 'cards' : 'list';
       try { localStorage.setItem(MODE_KEY, homeMode); } catch { /* navigation privée */ }
+      // Même point de départ qu'en arrivant sur l'accueil : la carte d'aujourd'hui, ou la semaine par défaut en liste.
+      planStart = homeMode === 'cards' ? dateKey(mondayOf(new Date())) : defaultPlanStart();
+      cardKey = todayKey();
       return renderTodayView();
     case 'cgo':
       cardKey = day;
