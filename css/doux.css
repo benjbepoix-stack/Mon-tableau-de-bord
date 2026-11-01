@@ -562,3 +562,179 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .j-wxbar__a button[aria-expanded="true"] { background: var(--text); color: var(--bg); box-shadow: none; }
 /* Connexion : logo arrondi comme sur l'iPhone */
 .auth__logo { border-radius: 12px; box-shadow: 0 6px 16px -8px rgba(224, 49, 91, .6); }
+
+/* =========================================================
+   Accueil : bascule Liste / Cartes, et le mode cartes (une grande carte par jour, swipe)
+   ========================================================= */
+.d-mode { display: flex; gap: 6px; margin: 0 0 14px; padding: 4px; border-radius: 999px; background: var(--d-soft); }
+.d-mode button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; border: 0; border-radius: 999px; background: none; color: var(--text-2); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s, color .2s; }
+.d-mode button svg { width: 18px; height: 18px; }
+.d-mode button[aria-checked="true"] { background: var(--d-card); color: var(--text); box-shadow: 0 1px 6px rgba(0, 0, 0, .12); }
+.d-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 12px; }
+.d-strip button { position: relative; display: grid; justify-items: center; gap: 1px; padding: 7px 0 9px; border: 0; border-radius: 14px; background: none; color: var(--text); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; }
+.d-strip button small { font-size: 11.5px; font-weight: 600; color: var(--text-3); }
+.d-strip button.has::after { content: ""; position: absolute; bottom: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--d-rose); }
+.d-strip button.is-today { color: var(--d-rose); }
+.d-strip button.is-on { background: var(--text); color: var(--bg); }
+.d-strip button.is-on small { color: inherit; opacity: .7; }
+.d-strip button.is-on.has::after { background: var(--bg); }
+.d-cards { display: flex; gap: 12px; margin: 0 -16px; padding: 4px 28px 18px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.d-cards::-webkit-scrollbar { display: none; }
+.d-card { flex: 0 0 calc(100% - 8px); scroll-snap-align: center; scroll-snap-stop: always; display: flex; flex-direction: column; min-height: 58vh; padding: 18px 16px 16px; border-radius: 28px; background: var(--d-card); box-shadow: var(--d-sh-2), 0 0 0 1px var(--d-line); }
+.d-card.is-today { box-shadow: var(--d-sh-2), 0 0 0 2px var(--d-rose); }
+.d-card.is-past { opacity: .7; }
+.d-card__h { display: flex; align-items: center; gap: 12px; }
+.d-card__n { display: grid; place-items: center; flex: none; width: 58px; height: 58px; border-radius: 18px; background: var(--d-soft); font-size: 28px; font-weight: 700; letter-spacing: -.04em; }
+.d-card.is-today .d-card__n { background: var(--d-rose); color: #fff; }
+.d-card__d { flex: 1; min-width: 0; }
+.d-card__d b { display: block; font-size: 24px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.d-card__d small { font-size: 14px; color: var(--text-2); }
+.d-card__wx { display: flex; align-items: center; gap: 6px; padding: 6px 12px 6px 6px; border: 0; border-radius: 16px; background: var(--d-soft); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.d-card__wi { width: 36px; height: 36px; flex: none; }
+.d-card__wx b { display: block; font-size: 13.5px; font-weight: 700; line-height: 1.1; }
+.d-card__wx small { font-size: 12.5px; color: var(--text-2); }
+.d-card__sum { margin: 14px 2px 10px; font-size: 14px; font-weight: 600; color: var(--text-2); }
+.d-card__c { display: grid; gap: 10px; align-content: start; flex: 1; }
+.d-card .d-it { box-shadow: none; background: var(--d-soft); }
+.d-card .d-it.is-soon, .d-card .d-it.is-now { background: color-mix(in srgb, var(--d-rose) 10%, var(--d-card)); }
+.d-card .d-it .d-th { background: var(--d-card); }
+.d-card__empty { display: grid; justify-items: center; align-content: center; gap: 8px; height: 100%; min-height: 180px; color: var(--text-2); font-size: 15px; }
+.d-card__empty span { width: 84px; height: 84px; opacity: .85; }
+.d-card__add { margin-top: 14px; min-height: 52px; border: 0; border-radius: 16px; background: var(--d-rose); color: #fff; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+.d-card__add:active { transform: scale(.98); }
+
+/* =========================================================
+   Sport › Planifier (31/10 après-midi) : jours de même hauteur, petit +, séance du jour en couleur
+   ========================================================= */
+.s-days { display: grid; grid-auto-rows: 1fr; gap: 10px; }
+.s-days .j-sd { display: flex; flex-direction: column; margin: 0; padding: 14px 16px; }
+.j-sd__h { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.j-sd__h > span { display: grid; gap: 2px; min-width: 0; }
+.j-sd__h b { font-size: 17px; font-weight: 700; }
+.j-sd__h small { font-size: 13px; font-weight: 600; color: var(--d-rose); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.j-add { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--d-soft); color: var(--text); font: inherit; font-size: 20px; font-weight: 500; line-height: 1; cursor: pointer; transition: background .2s, transform .3s var(--k-spring); }
+.j-add:active { transform: scale(.88); }
+.j-sd.is-free .j-rest-s { flex: 1; display: grid; place-items: center; margin: 8px 0 0; border-radius: 14px; background: var(--d-soft); color: var(--text-3); font-size: 14px; font-weight: 600; }
+.s-days .j-sp { margin-top: 10px; }
+.s-days .j-sp:first-of-type { border-top: 0; }
+/* Séance du jour : encadré rose */
+.j-sd.is-today { background: linear-gradient(150deg, #FF6A8B, #E0315B) !important; color: #fff; box-shadow: 0 14px 30px -16px rgba(224, 49, 91, .7) !important; }
+.j-sd.is-today .j-sd__h b { color: #fff; }
+.j-sd.is-today .j-sd__h small { color: rgba(255, 255, 255, .85); }
+.j-sd.is-today .j-add { background: rgba(255, 255, 255, .22); color: #fff; }
+.j-sd.is-today .j-sp { padding: 10px; border: 0; border-radius: 16px; background: rgba(255, 255, 255, .16) !important; }
+.j-sd.is-today .j-sp__t b, .j-sd.is-today .j-sp__t small { color: #fff; }
+.j-sd.is-today .j-sp__t em { color: #fff; }
+.j-sd.is-today .j-sp__i { background: #fff; }
+.j-sd.is-today .j-done { border-color: rgba(255, 255, 255, .7); }
+.j-sd.is-today .j-done.is-on { border-color: #fff; background: #fff; color: var(--d-rose); }
+.j-sd.is-today .j-rest-s { background: rgba(255, 255, 255, .16); color: #fff; }
+.j-sd.is-today .j-race { color: #fff; }
+.j-sd.is-today .j-sd__h b::after { content: "Séance du jour"; display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, .25); font-size: 11.5px; font-weight: 700; vertical-align: 2px; }
+.j-sd.is-today.is-free .j-sd__h b::after { content: "Repos"; }
+
+/* =========================================================
+   Mois : calendrier plus visuel (étiquettes pleines, événements sur plusieurs jours en bandeau, week-ends teintés)
+   ========================================================= */
+.d-cal { padding: 12px 6px 12px; }
+.d-cal__g { gap: 4px 0; }
+.d-cal__c { min-height: 68px; padding: 4px 0; border-radius: 0; }
+.d-cal__c.is-we { background: color-mix(in srgb, var(--d-soft) 70%, transparent); }
+.d-cal__c.is-we:nth-child(7n + 6) { border-radius: 12px 0 0 12px; }
+.d-cal__c.is-we:nth-child(7n) { border-radius: 0 12px 12px 0; }
+.d-cal__c b { width: 30px; height: 30px; font-size: 15px; font-weight: 700; }
+.d-cal__c.has-ev:not(.is-today):not(.is-past) b { color: var(--text); }
+.d-cal__c.is-sel { border-radius: 12px; background: var(--d-rose-soft); box-shadow: inset 0 0 0 2px var(--d-rose); }
+.d-cal__c.is-sel b { color: var(--d-rose); }
+.d-cal__c.is-today.is-sel b { color: #fff; }
+.d-cal__l { margin: 0 2px; padding: 2px 4px; border-radius: 6px; font-size: 10.5px; font-weight: 700; color: #fff !important; }
+.d-cal__l.is-rdv { background: var(--d-rose); }
+.d-cal__l.is-ev { background: var(--d-teal-2); }
+.d-cal__l.is-race { background: #F0A01A; }
+.d-cal__l.is-span { margin: 0; border-radius: 0; }
+.d-cal__l.is-span:not(.is-a) { color: transparent !important; }
+.d-cal__l.is-span.is-a { margin-left: 2px; border-top-left-radius: 6px; border-bottom-left-radius: 6px; overflow: visible; position: relative; z-index: 1; }
+.d-cal__l.is-span.is-z { margin-right: 2px; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.d-cal__c.is-past .d-cal__l { opacity: .5; }
+.d-cal__dots i { width: 7px; height: 7px; }
+.d-cal__leg { font-size: 12.5px; }
+:root[data-theme="dark"] .d-cal__l.is-ev { background: #2C7A8C; }
+.s-days .j-sd > .j-sd__h { display: flex !important; flex-direction: row; align-items: flex-start; justify-content: space-between; margin: 0; padding: 0; }
+.d-cal__c.is-we { background: color-mix(in srgb, var(--d-soft) 45%, transparent); }
+
+/* =========================================================
+   Sport › Planifier compact (31/10 soir) : une ligne par jour, la semaine tient sur un écran
+   ========================================================= */
+.s-days { grid-auto-rows: auto; gap: 6px; }
+.s-days .j-sd { display: grid !important; grid-template-columns: 52px minmax(0, 1fr) 30px; align-items: center; gap: 8px; min-height: 58px; padding: 6px 8px 6px 12px; border-radius: 16px; background: var(--d-card) !important; color: var(--text); box-shadow: 0 0 0 1px var(--d-line) !important; }
+.j-sd__d b { display: block; font-size: 14.5px; font-weight: 700; line-height: 1.15; }
+.j-sd__d i { font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--d-rose); }
+.j-sd__c { display: grid; gap: 4px; min-width: 0; }
+.j-sd__ev { overflow: hidden; font-size: 12px; font-weight: 600; color: var(--d-rose); white-space: nowrap; text-overflow: ellipsis; }
+.s-days .j-sp { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 !important; border: 0; background: none !important; }
+.s-days .j-sp__t { display: grid !important; grid-template-columns: 34px minmax(0, 1fr); column-gap: 8px; align-items: center; padding: 0; }
+.s-days .j-sp__i { width: 34px; height: 34px; border-radius: 10px; grid-row: 1 / span 2; }
+.s-days .j-sp__i .d-ill { width: 26px; height: 26px; }
+.s-days .j-sp__t b { font-size: 14.5px; line-height: 1.2; }
+.s-days .j-sp__t small { overflow: hidden; font-size: 12px; line-height: 1.25; white-space: nowrap; text-overflow: ellipsis; }
+.s-days .j-sp__t em { display: none; }
+.s-days .j-done { width: 28px; height: 28px; }
+.s-days .j-done svg { width: 15px; height: 15px; }
+.s-days .j-sd.is-free .j-rest-s { display: block; margin: 0; padding: 0; background: none; color: var(--text-3); font-size: 13.5px; font-weight: 500; }
+.s-days .j-add { width: 30px; height: 30px; font-size: 18px; }
+.s-days .j-race { padding: 0; font-size: 12.5px; }
+.s-days .j-sd.is-past { opacity: .55; }
+/* Aujourd'hui : un simple contour rose, comme les événements proches */
+.s-days .j-sd.is-today { box-shadow: 0 0 0 2px var(--d-rose) !important; background: var(--d-card) !important; color: var(--text); }
+.s-days .j-sd.is-today .j-sp__t b { color: var(--text); }
+.s-days .j-sd.is-today .j-sp__t small { color: var(--text-2); }
+.s-days .j-sd.is-today .j-sp__i { background: var(--d-rose-soft); }
+.s-days .j-sd.is-today .j-add { background: var(--d-soft); color: var(--text); }
+.s-days .j-sd.is-today .j-done { border-color: #C9C9C9; }
+.s-days .j-sd.is-today .j-done.is-on { border-color: var(--d-teal); background: var(--d-teal); color: #fff; }
+.s-days .j-sd.is-today .j-rest-s { color: var(--text-3); }
+.s-days .j-sd.is-today .j-race { color: inherit; }
+:root[data-theme="dark"] .s-days .j-sd.is-today .j-done { border-color: rgba(255, 255, 255, .28); }
+/* Haut de l'onglet Sport plus serré */
+#weekView .s-phase { margin-bottom: 0; }
+#weekView .s-h { margin: 16px 0 8px; }
+#weekView .d-past { min-height: 40px; margin-bottom: 6px; padding: 8px 14px; }
+
+/* Mois : le calendrier tient sur un écran */
+.d-cal { padding: 8px 4px 8px; }
+.d-cal__h span { padding-bottom: 4px; }
+.d-cal__g { gap: 2px 0; }
+.d-cal__c { min-height: 52px; padding: 2px 0; gap: 1px; }
+.d-cal__c b { width: 26px; height: 26px; font-size: 14px; }
+.d-cal__l { padding: 1px 3px; font-size: 10px; }
+.d-cal__leg { gap: 4px 10px; margin: 6px 4px 0; font-size: 11.5px; }
+#agendaView .d-sec--top { margin-bottom: 8px; }
+
+/* Accueil, cartes : la carte tient entière à l'écran, son contenu défile à l'intérieur si besoin */
+.d-mode { margin-bottom: 8px; padding: 3px; }
+.d-mode button { min-height: 34px; font-size: 14px; }
+.d-strip { margin-bottom: 6px; }
+.d-strip button { padding: 4px 0 7px; font-size: 16px; }
+.d-cards { padding-top: 2px; padding-bottom: 10px; }
+.d-card { min-height: 0; height: var(--card-h, calc(100svh - 330px)); max-height: 620px; padding: 14px 14px 12px; }
+.d-card__n { width: 48px; height: 48px; border-radius: 15px; font-size: 24px; }
+.d-card__d b { font-size: 21px; }
+.d-card__sum { margin: 10px 2px 8px; }
+.d-card__c { overflow-y: auto; gap: 8px; margin: 0 -4px; padding: 0 4px; overscroll-behavior: contain; }
+.d-card .d-it { padding: 6px; }
+.d-card .d-th { width: 44px; height: 44px; }
+.d-card__add { flex: none; margin-top: 10px; min-height: 46px; }
+.d-card__empty { min-height: 0; }
+
+/* Sport : lignes un peu plus hautes, au format de la liste de l'accueil (01/11) */
+.s-days { gap: 8px; }
+.s-days .j-sd { grid-template-columns: 56px minmax(0, 1fr) 32px; min-height: 76px; padding: 9px 8px 9px 14px; border-radius: 18px; }
+.j-sd__d b { font-size: 15.5px; }
+.s-days .j-sp__t { grid-template-columns: 50px minmax(0, 1fr); column-gap: 12px; }
+.s-days .j-sp__i { width: 50px; height: 50px; border-radius: 14px; }
+.s-days .j-sp__i .d-ill { width: 36px; height: 36px; }
+.s-days .j-sp__t b { font-size: 16px; }
+.s-days .j-sp__t small { font-size: 13px; }
+.s-days .j-done { width: 32px; height: 32px; }
+.s-days .j-sd.is-free .j-rest-s { font-size: 14.5px; }
+.s-days .j-add { width: 32px; height: 32px; }
