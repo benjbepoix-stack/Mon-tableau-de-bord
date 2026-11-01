@@ -738,3 +738,47 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .s-days .j-done { width: 32px; height: 32px; }
 .s-days .j-sd.is-free .j-rest-s { font-size: 14.5px; }
 .s-days .j-add { width: 32px; height: 32px; }
+
+/* =========================================================
+   Lisibilité (1/11 soir) : en-tête compact, météo de Sport, cartes, icônes d'onglets, texte grand
+   ========================================================= */
+/* 1 · En-tête : plus de pastille de synchro (un point sur la roue si hors ligne), la roue sur la ligne du titre. */
+body[data-screen$="View"]:not([data-screen="trainingView"]) .topbar, body:not([data-screen="trainingView"]) .topbar { position: absolute; top: 0; left: 0; right: 0; z-index: 31; pointer-events: none; }
+body:not([data-screen="trainingView"]) .topbar__inner { min-height: 0; padding-top: 12px; max-width: 560px; }
+body:not([data-screen="trainingView"]) .topbar__actions { pointer-events: auto; position: relative; }
+body:not([data-screen="trainingView"]) .sync-pill { display: none; }
+body:not([data-screen="trainingView"]) #settingsBtn { width: 40px; height: 40px; min-width: 40px; border: 0; background: var(--d-soft); color: var(--text); }
+.topbar__actions:has(.sync-pill[data-status="offline"]) #settingsBtn::after { content: ""; position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--d-rose); box-shadow: 0 0 0 2px var(--bg); }
+body:not([data-screen="trainingView"]) .app { padding-top: calc(var(--safe-top) + 12px); }
+.v-view > .d-sec--top:first-child, .v-view > .d-sec--top { margin-top: 0; padding-right: 50px; min-height: 40px; align-items: center; }
+.d-sec--top h2 { font-size: 24px; line-height: 1.1; }
+.d-sec--top h2 small { font-size: 14px; }
+.d-sec--top .d-arr { width: 36px; height: 36px; }
+
+/* 2 · Météo de Sport : chiffres en noir, légende explicite. */
+.s-wk__key { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0 0 8px; font-size: 13px; color: var(--text-2); }
+.s-wk__key b { color: var(--text); font-weight: 700; }
+.s-wk__c b { font-size: 16px; color: var(--text); }
+.s-wk__c small { font-size: 13px; font-weight: 600; color: var(--text); opacity: .75; }
+.s-wk__c.is-off { opacity: .55; }
+.s-wk__t b { font-size: 15px; }
+.s-wk__t small { color: var(--text); opacity: .75; }
+.s-wk__l { font-size: 13px; }
+
+/* 4 · Cartes : la date tient sur une ligne, texte plus gros. */
+.d-card__d small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+.d-card__d b { font-size: 25px; }
+.d-card__wx { padding: 6px 10px 6px 6px; }
+.d-card__wx b { font-size: 16px; }
+.d-card__wx small { font-size: 14px; }
+.d-card .d-it__b b { font-size: 17.5px; }
+.d-card .d-it__b small { font-size: 14.5px; }
+.d-card__sum { font-size: 15px; }
+
+/* 5 · Barre d'onglets : une icône au-dessus de chaque nom. */
+.tabbar, :root[data-theme="light"] .tabbar { height: 64px; border-radius: 26px; }
+.tabbar__item, .tabbar__item.is-active { flex-direction: column; gap: 2px; padding: 0 4px; border-radius: 20px; font-size: 12px; line-height: 1; }
+.tabbar__ic { flex: none; }
+
+/* 6 · Taille du texte « Grand » : tout le contenu agrandi d'environ 12 %. */
+:root[data-text="lg"] .app, :root[data-text="lg"] .sheet { zoom: 1.12; }
