@@ -472,7 +472,6 @@ function dayCard(k, all) {
     </header>
     <p class="d-card__sum">${n ? `${n} chose${n > 1 ? 's' : ''} prévue${n > 1 ? 's' : ''}` : k < today ? 'Rien' : 'Rien de prévu'}</p>
     <div class="d-card__c">${n ? itRowsHTML(list) : `<div class="d-card__empty"><span>${ILL.sun}</span><b>${k < today ? 'Journée libre' : 'Journée libre · repos'}</b></div>`}</div>
-    ${k < today ? '' : `<button type="button" class="d-card__add" data-v="wadd" data-day="${k}">+ Ajouter</button>`}
   </article>`;
 }
 function cardsHTML() {
