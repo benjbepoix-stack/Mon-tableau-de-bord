@@ -56,8 +56,18 @@ const DURS = [15, 20, 30, 40, 45, 60, 90, 120];
 const mine = () => readJSON(KEY, []) || [];
 const all = () => [...mine(), ...PRESETS];
 const byId = id => all().find(r => r.id === id);
-/** Les étapes réelles : un exercice « de chaque côté » devient gauche puis droite. */
-const stepsOf = r => r.ex.flatMap(x => (x.side ? [{ ...x, sd: 'Côté gauche' }, { ...x, sd: 'Côté droit' }] : [{ ...x }]));
+const REPS = [1, 2, 3, 4, 5, 6, 8, 10];
+const repsOf = x => Math.max(1, Number(x.rep) || 1);
+/** Les étapes réelles : chaque exercice autant de fois que demandé ; « de chaque côté » = gauche puis droite.
+ *  flip : passage au côté droit (3 s pour changer) ; set : « Série 2 sur 3 ». */
+const stepsOf = r => r.ex.flatMap((x, xi) => {
+  const n = repsOf(x);
+  return Array.from({ length: n }, (_, k) => {
+    const set = n > 1 ? `Série ${k + 1} sur ${n}` : '';
+    return x.side ? [{ ...x, xi, set, sd: 'Côté gauche' }, { ...x, xi, set, sd: 'Côté droit', flip: true }] : [{ ...x, xi, set }];
+  }).flat();
+});
+const stepSub = x => [x.set, x.sd].filter(Boolean).join(' · ');
 const totalSec = r => stepsOf(r).reduce((a, x) => a + x.s, 0) + Math.max(0, stepsOf(r).length - 1) * (r.rest || 0);
 const minLabel = s => (s < 60 ? `${s} s` : `${Math.round(s / 60)} min`);
 const ill = (name, cls = '') => `<svg class="d-ill ${cls}" viewBox="0 0 64 64" aria-hidden="true"><use href="#d-${name}"/></svg>`;
@@ -109,6 +119,8 @@ function closeRoutines() {
 }
 const X = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 const BACK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>';
+const UP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>';
+const DOWN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const PLAY = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.9l10.5-6.5a1 1 0 0 0 0-1.8L9.5 4.6A1 1 0 0 0 8 5.5z"/></svg>';
 
 function render() {
@@ -132,15 +144,21 @@ function renderDetail(e) {
   const own = !r.id.startsWith('p-');
   e.innerHTML = `<div class="rt-top"><button type="button" class="rt-x" data-rt="list" aria-label="Retour">${BACK}</button><button type="button" class="rt-x" data-rt="close" aria-label="Fermer">${X}</button></div>
     <div class="rt-hero c-${r.color || 'teal'}">${ill(r.ill || 'yoga')}<h1>${esc(r.name)}</h1><p>${minLabel(totalSec(r))} · ${r.ex.length} exercices${r.rest ? ` · ${r.rest} s de pause` : ''}</p></div>
-    <ol class="rt-ex">${r.ex.map((x, i) => `<li><span class="rt-ex__n">${i + 1}</span><span class="rt-ex__b"><b>${esc(x.n)}</b>${x.tip ? `<small>${esc(x.tip)}</small>` : ''}</span><span class="rt-ex__t">${x.s} s${x.side ? '<small>× 2 côtés</small>' : ''}</span></li>`).join('')}</ol>
+    <ol class="rt-ex">${r.ex.map((x, i) => `<li><span class="rt-ex__n">${i + 1}</span><span class="rt-ex__b"><b>${esc(x.n)}</b>${x.tip ? `<small>${esc(x.tip)}</small>` : ''}</span><span class="rt-ex__t">${repsOf(x) > 1 ? `${repsOf(x)} × ` : ''}${x.s} s${x.side ? '<small>× 2 côtés</small>' : ''}</span></li>`).join('')}</ol>
     <div class="rt-actions"><button type="button" class="rt-ghost" data-rt="${own ? 'edit' : 'copy'}" data-id="${esc(r.id)}">${own ? 'Modifier' : 'Copier et modifier'}</button><button type="button" class="rt-play" data-rt="play" data-id="${esc(r.id)}">${PLAY} Lancer</button></div>`;
 }
 function renderEdit(e) {
   const d = view.draft;
-  const row = (x, i) => `<div class="rt-er"><input data-rf="n" data-i="${i}" value="${esc(x.n)}" placeholder="Exercice" maxlength="60" aria-label="Exercice ${i + 1}">
-    <select data-rf="s" data-i="${i}" aria-label="Durée">${DURS.map(v => `<option value="${v}" ${v === x.s ? 'selected' : ''}>${minLabel(v)}</option>`).join('')}</select>
-    <label class="rt-side"><input type="checkbox" data-rf="side" data-i="${i}" ${x.side ? 'checked' : ''}>2 côtés</label>
-    <button type="button" class="rt-del" data-rt="exdel" data-i="${i}" aria-label="Retirer">${X}</button></div>`;
+  const n = d.ex.length;
+  const row = (x, i) => `<div class="rt-er">
+    <span class="rt-er__mv"><button type="button" data-rt="exup" data-i="${i}" aria-label="Monter ${esc(x.n || `l’exercice ${i + 1}`)}" ${i ? '' : 'disabled'}>${UP}</button><button type="button" data-rt="exdown" data-i="${i}" aria-label="Descendre ${esc(x.n || `l’exercice ${i + 1}`)}" ${i < n - 1 ? '' : 'disabled'}>${DOWN}</button></span>
+    <input class="rt-er__n" data-rf="n" data-i="${i}" value="${esc(x.n)}" placeholder="Exercice ${i + 1}" maxlength="60" aria-label="Exercice ${i + 1}">
+    <button type="button" class="rt-del" data-rt="exdel" data-i="${i}" aria-label="Retirer">${X}</button>
+    <span class="rt-er__o">
+      <select data-rf="s" data-i="${i}" aria-label="Durée">${DURS.map(v => `<option value="${v}" ${v === x.s ? 'selected' : ''}>${minLabel(v)}</option>`).join('')}</select>
+      <select data-rf="rep" data-i="${i}" aria-label="Nombre de fois">${REPS.map(v => `<option value="${v}" ${v === repsOf(x) ? 'selected' : ''}>${v === 1 ? '1 fois' : `${v} fois`}</option>`).join('')}</select>
+      <label class="rt-side"><input type="checkbox" data-rf="side" data-i="${i}" ${x.side ? 'checked' : ''}>2 côtés</label>
+    </span></div>`;
   e.innerHTML = `<div class="rt-top"><button type="button" class="rt-x" data-rt="${d.isNew ? 'list' : 'detail'}" data-id="${esc(d.id)}" aria-label="Retour">${BACK}</button><button type="button" class="rt-x" data-rt="close" aria-label="Fermer">${X}</button></div>
     <h1 class="rt-h">${d.isNew ? 'Nouvelle routine' : 'Modifier'}</h1>
     <label class="rt-f"><span>Nom</span><input data-rf="name" value="${esc(d.name)}" placeholder="Ex. Étirements du soir" maxlength="50"></label>
@@ -178,6 +196,20 @@ function onClick(e) {
   if (rt === 'color') { view.draft.color = b.dataset.c; return render(); }
   if (rt === 'exadd') { view.draft.ex.push({ n: '', s: 30, side: false }); render(); return el().querySelector('.rt-er:last-child input')?.focus(); }
   if (rt === 'exdel') { view.draft.ex.splice(Number(b.dataset.i), 1); return render(); }
+  if (rt === 'exup' || rt === 'exdown') {
+    const i = Number(b.dataset.i);
+    const j = rt === 'exup' ? i - 1 : i + 1;
+    const ex = view.draft.ex;
+    if (j < 0 || j >= ex.length) return;
+    [ex[i], ex[j]] = [ex[j], ex[i]];
+    render();
+    // Le focus suit l'exercice déplacé (on peut enchaîner les appuis).
+    const btn = el().querySelector(`[data-rt="${rt}"][data-i="${j}"]:not([disabled])`) || el().querySelector(`[data-rt="${rt === 'exup' ? 'exdown' : 'exup'}"][data-i="${j}"]`);
+    btn?.focus({ preventScroll: true });
+    const rowEl = el().querySelectorAll('.rt-er')[j];
+    rowEl?.classList.add('is-moved');
+    return;
+  }
   if (rt === 'save') return save();
   if (rt === 'remove') {
     const before = mine();
@@ -200,6 +232,7 @@ function onInput(e) {
     if (f === 'n') x.n = t.value;
     if (f === 's') x.s = Number(t.value);
     if (f === 'side') x.side = t.checked;
+    if (f === 'rep') x.rep = Number(t.value);
   }
 }
 
@@ -276,9 +309,9 @@ function next(skip = false) {
     if (!skip && P.sound) beep(392, 260, 0.2);
     P.i++;
     if (P.i >= P.steps.length) return finish();
-    const sameEx = P.steps[P.i].n === P.steps[P.i - 1].n;
-    // Changement de côté : 3 secondes ; sinon la pause de la routine (ou 3 s si aucune).
-    return start(sameEx ? 'count' : P.r.rest ? 'rest' : 'count', sameEx ? 3 : P.r.rest || 3);
+    const flip = P.steps[P.i].flip;
+    // Changement de côté : 3 secondes ; sinon (nouvelle série ou exercice suivant) la pause de la routine, ou 3 s si aucune.
+    return start(flip ? 'count' : P.r.rest ? 'rest' : 'count', flip ? 3 : P.r.rest || 3);
   }
 }
 function prev() {
@@ -332,12 +365,12 @@ function frame() {
       <button type="button" class="rp-btn" data-rp="close">Terminer</button><button type="button" class="rp-link" data-rp="again">Recommencer</button></div>`;
     return;
   }
-  const label = P.phase === 'count' ? (P.i === 0 && P.last < 0 ? 'Prêt ?' : cur.sd && P.i && st[P.i - 1].n === cur.n ? 'On change de côté' : 'Prêt ?') : P.phase === 'rest' ? 'Pause' : '';
+  const label = P.phase === 'count' ? (cur.flip && P.i ? 'On change de côté' : 'Prêt ?') : P.phase === 'rest' ? 'Pause' : '';
   e.dataset.phase = P.phase;
   e.innerHTML = `<div class="rp-top"><div class="rp-path" aria-label="Étape ${P.i + 1} sur ${st.length}">${st.map((_, j) => `<i class="${j < P.i ? 'is-done' : j === P.i ? 'is-cur' : ''}"></i>`).join('')}</div><button type="button" class="rp-x" data-rp="close" aria-label="Arrêter">${X}</button></div>
-    <p class="rp-k">${label || `Exercice ${P.r.ex.indexOf(P.r.ex.find(x => x.n === cur.n)) + 1} sur ${P.r.ex.length}`}</p>
+    <p class="rp-k">${label || `Exercice ${cur.xi + 1} sur ${P.r.ex.length}`}</p>
     <h2 class="rp-n">${esc(P.phase === 'go' ? cur.n : P.phase === 'rest' ? `Ensuite : ${cur.n}` : cur.n)}</h2>
-    ${cur.sd ? `<p class="rp-sd">${cur.sd}</p>` : '<p class="rp-sd is-empty"></p>'}
+    ${stepSub(cur) ? `<p class="rp-sd">${stepSub(cur)}</p>` : '<p class="rp-sd is-empty"></p>'}
     <div class="rp-ring ${P.r.breath && P.phase === 'go' ? 'is-breath' : ''}">
       <span class="rp-bubble" aria-hidden="true"></span>
       <svg viewBox="0 0 240 240" aria-hidden="true"><circle cx="120" cy="120" r="${R}" class="rp-track"/><circle cx="120" cy="120" r="${R}" class="rp-arc" stroke-dasharray="${C.toFixed(1)}"/></svg>
@@ -345,7 +378,7 @@ function frame() {
     </div>
     <p class="rp-tip">${P.phase === 'go' && cur.tip ? esc(cur.tip) : P.phase === 'rest' ? 'Souffle un peu, on repart bientôt.' : ''}</p>
     <div class="rp-ctl"><button type="button" class="rp-sm" data-rp="prev" aria-label="Revenir">${BACK}</button><button type="button" class="rp-big" data-rp="pause" aria-label="${P.paused ? 'Reprendre' : 'Pause'}">${P.paused ? PLAY : '<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.4"/><rect x="14" y="5" width="4" height="14" rx="1.4"/></svg>'}</button><button type="button" class="rp-sm" data-rp="next" aria-label="Passer">${'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>'}</button></div>
-    <p class="rp-next">${nxt && P.phase === 'go' ? `Ensuite : ${esc(nxt.n)}${nxt.sd ? ` · ${nxt.sd.toLowerCase()}` : ''}` : P.phase === 'go' ? 'Dernière ligne droite !' : ''}</p>
+    <p class="rp-next">${nxt && P.phase === 'go' ? `Ensuite : ${esc(nxt.n)}${stepSub(nxt) ? ` · ${stepSub(nxt).toLowerCase()}` : ''}` : P.phase === 'go' ? 'Dernière ligne droite !' : ''}</p>
     <button type="button" class="rp-snd" data-rp="sound" aria-pressed="${P.sound}">${P.sound ? 'Son activé' : 'Son coupé'}</button>`;
   paint();
 }

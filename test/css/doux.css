@@ -801,3 +801,17 @@ body:not([data-screen="trainingView"]) .app { padding-top: calc(var(--safe-top) 
 .d-cal__c.is-past .d-cal__pts, .d-cal__c.is-past .d-cal__bar { opacity: .45; }
 .d-cal__leg i.is-ev { height: 5px; width: 14px; border-radius: 3px; }
 .d-cal__leg i.is-rdv, .d-cal__leg i.is-race { border-radius: 50%; }
+
+/* Routines : exercices répétés (« 3 fois ») et réordonnables (flèches haut / bas). */
+.rt-er { grid-template-columns: 34px minmax(0, 1fr) 36px; grid-template-areas: "mv n del" "mv o o"; gap: 8px 8px; padding: 10px 10px 10px 6px; border-radius: 18px; background: var(--d-card); box-shadow: 0 0 0 1px var(--d-line); }
+.rt-er__mv { grid-area: mv; display: grid; align-content: center; gap: 6px; }
+.rt-er__mv button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 12px; background: var(--d-soft); color: var(--text); cursor: pointer; }
+.rt-er__mv button:disabled { opacity: .3; cursor: default; }
+.rt-er__mv button:not(:disabled):active { transform: scale(.92); }
+.rt-er__n { grid-area: n; min-width: 0; }
+.rt-er .rt-del { grid-area: del; }
+.rt-er__o { grid-area: o; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rt-er__o select { flex: 1 1 96px; min-width: 0; }
+.rt-er.is-moved { animation: rt-moved .45s ease; }
+@keyframes rt-moved { from { box-shadow: 0 0 0 2px var(--d-rose); } }
+@media (prefers-reduced-motion: reduce) { .rt-er.is-moved { animation: none; } }
