@@ -254,12 +254,46 @@ function beep(freq = 880, ms = 120, vol = 0.18) {
     o.stop(audio.currentTime + ms / 1000);
   } catch { /* pas de son */ }
 }
+/* ---------- Écran toujours allumé pendant la routine ----------
+   1) Verrou d'écran (Screen Wake Lock) quand le navigateur le permet ; il saute quand l'app passe
+      en arrière-plan, on le reprend au retour.
+   2) En secours (iPhone, anciens iOS, PWA sur l'écran d'accueil) : une petite vidéo muette et noire
+      lue en boucle, qui empêche la mise en veille. Lancée pendant l'appui sur « Lancer ». */
 let lock = null;
-async function keepAwake(on) {
+let awake = false;
+let vid = null;
+function wakeVideo() {
+  if (!vid) {
+    vid = document.createElement('video');
+    vid.src = new URL('../../media/awake.mp4', import.meta.url).href;
+    vid.muted = true;
+    vid.loop = true;
+    vid.playsInline = true;
+    vid.setAttribute('playsinline', '');
+    vid.setAttribute('muted', '');
+    vid.setAttribute('aria-hidden', 'true');
+    vid.style.cssText = 'position:fixed;width:1px;height:1px;left:0;bottom:0;opacity:0.01;pointer-events:none;';
+    document.body.appendChild(vid);
+  }
+  return vid;
+}
+async function askLock() {
+  if (!('wakeLock' in navigator) || lock) return;
   try {
-    if (on && 'wakeLock' in navigator) lock = await navigator.wakeLock.request('screen');
-    else if (!on && lock) { await lock.release(); lock = null; }
-  } catch { /* tant pis */ }
+    lock = await navigator.wakeLock.request('screen');
+    lock.addEventListener('release', () => { lock = null; });
+  } catch { lock = null; /* refusé : la vidéo prend le relais */ }
+}
+function keepAwake(on) {
+  awake = on;
+  if (on) {
+    // La vidéo d'abord, encore dans le geste de l'utilisateur (sinon iOS refuse de la lire).
+    try { wakeVideo().play()?.catch(() => {}); } catch { /* tant pis */ }
+    askLock();
+  } else {
+    if (vid) vid.pause();
+    if (lock) { lock.release().catch(() => {}); lock = null; }
+  }
 }
 function play(id) {
   const r = byId(id);
@@ -442,5 +476,10 @@ export function initRoutines() {
     } else if (e.key === 'Escape' && !page.hidden) closeRoutines();
   });
   // L'écran revient au premier plan : on recale le chrono sur l'horloge.
-  document.addEventListener('visibilitychange', () => { if (P && !P.paused && P.phase !== 'end' && !document.hidden) { cancelAnimationFrame(P.raf); P.raf = requestAnimationFrame(tick); } });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    // Retour au premier plan : on reprend le verrou d'écran (le système le lâche en arrière-plan).
+    if (awake) { askLock(); if (vid && vid.paused) vid.play()?.catch(() => {}); }
+    if (P && !P.paused && P.phase !== 'end') { cancelAnimationFrame(P.raf); P.raf = requestAnimationFrame(tick); }
+  });
 }
