@@ -23,6 +23,7 @@ import { getPhases, phaseOn, PHASE_TYPES } from '../core/season.js';
 import { readJSON, write } from '../services/storage.js';
 import { fetchSlots, SLOT_HOURS, getPlace, setPlace, searchPlaces, wxAt } from '../services/weather.js';
 import { toast, toastError } from '../ui/toast.js';
+import { stagger, countUp } from '../ui/motion.js';
 import { burst, buzz } from '../ui/feedback.js';
 import { linkedItems, GARAGE_URL, MAISON_URL } from '../features/linked-apps.js';
 import { sportTasks } from '../features/sport-tasks.js';
@@ -115,10 +116,10 @@ function toggleDone(k, id) {
 
 /* ---------- Météo par créneau ---------- */
 function loadWx(force = false) {
-  [...new Set([todayKey(), weekStart, planStart].filter(Boolean))].forEach(k => {
-    if (wxAsked.has(k)) return;
+  return Promise.all([...new Set([todayKey(), weekStart, planStart].filter(Boolean))].map(k => {
+    if (wxAsked.has(k)) return null;
     wxAsked.add(k);
-    fetchSlots(k, 8, { force })
+    return fetchSlots(k, 8, { force })
       .then(data => {
         wx = { ...wx, ...data };
         if (!Object.keys(data).length) return;
@@ -131,7 +132,12 @@ function loadWx(force = false) {
         console.warn('[météo]', err);
         wxAsked.delete(k);
       });
-  });
+  }));
+}
+/** Tirer pour actualiser : redemande la météo au serveur. */
+export function refreshWeather() {
+  wxAsked.clear();
+  return loadWx(true);
 }
 const slotsOn = k => wx[k]?.slots || null;
 function score(kind, w) {
@@ -349,8 +355,8 @@ function rdvRow(x, showDay = true) {
 }
 function taskRow(t) {
   return `<div class="k-sw" data-dir="done"><div class="k-sw__u"><span class="u-done">${I.check}Fait</span><span class="u-later">Demain →</span></div>
-    <div class="e-row k-task ${flash === t.id ? 'e-flash' : ''}" data-task="${esc(t.id)}" tabindex="0" role="button" aria-label="Modifier « ${esc(t.title)} »"><button type="button" class="e-check" data-v="tdone" data-id="${esc(t.id)}" aria-label="Cocher « ${esc(t.title)} »"><i>${I.check}</i></button>
-    <span class="e-row__b"><span class="e-row__t">${esc(t.title)}</span><span class="e-row__s ${isLate(t) ? 'is-late' : ''}">${esc(taskMeta(t))}</span></span></div></div>`;
+    <div class="e-row k-task ${flash === t.id ? 'e-flash' : ''}" data-task="${esc(t.id)}" tabindex="0" role="button" aria-label="Modifier « ${esc(t.title)} »"><span class="d-th k-task__i">${ILL.clip}</span>
+    <span class="e-row__b"><span class="e-row__t">${esc(t.title)}</span><span class="e-row__s ${isLate(t) ? 'is-late' : ''}">${esc(taskMeta(t))}</span></span><button type="button" class="e-check" data-v="tdone" data-id="${esc(t.id)}" aria-label="Cocher « ${esc(t.title)} »"><i>${I.check}</i></button></div></div>`;
 }
 const raceRow = x => `<a class="e-row" href="${ALLURE_URL}"><span class="e-tile t-run">🏁</span><span class="e-row__b"><span class="e-row__t">${esc(x.title)}</span><span class="e-row__s">${esc(whenOf(x))}${x.place ? ` · ${esc(x.place)}` : ''} · course</span></span><span class="e-go">${I.out}</span></a>`;
 const appRow = a => `<a class="e-row" href="${a.href}"><span class="e-check is-app"><i></i></span><span class="e-row__b"><span class="e-row__t">${esc(a.title)}<span class="e-src">${esc(a.src)}</span></span><span class="e-row__s ${a.late ? 'is-late' : ''}">${esc(a.sub || '')}</span></span><span class="e-go">${I.out}</span></a>`;
@@ -578,7 +584,7 @@ export function renderTodayView() {
   const soonRow = x => { const so = x.kind === 'race' ? null : soonOf(x.date, x.time, x.endDate); return `<button type="button" class="d-it d-soon ${x.kind === 'race' ? 'is-race' : ''} ${so?.cls || ''}" ${x.kind === 'race' ? 'data-v="race"' : `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"`}>
     <span class="d-th">${x.kind === 'race' ? ILL.flag : ILL.cal}</span>
     <span class="d-it__b"><b>${esc(x.title)}</b><small>${esc([x.date <= today ? 'aujourd’hui' : formatKey(x.date, { weekday: 'short', day: 'numeric', month: 'short' }), x.endDate ? span(x) : x.time ? hours(x) : '', x.kind === 'race' ? 'Cadence' : x.kind === 'events' ? 'événement' : '', x.place].filter(Boolean).join(' · '))}</small></span>
-    ${so ? `<i class="d-near">${so.label}</i>` : `<span class="d-j">${dayDiff(x.date) <= 0 ? 'auj.' : `J-${dayDiff(x.date)}`}</span>`}</button>`; };
+    ${so ? `<i class="d-near">${so.label}</i>` : `<span class="d-j">${dayDiff(x.date) <= 0 ? 'auj.' : `J-<span data-count="${dayDiff(x.date)}">${dayDiff(x.date)}</span>`}</span>`}</button>`; };
   const title = wi === 0 ? 'Cette semaine' : wi === 1 ? 'Semaine prochaine' : esc(weekLabel(planStart).split(' · ')[0]);
   const hidden = keys.filter(k => k < today);
 
@@ -681,10 +687,10 @@ export function renderTodoView() {
     ['Sans date', tasks.filter(t => !t.date)]
   ].filter(g => g[1].length);
   host.innerHTML = `
-    <div class="d-sec d-sec--top"><h2>Tâches<small>${tasks.length ? `${tasks.length} à faire` : 'Tout est fait'}${apps.length ? ` · ${apps.length} de tes apps` : ''}</small></h2>${tasks.some(t => !isRepeat(t.repeat)) ? '<span><button type="button" class="d-today-btn" data-v="assign">Répartir sur la semaine</button></span>' : ''}</div>
+    <div class="d-sec d-sec--top"><h2>Tâches<small>${tasks.length ? `<span data-count="${tasks.length}">${tasks.length}</span> à faire` : 'Tout est fait'}${apps.length ? ` · ${apps.length} de tes apps` : ''}</small></h2>${tasks.some(t => !isRepeat(t.repeat)) ? '<span><button type="button" class="d-today-btn" data-v="assign">Répartir sur la semaine</button></span>' : ''}</div>
     ${groups.map(([label, list, cls]) => `<div class="e-sec ${cls || ''}"><h2>${label}</h2><small>${list.length}</small></div><div class="card e-list">${list.map(taskRow).join('')}</div>`).join('') || '<div class="card e-empty">Rien à faire. Belle journée.</div>'}
     ${apps.length ? `<div class="e-sec"><h2>Depuis tes apps</h2><small>${apps.length}</small></div><div class="card e-list">${apps.map(appRow).join('')}</div>` : ''}
-    ${doneToday.length ? `<div class="e-sec"><h2>Faites aujourd’hui</h2><small>${doneToday.length}</small></div><div class="card e-list">${doneToday.map(t => `<button type="button" class="e-row is-done" data-v="undo" data-id="${esc(t.id)}"><span class="e-check is-on"><i>${I.check}</i></span><span class="e-row__b"><span class="e-row__t">${esc(t.title)}</span><span class="e-row__s">${isRepeat(t.repeat) ? esc(REPEATS[t.repeat].label.toLowerCase()) : 'disparaît demain · touche pour annuler'}</span></span></button>`).join('')}</div>` : ''}
+    ${doneToday.length ? `<div class="e-sec"><h2>Faites aujourd’hui</h2><small>${doneToday.length}</small></div><div class="card e-list">${doneToday.map(t => `<button type="button" class="e-row is-done" data-v="undo" data-id="${esc(t.id)}"><span class="d-th k-task__i">${ILL.clip}</span><span class="e-row__b"><span class="e-row__t">${esc(t.title)}</span><span class="e-row__s">${isRepeat(t.repeat) ? esc(REPEATS[t.repeat].label.toLowerCase()) : 'disparaît demain · touche pour annuler'}</span></span><span class="e-check is-on"><i>${I.check}</i></span></button>`).join('')}</div>` : ''}
     ${tasks.length ? '<p class="k-hint">→ fait · ← demain · touche pour modifier</p>' : ''}
     <section class="k-blk"><div class="k-blk-h"><h2><label for="vNote">Note</label></h2><span class="k-save" id="vNoteState" aria-live="polite"></span></div>
       <div class="k-card k-note"><textarea id="vNote" placeholder="Écrire…" maxlength="20000">${esc(keep ? keep.value : state.notes)}</textarea></div></section>`;
@@ -943,22 +949,21 @@ function slotWind(k, sl) {
 function wxWeek(keys) {
   const today = todayKey();
   const head = { matin: 'Matin', aprem: 'Midi', soir: 'Soir' };
-  const rows = keys.filter(k => k >= today).map(k => {
+  // À l'horizontale : une colonne par jour, on fait défiler au doigt.
+  const cols = keys.filter(k => k >= today).map(k => {
     const w = wx[k];
     const d = fromKey(k);
-    const past = k < today;
-    const name = `<b>${k === today ? 'Auj.' : `${cap(WD[d.getDay()])}.`}</b><small>${d.getDate()}</small>`;
-    if (!w || past) return `<div class="s-wk__r is-off"><span class="s-wk__d">${name}</span><span class="s-wk__na">${past ? 'passé' : 'pas encore de prévision'}</span></div>`;
+    const name = `<span class="s-wh__d"><b>${k === today ? 'Auj.' : `${cap(WD[d.getDay()])}.`}</b><small>${d.getDate()}</small></span>`;
+    if (!w) return `<div class="s-wh__col is-off">${name}<span class="s-wh__na">pas encore de prévision</span></div>`;
     const cells = SLOT_IDS.map(sl => {
       const v = slotWind(k, sl);
       const off = slotPast(k, sl);
-      return `<span class="s-wk__c ${off ? 'is-off' : ''} ${v && v.gust >= 50 ? 'is-hi' : v && v.gust >= 35 ? 'is-mid' : ''}">${v ? `<b>${v.avg}</b><small>${v.gust}</small>` : '·'}</span>`;
+      return `<span class="s-wh__c ${off ? 'is-off' : ''} ${v && v.gust >= 50 ? 'is-hi' : v && v.gust >= 35 ? 'is-mid' : ''}">${v ? `<b>${v.avg}</b><small>${v.gust}</small>` : '·'}</span>`;
     }).join('');
-    return `<button type="button" class="s-wk__r ${k === today ? 'is-today' : ''}" data-dwx="${k}" aria-label="${esc(cap(WD_FULL[d.getDay()]))} : heure par heure"><span class="s-wk__d">${name}</span><span class="s-wk__t"><span class="s-wk__i">${skyIll(k)}</span><span><b>${w.max}°</b><small>${w.min}°</small></span></span>${cells}</button>`;
+    return `<button type="button" class="s-wh__col ${k === today ? 'is-today' : ''}" data-dwx="${k}" aria-label="${esc(cap(WD_FULL[d.getDay()]))} : heure par heure">${name}<span class="s-wh__i">${skyIll(k)}</span><span class="s-wh__t"><b>${w.max}°</b><small>${w.min}°</small></span>${cells}</button>`;
   }).join('');
-  return `<section class="s-wk"><div class="s-wk__r s-wk__hd"><span></span><span>Temp.</span>${SLOT_IDS.map(sl => `<span>${head[sl]}</span>`).join('')}</div>
-    <div class="s-wk__key"><span>En km/h :</span><span><b>vent</b> en haut</span><span><b>rafales</b> en bas</span></div>${rows}
-    <p class="s-wk__l">Touche un jour pour le détail heure par heure.</p></section>`;
+  return `<section class="s-wh"><div class="s-wh__lab" aria-hidden="true"><span></span><span></span><span></span>${SLOT_IDS.map(sl => `<span>${head[sl]}</span>`).join('')}</div><div class="s-wh__sc">${cols}</div></section>
+    <p class="s-wh__l">En km/h : <b>vent</b> en gros, <b>rafales</b> en petit. Touche un jour pour l’heure par heure.</p>`;
 }
 /** La semaine en courbes (vent, rafales) sur fond bleu canard, comme une appli météo. */
 function wxChart(keys) {
@@ -1080,18 +1085,18 @@ export function renderWeekView() {
     const pw = Math.min(pn, Math.max(1, Math.floor((fromKey(keys[0] < ph.start ? ph.start : keys[0]) - fromKey(ph.start)) / 6048e5) + 1));
     const goals = PHASE_GOALS[ph.type] || [];
     season = `<details class="card s-phase" style="--ph:${PHASE_COLOR[ph.type] || 'var(--accent)'}" ${phaseOpen ? 'open' : ''}>
-      <summary><span class="s-phase__l"><b>${esc(PHASE_TYPES[ph.type].short)}</b> · sem. ${pw}/${pn}</span>${race ? `<span class="s-phase__r">🏁 ${esc(race.name)} · J-${dayDiff(race.date)}</span>` : ''}
+      <summary><span class="s-phase__l"><b>${esc(PHASE_TYPES[ph.type].short)}</b> · sem. ${pw}/${pn}</span>${race ? `<span class="s-phase__r">🏁 ${esc(race.name)} · J-<span data-count="${dayDiff(race.date)}">${dayDiff(race.date)}</span></span>` : ''}
         <span class="e-season">${shown.map(p => `<i class="${p.id === ph.id ? 'is-on' : ''}" style="flex:${len(p)};background:${PHASE_COLOR[p.type] || 'var(--text-3)'}"></i>`).join('')}<span class="e-season__me" style="left:${pos(weekStart)}"></span></span></summary>
       <p class="s-phase__adv">${esc(PHASE_TYPES[ph.type].advice)}</p>
       ${goals.length ? `<div class="e-goals">${goals.map(([g, n]) => { const c = st.list.filter(({ s }) => effort(s) === g).length; return `<span class="${c >= n ? 'is-ok' : ''}">${c >= n ? I.check : ''}${n} ${g}${n > 1 && g !== 'renfo' ? 's' : ''} · ${c}/${n}</span>`; }).join('')}</div>` : ''}
     </details>`;
-  } else if (race) season = `<div class="card s-phase"><span class="s-phase__r">🏁 ${esc(race.name)} · J-${dayDiff(race.date)}</span></div>`;
-  const recap = [`${st.done}/${st.n} séance${st.n > 1 ? 's' : ''} faite${st.n > 1 ? 's' : ''}`, st.km ? km(st.km) : '', durLabel(st.min), st.dp ? `${Math.round(st.dp)} m D+` : ''].filter(Boolean).join(' · ');
+  } else if (race) season = `<div class="card s-phase"><span class="s-phase__r">🏁 ${esc(race.name)} · J-<span data-count="${dayDiff(race.date)}">${dayDiff(race.date)}</span></span></div>`;
+  const recap = [`<span data-count="${st.done}">${st.done}</span>/${st.n} séance${st.n > 1 ? 's' : ''} faite${st.n > 1 ? 's' : ''}`, st.km ? km(st.km) : '', durLabel(st.min), st.dp ? `${Math.round(st.dp)} m D+` : ''].filter(Boolean).join(' · ');
 
   host.innerHTML = `
     <div class="d-sec d-sec--top"><h2>Sport<small>${esc(label)} · ${esc(range)}</small></h2><span>${wi ? '<button type="button" class="d-today-btn" data-v="wtoday">Aujourd’hui</button>' : ''}<button type="button" class="d-arr" data-v="week" data-step="-1" aria-label="Semaine précédente">${I.back}</button><button type="button" class="d-arr" data-v="week" data-step="1" aria-label="Semaine suivante">${I.fwd}</button></span></div>
     ${season}
-    <div class="d-sec s-h"><h2>Planifier<small>${esc(recap)}</small></h2></div>
+    <div class="d-sec s-h"><h2>Planifier<small>${recap}</small></h2></div>
     <div class="s-plan">${jSport(keys)}</div>
     ${keys[6] >= today ? `<div class="d-sec s-h"><h2>Météo<small>Températures, vent moyen et rafales</small></h2></div>
     <div class="s-wx">${wxWeek(keys)}${wxBar()}</div>` : ''}
@@ -1829,9 +1834,19 @@ function onFlowInput(e) {
 }
 
 /* ---------- Rendu, entrées animées ---------- */
+let monthDir = 0;
 function done(host) {
-  host.classList.toggle('k-in', entering && !reduced());
+  // Arrivée sur un écran : les blocs et les lignes arrivent en cascade, les chiffres défilent.
+  if (entering && !reduced()) {
+    stagger(host);
+    countUp(host);
+  }
   entering = false;
+  if (monthDir && host.id === 'agendaView' && !reduced()) {
+    const g = host.querySelector('.d-cal__g');
+    g?.classList.add(monthDir > 0 ? 'mo-from-r' : 'mo-from-l');
+  }
+  monthDir = 0;
   requestAnimationFrame(() => requestAnimationFrame(() => host.querySelectorAll('[data-off]').forEach(c => (c.style.strokeDashoffset = c.dataset.off))));
   bindRows(host);
   loadWx();
@@ -1887,17 +1902,30 @@ function onClick(e) {
     case 'session': {
       e.stopPropagation();
       const on = toggleDone(day, id);
-      if (on) {
-        const r = b.getBoundingClientRect();
-        burst(r.left + r.width / 2, r.top + r.height / 2, 18);
-        buzz(12);
-      }
-      return renderCurrent();
+      if (!on || reduced()) return renderCurrent();
+      // La coche se remplit et rebondit, petite explosion, puis le compteur de la semaine avance.
+      b.classList.add('is-on', 'mo-pop');
+      b.closest('.j-sp, .e-row')?.classList.add('is-done');
+      const r = b.getBoundingClientRect();
+      setTimeout(() => burst(r.left + r.width / 2, r.top + r.height / 2, 18), 180);
+      buzz(12);
+      return setTimeout(() => {
+        renderCurrent();
+        countUp($(`#${current}`).querySelector('.s-h') || document.body);
+      }, 520);
     }
     case 'tdone': {
       const t = state.dashboard.tasks.find(x => x.id === id);
-      if (t) finishTask(t, b.closest('.k-task'), 'done');
-      return;
+      const row = b.closest('.k-task');
+      if (!t || !row) return;
+      if (reduced()) return finishTask(t, row, 'done');
+      // La coche se dessine et le titre se barre avant que la ligne parte.
+      if (row.dataset.going) return;
+      row.dataset.going = '1';
+      b.classList.add('is-on');
+      row.classList.add('is-checking');
+      buzz(8);
+      return setTimeout(() => finishTask(t, row, 'done'), 420);
     }
     case 'edit':
       return openEditor(type, id);
@@ -1974,6 +2002,7 @@ function onClick(e) {
       monthOff = Number(b.dataset.to);
       return renderAgendaView();
     case 'mstep':
+      monthDir = Number(b.dataset.step) || (monthOff > 0 ? -1 : 1);
       monthOff = Number(b.dataset.step) ? monthOff + Number(b.dataset.step) : 0;
       daySel = null;
       return renderAgendaView();
