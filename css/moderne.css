@@ -115,8 +115,6 @@
 
   /* 6 · Frise des jours (mode Cartes) : le jour choisi rebondit, sa carte s'allume */
   .d-strip button { transition: background .25s, color .25s; }
-  .d-strip button.is-on { animation: mo-pop .4s cubic-bezier(.3, 1.4, .45, 1); }
-  .d-day.is-today .d-day__d b { animation: mo-pop .5s .25s cubic-bezier(.3, 1.4, .45, 1) backwards; }
 
   /* 7 · Valider une séance : la coche se remplit et rebondit */
   .j-done.mo-pop { animation: mo-pop .45s cubic-bezier(.3, 1.4, .45, 1); }
@@ -138,7 +136,6 @@
   .mo-in .d-cal__c:nth-child(n+22) { animation-delay: .12s; } .mo-in .d-cal__c:nth-child(n+29) { animation-delay: .16s; } .mo-in .d-cal__c:nth-child(n+36) { animation-delay: .2s; }
   .d-cal__g.mo-from-r { animation: mo-r .35s cubic-bezier(.2, .8, .2, 1); }
   .d-cal__g.mo-from-l { animation: mo-l .35s cubic-bezier(.2, .8, .2, 1); }
-  .d-cal__c.is-sel b { animation: mo-pop .4s cubic-bezier(.3, 1.4, .45, 1); }
 }
 
 /* 11 · Tirer pour actualiser la météo */
