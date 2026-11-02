@@ -25,7 +25,7 @@
       var t = localStorage.getItem('dashboard_theme');
       if ((t !== 'light' && t !== 'dark') || (t === 'dark' && !localStorage.getItem('dashboard_theme_auto_v1'))) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.dataset.theme = t;
-      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#ffffff' : '#121315');
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#F2F2F7' : '#121315');
       if (localStorage.getItem('carnet_text') === 'lg') document.documentElement.dataset.text = 'lg';
     } catch (e) {}
   </script>
@@ -47,6 +47,7 @@
   <link rel="stylesheet" href="css/espaces.css">
   <link rel="stylesheet" href="css/jour.css">
   <link rel="stylesheet" href="css/doux.css">
+  <link rel="stylesheet" href="css/moderne.css">
 
   <script type="module" src="js/main.js"></script>
 </head>

@@ -18,7 +18,8 @@ import { initOverduePrompt } from './features/overdue-prompt.js';
 import { initDashboard, renderDashboard, renderNotes } from './views/dashboard.js';
 import { initTraining } from './views/training.js';
 import { initBriefing } from './features/briefing.js';
-import { initVivant, showVivant } from './views/vivant.js';
+import { initVivant, showVivant, refreshWeather } from './views/vivant.js';
+import { tabChanged, initPullToRefresh } from './ui/motion.js';
 
 // Les quatre espaces (vivant.js) se redessinent à chaque changement. Sport contient le planning
 // détaillé et se place lui-même sur le jour en cours (pas de retour en haut de page).
@@ -61,6 +62,7 @@ function switchView(id, { scroll = true } = {}) {
   $('#headerTitle').textContent = VIEWS[id].title;
   document.title = `${VIEWS[id].title} · Carnet`;
   VIEWS[id].show();
+  tabChanged(VIEWS[id].tab || id);
   try {
     sessionStorage.setItem(VIEW_KEY, id);
   } catch {
@@ -160,6 +162,7 @@ function init() {
   initTraining();
   initOverduePrompt({ onView: goToTask });
   initVivant({ go: id => switchView(id) });
+  initPullToRefresh(refreshWeather);
   initBriefing({ onDone: () => VIEWS[currentView].show() });
 
   renderNotes();
