@@ -22,6 +22,8 @@ const PRECACHE_URLS = [
   './css/espaces.css',
   './css/jour.css',
   './css/doux.css',
+  './css/moderne.css',
+  './js/ui/motion.js',
   './fonts/dmsans-300.woff2',
   './fonts/dmsans-400.woff2',
   './fonts/dmsans-500.woff2',

@@ -1,0 +1,151 @@
+/* =========================================================
+   Emprunts au style « Moderne » (02/11) : fond gris clair et cadres blancs,
+   météo de Sport à l'horizontale, illustrations des tâches, barre d'onglets
+   en couleur ; puis les 12 animations (voir js/ui/motion.js).
+   ========================================================= */
+
+/* ---------- Fond gris clair, cadres blancs (thème clair seulement) ---------- */
+:root[data-theme="light"] {
+  --bg: #F2F2F7; --bg-2: #F2F2F7;
+  --d-soft: #ECECF1; --surface-2: #ECECF1; --field: #ECECF1;
+  --d-sh: 0 1px 2px rgba(20, 20, 40, .04), 0 6px 18px rgba(20, 20, 40, .06);
+  --mo-card: 0 1px 2px rgba(20, 20, 40, .04), 0 6px 18px rgba(20, 20, 40, .06);
+}
+:root[data-theme="light"] body { background: var(--bg); }
+:root[data-theme="light"] .topbar { background: color-mix(in srgb, var(--bg) 86%, transparent); }
+:root[data-theme="light"] .d-it,
+:root[data-theme="light"] .v-view .card,
+:root[data-theme="light"] .j-sd,
+:root[data-theme="light"] .k-sw,
+:root[data-theme="light"] .rt-entry,
+:root[data-theme="light"] .d-cal,
+:root[data-theme="light"] .d-card { box-shadow: var(--mo-card); }
+:root[data-theme="light"] .d-mode { background: #E4E4EA; }
+:root[data-theme="light"] .d-past { background: rgba(255, 255, 255, .6); }
+:root[data-theme="light"] .d-day { border-color: rgba(0, 0, 0, .06); }
+:root[data-theme="light"] .d-arr, :root[data-theme="light"] .d-day__add { background: #fff; }
+:root[data-theme="light"] .d-day__wx { background: #fff; box-shadow: 0 1px 6px rgba(20, 20, 40, .06); }
+:root[data-theme="light"] .v-view .k-note { background: #fff; box-shadow: var(--mo-card); }
+
+/* Un peu d'air entre « Liste | Cartes » et les jours. */
+.d-mode { margin-bottom: 24px; }
+
+/* ---------- Tâches : une illustration par ligne, la case à droite ---------- */
+.k-task { gap: 14px; padding: 10px 12px 10px 10px; }
+.k-task__i { flex: none; width: 50px; height: 50px; border-radius: 14px; background: var(--d-beige); }
+.k-task__i .d-ill { width: 36px; height: 36px; }
+.e-row.is-done .k-task__i { opacity: .55; }
+.k-task .e-check { margin-left: auto; }
+
+/* ---------- Sport : météo à l'horizontale (une colonne par jour) ---------- */
+.s-wh { display: flex; border-radius: 20px; background: var(--d-card); box-shadow: var(--d-sh), 0 0 0 1px var(--d-line); overflow: hidden; }
+:root[data-theme="light"] .s-wh { box-shadow: var(--mo-card); }
+.s-wh__lab { flex: none; display: grid; grid-template-rows: 40px 46px 40px repeat(3, 46px); padding: 10px 0 10px 12px; font-size: 12px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .03em; }
+.s-wh__lab span { display: flex; align-items: center; }
+.s-wh__sc { flex: 1; min-width: 0; display: flex; gap: 6px; padding: 10px 10px 10px 6px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.s-wh__sc::-webkit-scrollbar { display: none; }
+.s-wh__col { flex: none; width: 62px; display: grid; grid-template-rows: 40px 46px 40px repeat(3, 46px); justify-items: stretch; padding: 0 4px; border: 0; border-radius: 16px; background: none; color: var(--text); font: inherit; cursor: pointer; scroll-snap-align: start; transition: background .2s, transform .35s var(--k-spring); }
+.s-wh__col.is-today { background: var(--d-rose-soft); }
+.s-wh__col.is-off { opacity: .55; }
+.s-wh__d { display: grid; justify-items: center; align-content: center; line-height: 1.15; }
+.s-wh__d b { font-size: 14.5px; }
+.s-wh__d small { font-size: 12px; color: var(--text-3); font-weight: 600; }
+.s-wh__col.is-today .s-wh__d b { color: var(--d-rose); }
+.s-wh__i { display: grid; place-items: center; }
+.s-wh__i .d-ill { width: 38px; height: 38px; }
+.s-wh__t { display: grid; justify-items: center; align-content: center; line-height: 1.1; }
+.s-wh__t b { font-size: 16px; } .s-wh__t small { font-size: 12.5px; color: var(--text-3); }
+.s-wh__c { display: grid; justify-items: center; align-content: center; margin: 3px 0; border-radius: 12px; background: var(--d-soft); line-height: 1.1; }
+.s-wh__c b { font-size: 15px; } .s-wh__c small { font-size: 11.5px; color: var(--text-2); }
+.s-wh__c.is-off { opacity: .45; }
+.s-wh__c.is-mid { background: #FFE7CC; } .s-wh__c.is-hi { background: #FFD6DA; }
+:root[data-theme="dark"] .s-wh__c.is-mid { background: rgba(240, 160, 80, .22); }
+:root[data-theme="dark"] .s-wh__c.is-hi { background: rgba(230, 90, 100, .25); }
+.s-wh__na { grid-row: 2 / -1; display: grid; place-items: center; font-size: 11.5px; color: var(--text-3); text-align: center; }
+.s-wh__l { margin: 10px 4px 12px; font-size: 13px; color: var(--text-2); }
+.s-wx .j-wxbar { margin-top: 0; }
+
+/* ---------- Barre d'onglets en couleur ---------- */
+.tabbar, :root[data-theme="light"] .tabbar { background: rgba(21, 21, 31, .94); box-shadow: 0 10px 30px rgba(20, 20, 40, .28); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.tabbar__item, :root[data-theme="light"] .tabbar__item { position: relative; z-index: 1; color: rgba(255, 255, 255, .62); background: none; }
+.tabbar__item.is-active, :root[data-theme="light"] .tabbar__item.is-active { color: #fff; background: var(--d-rose); }
+.tabbar.has-ink .tabbar__item.is-active, :root[data-theme="light"] .tabbar.has-ink .tabbar__item.is-active { background: none; }
+.mo-ink { position: absolute; left: 0; top: 0; z-index: 0; border-radius: 20px; background: var(--d-rose); box-shadow: 0 6px 16px rgba(224, 49, 91, .45); pointer-events: none; transition: transform .5s cubic-bezier(.3, 1.35, .45, 1), width .3s; }
+.k-fab { box-shadow: 0 10px 26px rgba(224, 49, 91, .45); }
+
+/* =========================================================
+   Les 12 animations (coupées si l'iPhone demande de réduire les animations)
+   ========================================================= */
+@keyframes mo-up { from { opacity: 0; transform: translateY(16px); } }
+@keyframes mo-r { from { opacity: 0; transform: translateX(32px); } }
+@keyframes mo-l { from { opacity: 0; transform: translateX(-32px); } }
+@keyframes mo-pop { 0% { transform: scale(.7); } 55% { transform: scale(1.22); } 100% { transform: none; } }
+@keyframes mo-draw { from { stroke-dashoffset: 24; } }
+@keyframes mo-spin { to { transform: rotate(360deg); } }
+@keyframes mo-bob { 50% { transform: translateY(-2px); } }
+@keyframes mo-drift { 0%, 100% { transform: translateX(-2px); } 50% { transform: translateX(2px); } }
+@keyframes mo-rain { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(1.5px); } }
+@keyframes mo-wig { 0% { transform: rotate(-14deg) scale(.6); } 100% { transform: none; } }
+@keyframes mo-glow { 0%, 35% { box-shadow: 0 0 0 3px var(--d-rose), var(--mo-card, var(--d-sh)); } 100% { box-shadow: var(--mo-card, var(--d-sh)); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 1 · Onglets : l'écran arrive du côté de l'onglet, la pastille rose glisse */
+  .v-view.mo-from-r { animation: mo-r .4s cubic-bezier(.2, .8, .2, 1); }
+  .v-view.mo-from-l { animation: mo-l .4s cubic-bezier(.2, .8, .2, 1); }
+  .tabbar__item svg, .tabbar__ic { transition: transform .4s var(--k-spring); }
+  .tabbar__item.is-active .tabbar__ic { transform: translateY(-1px) scale(1.12); }
+
+  /* 2 · Apparition en cascade */
+  .mo-in .mo-u { animation: mo-up .5s var(--k-spring) backwards; animation-delay: calc(var(--i, 0) * 42ms + 40ms); }
+
+  /* 3 · Cocher une tâche : la coche se dessine, le titre se barre */
+  .k-task .e-row__t { background: linear-gradient(currentColor, currentColor) no-repeat 0 58% / 0 2px; transition: background-size .35s .1s cubic-bezier(.2, .8, .2, 1), color .3s .1s; }
+  .k-task.is-checking .e-row__t { background-size: 100% 2px; color: var(--text-3); }
+  .k-task.is-checking .e-check i { background: var(--d-teal); box-shadow: none; color: #fff; transform: scale(1.18); }
+  .k-task.is-checking .e-check svg path, .j-done.mo-pop svg path { stroke-dasharray: 24; animation: mo-draw .35s .05s cubic-bezier(.2, .8, .2, 1) backwards; }
+
+  /* 4 · Glisser une tâche : l'étiquette grossit quand on arrive au seuil */
+  .k-sw__u span { transition: transform .25s var(--k-spring); }
+
+  /* 5 · Bouton + : les choix arrivent un à un, leurs illustrations pivotent */
+  .k-fab { transition: transform .45s cubic-bezier(.3, 1.4, .45, 1), box-shadow .3s; }
+  .e-flow.is-open .e-kind__i .d-ill { animation: mo-wig .6s cubic-bezier(.3, 1.4, .45, 1) backwards; }
+  .e-flow.is-open .e-kind:nth-child(1) .d-ill { animation-delay: .18s; } .e-flow.is-open .e-kind:nth-child(2) .d-ill { animation-delay: .23s; }
+  .e-flow.is-open .e-kind:nth-child(3) .d-ill { animation-delay: .28s; } .e-flow.is-open .e-kind:nth-child(n+4) .d-ill { animation-delay: .33s; }
+
+  /* 6 · Frise des jours (mode Cartes) : le jour choisi rebondit, sa carte s'allume */
+  .d-strip button { transition: background .25s, color .25s; }
+  .d-strip button.is-on { animation: mo-pop .4s cubic-bezier(.3, 1.4, .45, 1); }
+  .d-day.is-today .d-day__d b { animation: mo-pop .5s .25s cubic-bezier(.3, 1.4, .45, 1) backwards; }
+
+  /* 7 · Valider une séance : la coche se remplit et rebondit */
+  .j-done.mo-pop { animation: mo-pop .45s cubic-bezier(.3, 1.4, .45, 1); }
+
+  /* 8 · Météo vivante */
+  .d-ill:has(use[href="#d-sun"]) { animation: mo-spin 30s linear infinite; }
+  .d-ill:has(use[href="#d-sunc"]) { animation: mo-bob 3.2s ease-in-out infinite; }
+  .d-ill:has(use[href="#d-cloud"]) { animation: mo-drift 5s ease-in-out infinite; }
+  .d-ill:has(use[href="#d-rain"]) { animation: mo-rain 1.2s ease-in-out infinite; }
+
+  /* 10 · Effet ressort à l'appui */
+  .d-it:active, .k-task:active, .rt-entry:active, .j-sp__t:active, .s-wh__col:active { transform: scale(.97); transition: transform .08s; }
+  .d-arr:active, .d-day__add:active, .j-add:active, .e-check:active, .j-done:active, .d-cal__c:active, .d-strip button:active, .d-mode button:active, .d-day__wx:active { transform: scale(.9); transition: transform .08s; }
+  .d-arr, .d-day__add, .j-add, .d-cal__c, .d-strip button, .d-mode button, .d-day__wx, .rt-entry, .j-sp__t { transition: transform .4s cubic-bezier(.3, 1.4, .45, 1); }
+
+  /* 12 · Mois : les jours en vague, le mois glisse, le jour touché rebondit */
+  .mo-in .d-cal__c { animation: mo-up .4s cubic-bezier(.2, .8, .2, 1) backwards; }
+  .mo-in .d-cal__c:nth-child(n+8) { animation-delay: .04s; } .mo-in .d-cal__c:nth-child(n+15) { animation-delay: .08s; }
+  .mo-in .d-cal__c:nth-child(n+22) { animation-delay: .12s; } .mo-in .d-cal__c:nth-child(n+29) { animation-delay: .16s; } .mo-in .d-cal__c:nth-child(n+36) { animation-delay: .2s; }
+  .d-cal__g.mo-from-r { animation: mo-r .35s cubic-bezier(.2, .8, .2, 1); }
+  .d-cal__g.mo-from-l { animation: mo-l .35s cubic-bezier(.2, .8, .2, 1); }
+  .d-cal__c.is-sel b { animation: mo-pop .4s cubic-bezier(.3, 1.4, .45, 1); }
+}
+
+/* 11 · Tirer pour actualiser la météo */
+.mo-ptr { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) - 46px); z-index: 30; display: flex; align-items: center; gap: 8px; padding: 7px 14px 7px 8px; border-radius: 999px; background: var(--d-card); box-shadow: 0 6px 20px rgba(20, 20, 40, .14); opacity: 0; transform: translate(-50%, 0); pointer-events: none; transition: transform .45s cubic-bezier(.3, 1.35, .45, 1), opacity .25s; }
+.mo-ptr.is-pull, .mo-ptr.is-loading { opacity: 1; }
+.mo-ptr__sun { display: block; width: 30px; height: 30px; transition: transform .2s; }
+.mo-ptr__sun .d-ill { animation: none !important; }
+.mo-ptr small { font-size: 13px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.mo-ptr.is-armed small { color: var(--d-rose); }
+.mo-ptr.is-loading .mo-ptr__sun { animation: mo-spin .9s linear infinite; }
