@@ -4,7 +4,7 @@
 /*
  * Carnet · widgets iPhone pour Scriptable
  *
- * Écran d'accueil : A Aujourd'hui (petit), B Prochaine séance (petit), C Tâches (petit),
+ * Écran d'accueil : A Aujourd'hui (petit : date + RDV, séance, tâches), B Prochaine séance (petit), C Tâches (petit),
  *                   D Ma journée (moyen), F Le briefing (grand).
  * Écran verrouillé : un seul widget, le rectangle « Ma journée » en 3 lignes :
  *                    prochain RDV ou événement, séance(s) du jour, tâches du jour.
@@ -481,21 +481,40 @@ function emptyLine(stack, label, sub) {
 
 /* ---------- Widgets de l'écran d'accueil ---------- */
 function widgetA(w, m) {
+  // Date compacte en haut, puis les 3 lignes de l'écran verrouillé sur toute la largeur
+  // (2 lignes de texte chacune) : prochain RDV ou événement, séance(s), tâches.
   w.backgroundColor = C.bg;
-  w.setPadding(14, 14, 14, 14);
-  dateBlock(w, m, 48);
-  w.addSpacer();
-  const next = nextAppt(m);
-  if (next) {
-    const prefix = next.on === m.today ? '' : `${dayLabel(m, next.on, true)} · `;
-    text(w, `${prefix}${hm(next.time)} ${next.title}`, F.title(14), C.ink, { scale: 0.8 });
-  } else text(w, 'Aucun RDV prévu', F.semi(13), C.ink2);
+  w.setPadding(13, 13, 12, 12);
+  const head = row(w, 7);
+  text(head, m.now.getDate(), F.big(27), C.ink);
+  const hc = col(head, 0);
+  text(hc, WD_FULL[m.now.getDay()].toUpperCase(), F.kick(), C.rose);
+  text(hc, MONTHS[m.now.getMonth()], F.body(11), C.ink2);
+  head.addSpacer();
   w.addSpacer(6);
-  const p = row(w, 5);
-  const { open } = taskLists(m);
-  pill(p, C.task, tasksLabel(open.length));
-  const s = sessionsOn(m, m.today)[0];
-  if (s) pill(p, C.ses, s.family.name.split(' ')[0]);
+  const list = sessionsOn(m, m.today);
+  const sport = !list.length
+    ? 'Pas de séance'
+    : list.length === 1
+      ? sportLine(m)
+      : list.map(x => x.family.name).join(' + ');
+  const block = (icon, color, value, strong) => {
+    const r = w.addStack();
+    r.layoutHorizontally();
+    r.spacing = 6;
+    const ic = r.addStack();
+    ic.size = new Size(13, 15);
+    ic.centerAlignContent();
+    symbol(ic, icon, 11, color, 'circle');
+    text(r, value, strong ? F.semi(12.5) : F.med(12.5), C.ink, { lines: 2, scale: 0.8 });
+    r.addSpacer();
+  };
+  block('calendar', C.rose, agendaLine(m, nextAgendaItem(m)), true);
+  w.addSpacer(4);
+  block(list[0] ? SPORT_ICONS[list[0].family.id] || 'figure.run' : 'figure.run', C.ses, sport, false);
+  w.addSpacer(4);
+  block('checklist', C.ink2, taskLine(m), false);
+  w.addSpacer();
 }
 
 function widgetB(w, m, s, weather) {
