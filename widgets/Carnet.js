@@ -693,9 +693,16 @@ function nextAgendaItem(m) {
   return null;
 }
 
+/** Date courte pour gagner de la place : « Dem. », « Sam 7 ». */
+function shortDay(m, key) {
+  if (key === dateKey(addDays(m.now, 1))) return 'Dem.';
+  const d = fromKey(key);
+  return `${cap(WD[d.getDay()])} ${d.getDate()}`;
+}
+
 function agendaLine(m, x) {
   if (!x) return 'Aucun RDV prévu';
-  const when = [x.on === m.today ? '' : dayLabel(m, x.on, true), x.time ? hm(x.time) : ''].filter(Boolean).join(' ');
+  const when = [x.on === m.today ? '' : shortDay(m, x.on), x.time ? hm(x.time) : ''].filter(Boolean).join(' ');
   return when ? `${when} ${x.title}` : x.title;
 }
 
@@ -723,13 +730,16 @@ function taskLine(m) {
 function widgetJ(w, m) {
   const first = nextAgendaItem(m);
   const s = sessionsOn(m, m.today)[0];
+  // Toute la largeur du rectangle : pas de marge, petites icônes, et le texte rapetisse
+  // jusqu'à 55 % avant d'être coupé par « … ».
+  w.setPadding(0, 0, 0, 0);
   const line = (icon, value, bold = false) => {
-    const r = row(w, 5);
+    const r = row(w, 4);
     const ic = r.addStack();
-    ic.size = new Size(14, 14);
+    ic.size = new Size(11, 14);
     ic.centerAlignContent();
-    symbol(ic, icon, 11, C.white, 'circle');
-    text(r, value, bold ? F.title(13) : F.med(13), C.white, { scale: 0.75 });
+    symbol(ic, icon, 10, C.white, 'circle');
+    text(r, value, bold ? F.semi(13) : F.med(13), C.white, { scale: 0.55 });
     r.addSpacer();
   };
   line('calendar', agendaLine(m, first), true);
