@@ -4,16 +4,16 @@
 /*
  * Carnet · widgets iPhone pour Scriptable
  *
- * Écran d'accueil : A Aujourd'hui (petit), B Prochaine séance (petit), C Tâches (petit),
+ * Écran d'accueil : A Aujourd'hui (petit : date + RDV, séance, tâches), B Prochaine séance (petit), C Tâches (petit),
  *                   D Ma journée (moyen), F Le briefing (grand).
- * Écran verrouillé : H Prochain RDV (rond), I Prochain RDV en détail (rectangle),
- *                    J Ma journée en 3 lignes (rectangle), L Séance du jour (rectangle),
- *                    K En ligne (au-dessus de l'heure).
+ * Écran verrouillé : un seul widget, le rectangle « Ma journée » en 3 lignes :
+ *                    prochain RDV ou événement, séance(s) du jour, tâches du jour.
  *
  * Installation : coller ce script dans Scriptable (nom « Carnet »), le lancer une fois
  * pour se connecter, puis ajouter un widget Scriptable, choisir « Carnet » et mettre la
- * lettre dans « Parameter ». Sans lettre : petit = A, moyen = D, grand = F,
- * rond = H, rectangle = I, en ligne = K.
+ * lettre dans « Parameter ». Sans lettre : petit = A, moyen = D, grand = F.
+ * Sur l'écran verrouillé, choisir le rectangle : pas besoin de lettre.
+ * Les widgets de l'écran d'accueil restent toujours en clair.
  *
  * Données : le compte Carnet (le même que Mon Garage et Ma Maison). Le mot de passe
  * n'est pas gardé : seul le jeton de connexion de Firebase est rangé dans le trousseau
@@ -34,7 +34,8 @@ const WEATHER_FILE = fm.joinPath(fm.documentsDirectory(), 'carnet-widget-meteo.j
 
 /* ---------- Couleurs (style Doux : blanc, bleu canard, rose du logo) ---------- */
 const hex = h => new Color(h);
-const dyn = (light, dark) => Color.dynamic(hex(light), hex(dark));
+/** Toujours la version claire, même quand l'iPhone est en mode sombre. */
+const dyn = light => hex(light);
 const C = {
   bg: dyn('#FFFFFF', '#1C1D21'),
   ink: dyn('#222222', '#F2F2F2'),
@@ -480,21 +481,40 @@ function emptyLine(stack, label, sub) {
 
 /* ---------- Widgets de l'écran d'accueil ---------- */
 function widgetA(w, m) {
+  // Date compacte en haut, puis les 3 lignes de l'écran verrouillé sur toute la largeur
+  // (2 lignes de texte chacune) : prochain RDV ou événement, séance(s), tâches.
   w.backgroundColor = C.bg;
-  w.setPadding(14, 14, 14, 14);
-  dateBlock(w, m, 48);
-  w.addSpacer();
-  const next = nextAppt(m);
-  if (next) {
-    const prefix = next.on === m.today ? '' : `${dayLabel(m, next.on, true)} · `;
-    text(w, `${prefix}${hm(next.time)} ${next.title}`, F.title(14), C.ink, { scale: 0.8 });
-  } else text(w, 'Aucun RDV prévu', F.semi(13), C.ink2);
+  w.setPadding(13, 13, 12, 12);
+  const head = row(w, 7);
+  text(head, m.now.getDate(), F.big(27), C.ink);
+  const hc = col(head, 0);
+  text(hc, WD_FULL[m.now.getDay()].toUpperCase(), F.kick(), C.rose);
+  text(hc, MONTHS[m.now.getMonth()], F.body(11), C.ink2);
+  head.addSpacer();
   w.addSpacer(6);
-  const p = row(w, 5);
-  const { open } = taskLists(m);
-  pill(p, C.task, tasksLabel(open.length));
-  const s = sessionsOn(m, m.today)[0];
-  if (s) pill(p, C.ses, s.family.name.split(' ')[0]);
+  const list = sessionsOn(m, m.today);
+  const sport = !list.length
+    ? 'Pas de séance'
+    : list.length === 1
+      ? sportLine(m)
+      : list.map(x => x.family.name).join(' + ');
+  const block = (icon, color, value, strong) => {
+    const r = w.addStack();
+    r.layoutHorizontally();
+    r.spacing = 6;
+    const ic = r.addStack();
+    ic.size = new Size(13, 15);
+    ic.centerAlignContent();
+    symbol(ic, icon, 11, color, 'circle');
+    text(r, value, strong ? F.semi(12.5) : F.med(12.5), C.ink, { lines: 2, scale: 0.8 });
+    r.addSpacer();
+  };
+  block('calendar', C.rose, agendaLine(m, nextAgendaItem(m)), true);
+  w.addSpacer(4);
+  block(list[0] ? SPORT_ICONS[list[0].family.id] || 'figure.run' : 'figure.run', C.ses, sport, false);
+  w.addSpacer(4);
+  block('checklist', C.ink2, taskLine(m), false);
+  w.addSpacer();
 }
 
 function widgetB(w, m, s, weather) {
@@ -612,7 +632,7 @@ function widgetF(w, m, s, weather) {
     if (i) w.addSpacer(4);
     agendaRow(w, x.time ? hm(x.time) : 'Jour', x.title, '', false, 40, 13.5);
   });
-  if (appts.length > 2) text(w, `+ ${appts.length - 2} autres`, F.semi(11), C.ink2);
+  if (appts.length > 2) text(w, `+ ${appts.length - 2} autre${appts.length > 3 ? 's' : ''}`, F.semi(11), C.ink2);
 
   if (s) {
     label(s.on === m.today ? 'Séance' : `Séance · ${dayLabel(m, s.on)}`);
@@ -680,85 +700,72 @@ function widgetF(w, m, s, weather) {
   }
 }
 
-/* ---------- Widgets de l'écran verrouillé (affichés en blanc par iOS) ---------- */
-function apptWhen(m, x) {
-  return x.on === m.today ? hm(x.time) : `${dayLabel(m, x.on, true)} ${hm(x.time)}`;
+/* ---------- Widget de l'écran verrouillé (affiché en blanc par iOS) ---------- */
+/** Ligne 1 : prochain rendez-vous ou événement (à heure fixe d'abord, puis ceux de la journée entière). */
+function nextAgendaItem(m) {
+  for (let i = 0; i < 30; i++) {
+    const key = dateKey(addDays(m.now, i));
+    const list = dayAgenda(m, key).filter(x => notOver(m, x));
+    const hit = list.find(x => x.time) || list[0];
+    if (hit) return hit;
+  }
+  return null;
 }
 
-function widgetH(w, m) {
-  w.addAccessoryWidgetBackground = true;
-  const next = nextAppt(m);
-  const c = col(w, 1);
-  const line = (s, font) => {
-    const r = row(c, 0);
-    r.addSpacer();
-    text(r, s, font, C.white, { scale: 0.6, center: true });
-    r.addSpacer();
-  };
-  const ic = row(c, 0);
-  ic.addSpacer();
-  symbol(ic, 'clock', 13, C.white);
-  ic.addSpacer();
-  if (!next) {
-    line('—', F.big(18));
-    line('RDV', F.title(9));
-    return;
-  }
-  line(hm(next.time), F.big(18));
-  line(next.on === m.today ? next.title.toUpperCase() : `${WD[fromKey(next.on).getDay()].toUpperCase()}.`, F.title(9));
+/** Date courte pour gagner de la place : « Dem. », « Sam 7 ». */
+function shortDay(m, key) {
+  if (key === dateKey(addDays(m.now, 1))) return 'Dem.';
+  const d = fromKey(key);
+  return `${cap(WD[d.getDay()])} ${d.getDate()}`;
 }
 
-function widgetI(w, m) {
-  const next = nextAppt(m);
-  if (!next) {
-    text(w, 'Aucun RDV', F.title(14), C.white);
-    text(w, 'dans les 30 jours', F.body(12.5), C.white, { opacity: 0.75 });
-    return;
-  }
-  text(w, next.title, F.title(14), C.white);
-  text(w, `${apptWhen(m, next)}${next.endTime ? ` – ${hm(next.endTime)}` : ''}`, F.body(13), C.white);
-  const sub = next.location || (next.on === m.today ? '' : dayLabel(m, next.on));
-  if (sub) text(w, sub, F.body(12.5), C.white, { opacity: 0.75 });
+function agendaLine(m, x) {
+  if (!x) return 'Aucun RDV prévu';
+  const when = [x.on === m.today ? '' : shortDay(m, x.on), x.time ? hm(x.time) : ''].filter(Boolean).join(' ');
+  return when ? `${when} ${x.title}` : x.title;
+}
+
+/** Ligne 2 : séance(s) du jour. Deux séances : les deux si elles tiennent, sinon la première « +1 ». */
+const LINE_FIT = 24;
+function sportLine(m) {
+  const list = sessionsOn(m, m.today);
+  if (!list.length) return 'Pas de séance aujourd’hui';
+  const one = s => (s.training ? `${s.family.name} · ${s.training}` : s.family.name);
+  if (list.length === 1) return one(list[0]);
+  const both = list.map(s => s.family.name).join(' + ');
+  if (list.length === 2 && both.length <= LINE_FIT) return both;
+  const first = list[0].family.name;
+  return `${first.length > LINE_FIT - 4 ? first.slice(0, LINE_FIT - 5) + '…' : first} +${list.length - 1}`;
+}
+
+/** Ligne 3 : la tâche du jour, ou « 3 tâches à faire aujourd'hui ». Les tâches en retard comptent aussi. */
+function taskLine(m) {
+  const { open } = taskLists(m);
+  if (!open.length) return 'Aucune tâche aujourd’hui';
+  if (open.length === 1) return open[0].title;
+  return `${open.length} tâches à faire aujourd’hui`;
 }
 
 function widgetJ(w, m) {
-  const next = nextAppt(m);
+  const first = nextAgendaItem(m);
   const s = sessionsOn(m, m.today)[0];
-  const { open } = taskLists(m);
-  const line = (bold, rest, dim = false) => {
+  // Toute la largeur du rectangle : pas de marge, petites icônes, et le texte rapetisse
+  // jusqu'à 55 % avant d'être coupé par « … ».
+  w.setPadding(0, 0, 0, 0);
+  const line = (icon, value, bold = false) => {
     const r = row(w, 4);
-    if (bold) text(r, bold, F.title(13), C.white);
-    text(r, rest, F.body(13), C.white, { opacity: dim ? 0.75 : 0 });
+    const ic = r.addStack();
+    ic.size = new Size(11, 14);
+    ic.centerAlignContent();
+    symbol(ic, icon, 10, C.white, 'circle');
+    text(r, value, bold ? F.semi(13) : F.med(13), C.white, { scale: 0.55 });
     r.addSpacer();
   };
-  if (next) line(apptWhen(m, next), next.title);
-  else line('', 'Aucun RDV', true);
-  if (s) line(SLOT_SHORT[s.slot] || 'Sport', [s.family.name, s.distance && `${s.distance} km`].filter(Boolean).join(' '));
-  line('', open.length ? `${plural(open.length, 'tâche')} à faire` : 'Aucune tâche', true);
-}
-
-function widgetL(w, m, s, weather) {
-  if (!s) {
-    text(w, 'Pas de séance', F.title(14), C.white);
-    text(w, 'cette semaine', F.body(12.5), C.white, { opacity: 0.75 });
-    return;
-  }
-  text(w, sessionTitle(s), F.title(14), C.white);
-  const when = s.on === m.today ? (SLOTS[s.slot] || '').toLowerCase() : `${dayLabel(m, s.on, true).toLowerCase()}${s.slot ? ` ${SLOTS[s.slot].toLowerCase()}` : ''}`;
-  text(w, [s.training ? s.family.name : '', when, s.distance && `${s.distance} km`].filter(Boolean).join(' · '), F.body(13), C.white);
-  if (weather) text(w, windLine(weather), F.body(12.5), C.white, { opacity: 0.75 });
-}
-
-function widgetK(w, m) {
-  const next = nextAppt(m);
-  const { open } = taskLists(m);
-  const parts = [];
-  if (next && next.on === m.today) parts.push(`${hm(next.time)} ${next.title}`);
-  else if (next) parts.push(`${dayLabel(m, next.on, true)} ${next.title}`);
-  parts.push(tasksLabel(open.length));
-  const r = row(w, 4);
-  symbol(r, 'calendar', 12, C.white);
-  text(r, parts.join(' · '), F.semi(13), C.white);
+  line('calendar', agendaLine(m, first), true);
+  w.addSpacer(2);
+  line(s ? SPORT_ICONS[s.family.id] || 'figure.run' : 'figure.run', sportLine(m));
+  w.addSpacer(2);
+  line('checklist', taskLine(m));
 }
 
 /* ---------- Choix du widget ---------- */
@@ -768,18 +775,14 @@ const WIDGETS = {
   C: { fam: ['small'], session: false },
   D: { fam: ['medium'], session: 'today' },
   F: { fam: ['large'], session: true },
-  H: { fam: ['accessoryCircular'], session: false },
-  I: { fam: ['accessoryRectangular'], session: false },
-  J: { fam: ['accessoryRectangular'], session: false },
-  L: { fam: ['accessoryRectangular'], session: true },
-  K: { fam: ['accessoryInline'], session: false }
+  J: { fam: ['accessoryRectangular'], session: false }
 };
-const DEFAULT_FOR = { small: 'A', medium: 'D', large: 'F', extraLarge: 'F', accessoryCircular: 'H', accessoryRectangular: 'I', accessoryInline: 'K' };
+const DEFAULT_FOR = { small: 'A', medium: 'D', large: 'F', extraLarge: 'F', accessoryRectangular: 'J' };
 
 function pickLetter(family, param) {
   const letter = String(param || '').trim().toUpperCase().charAt(0);
   if (WIDGETS[letter] && WIDGETS[letter].fam.includes(family)) return letter;
-  return DEFAULT_FOR[family] || 'A';
+  return DEFAULT_FOR[family] || null;
 }
 
 function messageWidget(family, title, sub) {
@@ -810,13 +813,14 @@ async function buildWidget(family, param) {
   }
   const m = model(raw);
   const letter = pickLetter(family, param);
+  if (!letter) return messageWidget(family, 'Carnet', family === 'accessoryInline' ? 'Prends le rectangle' : 'Prends le widget rectangle');
   const need = WIDGETS[letter].session;
   const s = need === 'today' ? sessionsOn(m, m.today)[0] || null : need ? nextSession(m) : null;
   const weather = s ? await weatherFor(s) : null;
   const w = new ListWidget();
   w.url = APP_URL;
   w.refreshAfterDate = new Date(Date.now() + REFRESH_MIN * 60000);
-  ({ A: () => widgetA(w, m), B: () => widgetB(w, m, s, weather), C: () => widgetC(w, m), D: () => widgetD(w, m, weather), F: () => widgetF(w, m, s, weather), H: () => widgetH(w, m), I: () => widgetI(w, m), J: () => widgetJ(w, m), L: () => widgetL(w, m, s, weather), K: () => widgetK(w, m) })[letter]();
+  ({ A: () => widgetA(w, m), B: () => widgetB(w, m, s, weather), C: () => widgetC(w, m), D: () => widgetD(w, m, weather), F: () => widgetF(w, m, s, weather), J: () => widgetJ(w, m) })[letter]();
   return w;
 }
 
@@ -885,17 +889,13 @@ const PREVIEWS = [
   ['C · Tâches (petit)', 'small', 'C'],
   ['D · Ma journée (moyen)', 'medium', 'D'],
   ['F · Le briefing (grand)', 'large', 'F'],
-  ['H · Prochain RDV (rond)', 'accessoryCircular', 'H'],
-  ['I · Prochain RDV en détail (rectangle)', 'accessoryRectangular', 'I'],
-  ['J · Ma journée en 3 lignes (rectangle)', 'accessoryRectangular', 'J'],
-  ['L · Séance du jour (rectangle)', 'accessoryRectangular', 'L'],
-  ['K · En ligne', 'accessoryInline', 'K']
+  ['Écran verrouillé · Ma journée en 3 lignes', 'accessoryRectangular', 'J']
 ];
 
 async function preview() {
   const a = new Alert();
   a.title = 'Aperçu';
-  a.message = 'Les widgets de l’écran verrouillé s’affichent ici en grand, en blanc sur fond sombre.';
+  a.message = 'Le widget de l’écran verrouillé s’affiche ici en grand, en blanc sur fond sombre.';
   PREVIEWS.forEach(p => a.addAction(p[0]));
   a.addCancelAction('Retour');
   const i = await a.presentSheet();
