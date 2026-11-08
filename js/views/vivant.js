@@ -617,7 +617,6 @@ export function renderAgendaView() {
     const out = k < first || k > last;
     const ev = itemsOn(k);
     const races = (state.races || []).filter(r => r.date === k);
-    const ses = sessionsOn(k).length;
     const tasks = state.dashboard.tasks.filter(t => !t.done && t.date === k).length;
     // Pastilles de couleur (lisibles même petites) ; les événements sur plusieurs jours en bande continue.
     const spans = ev.filter(x => x.endDate && x.endDate !== x.date);
@@ -627,7 +626,6 @@ export function renderAgendaView() {
       ...ev.filter(x => x.kind !== 'events').map(() => 'is-rdv'),
       ...ev.filter(x => x.kind === 'events' && !spans.includes(x)).map(() => 'is-ev'),
       ...races.map(() => 'is-race'),
-      ...Array(ses).fill('is-ses'),
       ...Array(tasks).fill('is-task')
     ];
     const d = fromKey(k);
@@ -636,9 +634,9 @@ export function renderAgendaView() {
     cells += `<button type="button" class="d-cal__c ${wk} ${busyDay} ${out ? 'is-out' : ''} ${k === today ? 'is-today' : ''} ${k === daySel ? 'is-sel' : ''} ${k < today ? 'is-past' : ''}" data-v="mday" data-day="${k}" aria-label="${esc(`${WD_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}${dots.length + spans.length ? ` : ${dots.length + spans.length} chose${dots.length + spans.length > 1 ? 's' : ''} prévue${dots.length + spans.length > 1 ? 's' : ''}` : ''}`)}" aria-pressed="${k === daySel}">
       <b>${d.getDate()}</b>${bars}${dots.length ? `<span class="d-cal__pts">${dots.slice(0, 4).map(c => `<i class="${c}"></i>`).join('')}${dots.length > 4 ? '<em>+</em>' : ''}</span>` : ''}</button>`;
   }
-  // Le jour choisi : tout ce qui est prévu, comme sur l'accueil.
+  // Le jour choisi : tout ce qui est prévu sauf les séances de sport (les courses restent).
   const sd = fromKey(daySel);
-  const dayList = entriesOn(daySel, all);
+  const dayList = entriesOn(daySel, all, false);
   // Tout le mois : rendez-vous, événements et courses.
   const month = [];
   for (let k = first; k <= last; k = dateKey(addDays(fromKey(k), 1))) {
@@ -653,7 +651,7 @@ export function renderAgendaView() {
     <div class="d-sec d-sec--top"><h2>${cap(MONTHS[base.getMonth()])}<small>${base.getFullYear()} · ${month.length ? `${month.length} date${month.length > 1 ? 's' : ''}` : 'rien de prévu'}</small></h2><span><button type="button" class="d-arr" data-v="mstep" data-step="-1" aria-label="Mois d’avant" ${monthOff <= -2 ? 'disabled' : ''}>${I.back}</button><button type="button" class="d-arr" data-v="mstep" data-step="1" aria-label="Mois d’après" ${monthOff >= 12 ? 'disabled' : ''}>${I.fwd}</button></span></div>
     ${monthOff ? '<button type="button" class="d-today-btn" data-v="mstep" data-step="0">Revenir à ce mois-ci</button>' : ''}
     <section class="d-cal" aria-label="Calendrier"><div class="d-cal__h">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span>${x}</span>`).join('')}</div><div class="d-cal__g">${cells}</div>
-      <p class="d-cal__leg"><span><i class="is-rdv"></i>Rendez-vous</span><span><i class="is-ev"></i>Événement</span><span><i class="is-race"></i>Course</span><span><i class="is-ses"></i>Sport</span><span><i class="is-task"></i>Tâche</span></p></section>
+      <p class="d-cal__leg"><span><i class="is-rdv"></i>Rendez-vous</span><span><i class="is-ev"></i>Événement</span><span><i class="is-race"></i>Course</span><span><i class="is-task"></i>Tâche</span></p></section>
     <div class="d-sec"><h2>${cap(WD_FULL[sd.getDay()])} ${sd.getDate()} ${MONTHS[sd.getMonth()]}<small>${dayList.length ? `${dayList.length} chose${dayList.length > 1 ? 's' : ''} prévue${dayList.length > 1 ? 's' : ''}` : 'Rien de prévu'}</small></h2><button type="button" class="d-add" data-v="wadd" data-day="${daySel}">+ Ajouter</button></div>
     <section class="d-list">${dayList.map(itRow).join('')}${daySel >= today && wx[daySel] ? `<button type="button" class="d-wxl" data-dwx="${daySel}">${SKY[wx[daySel].sky] || SKY.cloud}${esc(wx[daySel].label)} · ${wx[daySel].min}° / ${wx[daySel].max}° · heure par heure<span aria-hidden="true">${I.fwd}</span></button>` : ''}</section>
     <div class="d-sec"><h2>Tout le mois<small>Rendez-vous, événements et courses</small></h2></div>
@@ -810,7 +808,7 @@ function issueOf(s, k) {
 }
 /** Tout ce qui est prévu un jour donné, dans l'ordre de la journée : rendez-vous et événements, courses,
  *  séances, tâches (celles en retard passent sur aujourd'hui). Sert à la semaine condensée et à « Planifier ». */
-function entriesOn(k, all = doneMap()) {
+function entriesOn(k, all = doneMap(), withSport = true) {
   const today = todayKey();
   const out = [];
   itemsOn(k).forEach(x => {
@@ -820,7 +818,7 @@ function entriesOn(k, all = doneMap()) {
     out.push({ id: x.id, at: at || '00:00', cls: ev ? 'c-ev' : 'c-rdv', tag: at ? hhmm(at) : ev ? 'Événement' : 'RDV', title: x.title, sub: n ? `jour ${dayDiff(k) - dayDiff(x.date) + 1}/${n + 1}` : '', soon: soonOf(k, at), act: `data-v="edit" data-type="${x.kind}" data-id="${esc(x.id)}"` });
   });
   (state.races || []).filter(r => r.date === k).forEach(r => out.push({ id: r.id, at: r.time || '00:01', cls: 'c-race', tag: 'Course', title: r.name, act: 'data-v="race"' }));
-  sessionsOn(k).forEach(s => {
+  (withSport ? sessionsOn(k) : []).forEach(s => {
     const sl = planSlot(s, k);
     const done = isDone(k, s, all);
     out.push({ id: s.id, at: sl ? `${pad(SLOT_RANGE[sl][0] / 60)}:30` : '12:30', cls: `c-ses k-${TILE[kindOf(s)]}`, tag: s.training || '', sub: [s.distance ? km(s.distance) : '', durLabel(durMin(s.time)), sl ? SLOT_WHEN[sl] : ''].filter(Boolean).join(' · '), title: familyOf(s)?.name || s.training || 'Séance', ill: sportIll(familyOf(s)?.name || s.training), done, warn: !done && issueOf(s, k)?.reason, act: `data-v="pedit" data-day="${k}" data-id="${esc(s.id)}"` });
